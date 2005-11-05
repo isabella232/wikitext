@@ -24,12 +24,13 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.ITreeViewerListener;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreeExpansionEvent;
 import org.eclipse.jface.viewers.TreeViewer;
-import org.eclipse.mylar.core.IMylarContextNode;
+import org.eclipse.mylar.core.IMylarElement;
 import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.mylar.ui.IMylarUiBridge;
 import org.eclipse.mylar.xml.MylarXmlPlugin;
@@ -51,6 +52,10 @@ import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.internal.Workbench;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 
+/**
+ * @author Mik Kersten
+ * @author Shawn Minto
+ */
 public class PdeUiBridge implements IMylarUiBridge {
 
 	private TreeViewerListener treeSelectionChangedListener;
@@ -60,11 +65,11 @@ public class PdeUiBridge implements IMylarUiBridge {
     }
     
     /**
-     * @see org.eclipse.mylar.ui.IMylarUiBridge#open(org.eclipse.mylar.core.IMylarContextNode)
+     * @see org.eclipse.mylar.ui.IMylarUiBridge#open(org.eclipse.mylar.core.IMylarElement)
      */
-    public void open(IMylarContextNode node) {
+    public void open(IMylarElement node) {
         // get the handle of the node
-        String handle = node.getElementHandle();
+        String handle = node.getHandleIdentifier();
         
         int first = handle.indexOf(";");
         String filename = "";
@@ -131,7 +136,7 @@ public class PdeUiBridge implements IMylarUiBridge {
         return null;
     }
 
-    public void close(IMylarContextNode node) {
+    public void close(IMylarElement node) {
         IWorkbenchPage page = Workbench.getInstance().getActiveWorkbenchWindow().getActivePage();
         if (page != null) {
             IEditorReference[] references = page.getEditorReferences();
@@ -139,7 +144,7 @@ public class PdeUiBridge implements IMylarUiBridge {
                 IEditorPart part = references[i].getEditor(false);
                 if (part != null) {
                     // HACK find better way to get the filename other than the tooltip
-					if(("/"+part.getTitleToolTip()).equals(node.getElementHandle())){
+					if(("/"+part.getTitleToolTip()).equals(node.getHandleIdentifier())){
 						if (part instanceof FormEditor) {
 							((FormEditor)part).close(true);
 						} else if (part instanceof AbstractTextEditor) {
@@ -165,21 +170,17 @@ public class PdeUiBridge implements IMylarUiBridge {
         return editorPart instanceof ManifestEditor;
     }
 
-    public List<TreeViewer> getTreeViewers(IEditorPart editor) {
-        // HACK use a lot of reflection to get the TreeViewer
+    /**
+     * HACK: use a lot of reflection to get the TreeViewer
+     */
+    public List<TreeViewer> getContentOutlineViewers(IEditorPart editor) {
         if (editor instanceof PDEFormEditor) {
         	PDESourcePage sp = null;
         	List<TreeViewer> viewers = new ArrayList<TreeViewer>(2);
         	if((sp = (PDESourcePage)((PDEFormEditor) editor).findPage(PluginInputContext.CONTEXT_ID)) != null){
         		ISortableContentOutlinePage p = sp.getContentOutline();
-        		if (p != null && p.getControl() != null
-                        && p.getControl().isVisible()) {
+        		if (p != null && p.getControl() != null) {
                     try {
-                        // get the current page of the outline
-//                        Class clazz = page.getClass();
-//                        Field field = clazz.getDeclaredField("currentPage");
-//                        field.setAccessible(true);
-//                        Object f = field.get(page);
                         if (p != null && p instanceof SourceOutlinePage) {
                             // get the tree viewer for the outline
                             Class clazz2 = p.getClass();
@@ -192,7 +193,7 @@ public class PdeUiBridge implements IMylarUiBridge {
                         }
                     }catch (Exception e) {
                     	MylarPlugin.log(e, "failed to get tree viewers");
-                        return Collections.emptyList();
+                        return null;
                     }
         		}
         	}
@@ -216,7 +217,7 @@ public class PdeUiBridge implements IMylarUiBridge {
                 }
             } catch (Exception e) {
                 MylarPlugin.log(e.getMessage(), this);
-                return Collections.emptyList();
+                return null;
             }
             
             // add a listener so that when the selection changes, the view is 
@@ -231,17 +232,21 @@ public class PdeUiBridge implements IMylarUiBridge {
         return Collections.emptyList();     
     }
 
-    public void refreshOutline(Object element, boolean updateLabels) {
+    public void refreshOutline(Object element, boolean updateLabels, boolean setSelection) {
         IEditorPart editorPart = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().getActiveEditor();
-        List<TreeViewer> treeViewers = getTreeViewers(editorPart);
+        List<TreeViewer> treeViewers = getContentOutlineViewers(editorPart);
         for(TreeViewer treeViewer: treeViewers){
 	        if (treeViewer != null) {
 	            if (element == null) {
+	            	treeViewer.getControl().setRedraw(false);
 	                treeViewer.refresh(true);
+	                treeViewer.getControl().setRedraw(true);
 	                treeViewer.expandAll();
 	            } 
 	            else if (element instanceof PluginObjectNode) {
-	                treeViewer.refresh(true);
+	            	treeViewer.getControl().setRedraw(false);
+	                treeViewer.refresh(element, true);
+	                treeViewer.getControl().setRedraw(true);
 	                treeViewer.expandAll();
 	            }
 	        }
@@ -279,4 +284,8 @@ public class PdeUiBridge implements IMylarUiBridge {
 			}
 		}
     }
+
+	public Object getObjectForTextSelection(TextSelection selection, IEditorPart editor) {
+		return null;
+	}
 }

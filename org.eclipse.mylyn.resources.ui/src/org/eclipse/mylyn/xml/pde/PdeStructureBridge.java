@@ -8,9 +8,7 @@
  * Contributors:
  *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
-/*
- * Created on Apr 20, 2005
-  */
+
 package org.eclipse.mylar.xml.pde;
 
 import java.util.ArrayList;
@@ -26,9 +24,9 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.mylar.core.AbstractRelationshipProvider;
+import org.eclipse.mylar.core.AbstractRelationProvider;
 import org.eclipse.mylar.core.IDegreeOfSeparation;
-import org.eclipse.mylar.core.IMylarContextNode;
+import org.eclipse.mylar.core.IMylarElement;
 import org.eclipse.mylar.core.IMylarStructureBridge;
 import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.mylar.core.internal.DegreeOfSeparation;
@@ -49,22 +47,22 @@ import org.eclipse.ui.views.markers.internal.ProblemMarker;
 public class PdeStructureBridge implements IMylarStructureBridge {
 
 	public final static String CONTENT_TYPE = "plugin.xml";
-    private List<AbstractRelationshipProvider> providers;
+    private List<AbstractRelationProvider> providers;
     private IMylarStructureBridge parentBridge;
     
     public PdeStructureBridge() {
-        providers = new ArrayList<AbstractRelationshipProvider>();
+        providers = new ArrayList<AbstractRelationProvider>();
         providers.add(new XmlReferencesProvider());
         
     }
     
-    public String getResourceExtension() {
+    public String getContentType() {
         return CONTENT_TYPE;
     }
     
-    public String getResourceExtension(String elementHandle) {
+    public String getContentType(String elementHandle) {
         if (elementHandle.endsWith(".xml")) {
-            return parentBridge.getResourceExtension();
+            return parentBridge.getContentType();
         } else {
             return CONTENT_TYPE;
         }
@@ -174,8 +172,8 @@ public class PdeStructureBridge implements IMylarStructureBridge {
             PluginObjectNode node = (PluginObjectNode)object;
             try{
                 // get the handle for the PluginObjectNode
-            	if(node.getModel() == null || node.getModel().getUnderlyingResource() == null || node.getModel().getUnderlyingResource().getFullPath() == null){
-            		MylarPlugin.log("PDE xml node's resource or model is null: " + node.getName(), this);
+            	if(node.getModel() == null || node.getModel().getUnderlyingResource() == null || node.getModel().getUnderlyingResource().getFullPath() == null) {
+//            		MylarPlugin.log("PDE xml node's resource or model is null: " + node.getName(), this);
             		return null;
             	}
                 IPath path = new Path(node.getModel().getUnderlyingResource().getFullPath().toString());
@@ -218,7 +216,11 @@ public class PdeStructureBridge implements IMylarStructureBridge {
      * TODO: make a non-handle based test
      */
     public boolean canBeLandmark(String handle) {
-        return handle.indexOf(';') == -1;
+    	if (handle == null) {
+    		return false;
+    	} else {
+    		return handle.indexOf(';') == -1;
+    	}
     }
 
     /**
@@ -311,7 +313,7 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 	 * HACK: This is weird that the relationship provider is only here.
 	 * There are relly 3 different bridges, 2 specific and 1 generic
 	 */
-	public List<AbstractRelationshipProvider> getRelationshipProviders() {
+	public List<AbstractRelationProvider> getRelationshipProviders() {
 		return providers;
 	}
 	
@@ -331,7 +333,7 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 		parentBridge = bridge;
 	}
 
-	public boolean containsProblem(IMylarContextNode node) {
+	public boolean containsProblem(IMylarElement node) {
 		// TODO Auto-generated method stub
 		return false;
 	}
