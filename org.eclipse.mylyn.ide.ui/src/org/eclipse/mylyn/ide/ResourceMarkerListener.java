@@ -27,7 +27,6 @@ import org.eclipse.ui.PlatformUI;
 public class ResourceMarkerListener implements IResourceChangeListener {
 
 	public void resourceChanged(IResourceChangeEvent event) {
-		//we are only interested in POST_CHANGE events
 		if (event.getType() != IResourceChangeEvent.POST_CHANGE)
 			return;
 		IResourceDelta rootDelta = event.getDelta();
@@ -47,7 +46,7 @@ public class ResourceMarkerListener implements IResourceChangeListener {
 								
 								PlatformUI.getWorkbench().getDisplay().syncExec(new Runnable() {
 						            public void run() {
-						            	MylarPlugin.getContextManager().removeErrorPredictedInterest(bridge.getHandleIdentifier(marker.getResource()), bridge.getResourceExtension(), true);
+						            	MylarPlugin.getContextManager().removeErrorPredictedInterest(bridge.getHandleIdentifier(marker.getResource()), bridge.getContentType(), true);
 						            }});
 							}
 							return true;
@@ -61,7 +60,7 @@ public class ResourceMarkerListener implements IResourceChangeListener {
 								
 								PlatformUI.getWorkbench().getDisplay().syncExec(new Runnable() {
 						            public void run() {
-						            	MylarPlugin.getContextManager().addErrorPredictedInterest(bridge.getHandleIdentifier(marker.getResource()), bridge.getResourceExtension(), true);
+						            	MylarPlugin.getContextManager().addErrorPredictedInterest(bridge.getHandleIdentifier(marker.getResource()), bridge.getContentType(), true);
 						            }});
 							}
 						} else {//if(!markerDelta.getMarker().getType().equals("org.eclipse.jdt.core.problem")){
@@ -72,7 +71,7 @@ public class ResourceMarkerListener implements IResourceChangeListener {
 								
 								PlatformUI.getWorkbench().getDisplay().syncExec(new Runnable() {
 						            public void run() {
-						            	MylarPlugin.getContextManager().removeErrorPredictedInterest(bridge.getHandleIdentifier(marker.getResource()), bridge.getResourceExtension(), true);
+						            	MylarPlugin.getContextManager().removeErrorPredictedInterest(bridge.getHandleIdentifier(marker.getResource()), bridge.getContentType(), true);
 						            }});
 							}
 						}

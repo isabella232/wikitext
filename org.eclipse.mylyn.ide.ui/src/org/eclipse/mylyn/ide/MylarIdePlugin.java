@@ -10,13 +10,23 @@
  *******************************************************************************/
 package org.eclipse.mylar.ide;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.mylar.core.IMylarElement;
+import org.eclipse.mylar.core.IMylarStructureBridge;
 import org.eclipse.mylar.core.MylarPlugin;
+import org.eclipse.mylar.ide.internal.ActiveSearchViewTracker;
+import org.eclipse.mylar.ide.internal.InterestManipulatingEditorTracker;
 import org.eclipse.mylar.ide.ui.NavigatorRefreshListener;
-import org.eclipse.mylar.ide.ui.ProblemsListInterestFilter;
 import org.eclipse.mylar.ide.ui.actions.ApplyMylarToNavigatorAction;
 import org.eclipse.mylar.ide.ui.actions.ApplyMylarToProblemsListAction;
 import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
@@ -26,48 +36,121 @@ import org.osgi.framework.BundleContext;
  */
 public class MylarIdePlugin extends AbstractUIPlugin {
 
-    private NavigatorRefreshListener navigatorRefreshListener = new NavigatorRefreshListener();
-    protected ProblemsListInterestFilter interestFilter = new ProblemsListInterestFilter();    
-    
-    private ResourceSelectionMonitor resourceSelectionMonitor;
+	private NavigatorRefreshListener navigatorRefreshListener = new NavigatorRefreshListener();
+
+	private MylarEditorManager editorManager = new MylarEditorManager();
+    	
+	private ResourceSelectionMonitor resourceSelectionMonitor;
+
 	private static MylarIdePlugin plugin;
+
+	private ActiveSearchViewTracker activeSearchViewTracker = new ActiveSearchViewTracker();
+
+	private InterestManipulatingEditorTracker interestEditorTracker = new InterestManipulatingEditorTracker();
 	
 	public MylarIdePlugin() {
 		plugin = this;
 	}
-	
+
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		MylarPlugin.getContextManager().addListener(navigatorRefreshListener);
-          
-  		final IWorkbench workbench = PlatformUI.getWorkbench();
-        workbench.getDisplay().asyncExec(new Runnable() {
-            public void run() {
-            	resourceSelectionMonitor = new ResourceSelectionMonitor();
-                MylarPlugin.getDefault().getSelectionMonitors().add(resourceSelectionMonitor);
+
+		final IWorkbench workbench = PlatformUI.getWorkbench();
+		workbench.getDisplay().asyncExec(new Runnable() {
+			public void run() {
+				resourceSelectionMonitor = new ResourceSelectionMonitor();
+				MylarPlugin.getContextManager().addListener(editorManager);
             	
-            	if (ApplyMylarToNavigatorAction.getDefault() != null) ApplyMylarToNavigatorAction.getDefault().update();
-                if (ApplyMylarToProblemsListAction.getDefault() != null) ApplyMylarToProblemsListAction.getDefault().update();
-            }
-        });
+				MylarPlugin.getDefault().getSelectionMonitors().add(resourceSelectionMonitor);
+
+				if (ApplyMylarToNavigatorAction.getDefault() != null)
+					ApplyMylarToNavigatorAction.getDefault().update();
+				if (ApplyMylarToProblemsListAction.getDefault() != null)
+					ApplyMylarToProblemsListAction.getDefault().update();
+				
+				workbench.addWindowListener(activeSearchViewTracker);
+				IWorkbenchWindow[] windows = workbench.getWorkbenchWindows();
+				for (int i = 0; i < windows.length; i++) {
+					windows[i].addPageListener(activeSearchViewTracker);
+					IWorkbenchPage[] pages = windows[i].getPages();
+					for (int j = 0; j < pages.length; j++) {
+						pages[j].addPartListener(activeSearchViewTracker);
+					}
+				}
+				
+				workbench.addWindowListener(interestEditorTracker);
+				for (int i = 0; i < windows.length; i++) {
+					windows[i].addPageListener(interestEditorTracker);
+					IWorkbenchPage[] pages= windows[i].getPages();
+					for (int j= 0; j < pages.length; j++) {
+						pages[j].addPartListener(interestEditorTracker);
+					}
+				}
+			}
+		});
 	}
 
 	public void stop(BundleContext context) throws Exception {
 		super.stop(context);
 		plugin = null;
+		MylarPlugin.getContextManager().removeListener(editorManager);
 		MylarPlugin.getDefault().getSelectionMonitors().remove(resourceSelectionMonitor);
 		MylarPlugin.getContextManager().removeListener(navigatorRefreshListener);
+
+		IWorkbench workbench = PlatformUI.getWorkbench();
+		workbench.removeWindowListener(activeSearchViewTracker);
+		IWorkbenchWindow[] windows = workbench.getWorkbenchWindows();
+		for (int i = 0; i < windows.length; i++) {
+			IWorkbenchPage[] pages = windows[i].getPages();
+			windows[i].removePageListener(activeSearchViewTracker);
+			for (int j = 0; j < pages.length; j++) {
+				pages[j].removePartListener(activeSearchViewTracker);
+			}
+		}
 	}
 
 	public static MylarIdePlugin getDefault() {
 		return plugin;
 	}
+
+	public List<IResource> getInterestingResources() {
+		List<IResource> interestingResources = new ArrayList<IResource>();
+		List<IMylarElement> resourceElements = MylarPlugin.getContextManager().getInterestingDocuments();
+		for (IMylarElement element : resourceElements) {
+			IResource resource = getResourceForElement(element);
+			if (resource != null) interestingResources.add(resource); 
+		}
+		return interestingResources;
+	}
+	
+	public IResource getResourceForElement(IMylarElement element) {
+		IMylarStructureBridge bridge = MylarPlugin.getDefault().getStructureBridge(element.getContentType());
+		Object object = bridge.getObjectForHandle(element.getHandleIdentifier());
+		if (object instanceof IResource) {
+			return (IResource)object;
+		} else if (object instanceof IAdaptable) {
+			Object adapted = ((IAdaptable)object).getAdapter(IResource.class);
+			if (adapted instanceof IResource) {
+				return (IResource)adapted;
+			} 
+//			else { // recurse
+//				return getResourceForElement(MylarPlugin.getContextManager().getElement(bridge.getParentHandle(element.getHandleIdentifier())));
+//			}
+		}
+		return null;
+	}
+	
+	public MylarEditorManager getEditorManager() {
+		return editorManager;
+	}
 	
 	/**
-	 * Returns an image descriptor for the image file at the given
-	 * plug-in relative path.
-	 *
-	 * @param path the path
+	 * Returns an image descriptor for the image file at the given plug-in
+	 * relative path.
+	 * 
+	 * @param path
+	 *            the path
 	 * @return the image descriptor
 	 */
 	public static ImageDescriptor getImageDescriptor(String path) {
