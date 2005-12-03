@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
 <?eclipse version="3.0"?>
-<plugin>   
+<plugin>
+   <extension
+         point="org.eclipse.mylar.core.context">
+      <structureBridge class="org.eclipse.mylar.ide.ResourceStructureBridge"/> 
+   </extension>
+   <extension
+         point="org.eclipse.mylar.ui.context">
+      <uiBridge
+            class="org.eclipse.mylar.ide.ui.ResourceUiBridge"
+            contentType="*"/>
+      <labelProvider
+            class="org.eclipse.mylar.ide.ui.ResourceContextLabelProvider"
+            contentType="*"/>
+   </extension>   
    <extension point="org.eclipse.ui.views"> 
    	  <view
           allowMultiple="false"
@@ -40,7 +53,7 @@
            menubarPath="mylar"
            style="toggle"
            toolbarPath="mylar"
-           tooltip="Apply Mylar (interest filtering and sorting)"> 
+           tooltip="Apply Mylar"> 
   		</action>  
       </viewContribution> 
     </extension>
@@ -56,6 +69,24 @@
    </extension>
     
   	<extension point = "org.eclipse.ui.popupMenus">
+       <viewerContribution
+            id="org.eclipse.mylar.java.ui.viewerContribution"
+            targetID="org.eclipse.mylar.tasks.ui.views.TaskListView">
+        <action
+              class="org.eclipse.mylar.ide.ui.actions.CompleteTaskWizardAction"
+              enablesFor="*"
+              icon="icons/elcl16/cvs_persp.gif"
+              id="org.eclipse.mylar.ui.clear.context"
+              label="Commit Task Context..."
+              menubarPath="context"
+              tooltip="Commit All ">
+           <enablement>
+              <or>
+                 <objectClass name="org.eclipse.mylar.tasklist.ITask"/>
+              </or>
+           </enablement>
+        </action>
+     </viewerContribution>
      <objectContribution
         id="org.eclipse.mylar.ui.interest"
         objectClass="org.eclipse.core.resources.IResource">
@@ -68,7 +99,7 @@
 	  		icon="icons/elcl16/interest-decrease.gif"
 	  		enablesFor="*"/>
 	    <action  
-  		  	label="Mylar: Make Landmark" 
+  		  	label="Mylar: Mark as Landmark" 
 	  		tooltip="Make selected element a landmark"
 	  		menubarPath="mylar" 
 	  		id="org.eclipse.mylar.ui.actions.InterestIncrementAction" 
@@ -76,18 +107,5 @@
 	  		icon="icons/elcl16/interest-increase.gif"
 	  		enablesFor="*"/>
 	 </objectContribution>
-   </extension>
-   <extension
-         point="org.eclipse.mylar.core.context">
-      <structureBridge class="org.eclipse.mylar.ide.ResourceStructureBridge"/> 
-   </extension>
-   <extension
-         point="org.eclipse.mylar.ui.context">
-      <uiBridge
-            class="org.eclipse.mylar.ide.ui.ResourceUiBridge"
-            contentType="*"/>
-      <labelProvider
-            class="org.eclipse.mylar.ide.ui.ResourceContextLabelProvider"
-            contentType="*"/>
    </extension>
 </plugin>

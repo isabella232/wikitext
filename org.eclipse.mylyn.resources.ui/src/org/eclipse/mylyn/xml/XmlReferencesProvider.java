@@ -35,13 +35,12 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMember;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.mylar.core.AbstractRelationshipProvider;
-import org.eclipse.mylar.core.IMylarContextNode;
+import org.eclipse.mylar.core.AbstractRelationProvider;
+import org.eclipse.mylar.core.IMylarElement;
 import org.eclipse.mylar.core.IMylarStructureBridge;
 import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.mylar.core.search.IActiveSearchListener;
 import org.eclipse.mylar.core.search.IMylarSearchOperation;
-import org.eclipse.mylar.xml.ant.AntStructureBridge;
 import org.eclipse.mylar.xml.pde.PdeStructureBridge;
 import org.eclipse.search.internal.core.SearchScope;
 import org.eclipse.search.internal.ui.text.FileSearchQuery;
@@ -49,11 +48,10 @@ import org.eclipse.search.internal.ui.text.FileSearchResult;
 import org.eclipse.search.ui.ISearchResult;
 import org.eclipse.search.ui.text.Match;
 
-
 /**
  * @author Shawn Minto
  */
-public class XmlReferencesProvider extends AbstractRelationshipProvider {
+public class XmlReferencesProvider extends AbstractRelationProvider {
 
     public static final String SOURCE_ID = "org.eclipse.mylar.xml.search.references";
     public static final String NAME = "referenced by";
@@ -69,13 +67,13 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
     }
 
     /**
-     * @see org.eclipse.mylar.core.AbstractRelationshipProvider#findRelated(org.eclipse.mylar.core.IMylarContextNode, int)
+     * @see org.eclipse.mylar.core.AbstractRelationProvider#findRelated(org.eclipse.mylar.core.IMylarElement, int)
      */
     @Override
-    protected void findRelated(final IMylarContextNode node, int degreeOfSeparation) {
+    protected void findRelated(final IMylarElement node, int degreeOfSeparation) {
         
-        if (!node.getContentKind().equals("java")) return;
-        IJavaElement javaElement = JavaCore.create(node.getElementHandle());
+        if (!node.getContentType().equals("java")) return;
+        IJavaElement javaElement = JavaCore.create(node.getHandleIdentifier());
         if (javaElement == null || javaElement instanceof ICompilationUnit || !javaElement.exists()) return;
         if (!acceptElement(javaElement)) {
             return; 
@@ -84,19 +82,18 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
         SearchScope scope = createTextSearchScope(degreeOfSeparation);
         if (scope != null) runJob(node, javaElement, degreeOfSeparation, getId());
     }
-    
-    
+        
     protected SearchScope createTextSearchScope(int degreeOfSeparation){    
-        List<IMylarContextNode> landmarks = MylarPlugin.getContextManager().getActiveLandmarks();
+        List<IMylarElement> landmarks = MylarPlugin.getContextManager().getActiveLandmarks();
         
         switch(degreeOfSeparation){
-            
             case 1:
                 // create a search scope for the projects of landmarks
                 List<IResource> l = new ArrayList<IResource>();
-                for (IMylarContextNode landmark : landmarks) {
-                    if (landmark.getContentKind().equals(PdeStructureBridge.CONTENT_TYPE) || landmark.getContentKind().equals(AntStructureBridge.CONTENT_TYPE)) {
-                        String handle = landmark.getElementHandle();
+                for (IMylarElement landmark : landmarks) {
+                    if (landmark.getContentType().equals(PdeStructureBridge.CONTENT_TYPE)) { 
+                    	// || landmark.getContentType().equals(AntStructureBridge.CONTENT_TYPE)) {
+                        String handle = landmark.getHandleIdentifier();
                         IResource element = null;
                         int first = handle.indexOf(";");
                         String filename = handle;
@@ -110,31 +107,26 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
                         	MylarPlugin.log(e, "scope creation failed");
                         }
                         l.add(element);
-                        
                     }
                 }  
                 
                 IResource[] res = new IResource[l.size()];
                 res = l.toArray(res);
                 SearchScope doiScope = SearchScope.newSearchScope("landmark pde and ant xml files", res);
-                
-//                doiScope.addFileNamePattern("*.xml");
-                return l.isEmpty()?null:doiScope;
+                return l.isEmpty() ? null : doiScope;
             case 2:
-                
                 // create a search scope for the projects of landmarks
                 List<IProject> proj = new ArrayList<IProject>();
-                for (IMylarContextNode landmark : landmarks) {
-                	IMylarStructureBridge sbridge = MylarPlugin.getDefault().getStructureBridge(landmark.getContentKind());
+                for (IMylarElement landmark : landmarks) {
+                	IMylarStructureBridge sbridge = MylarPlugin.getDefault().getStructureBridge(landmark.getContentType());
                 	if(sbridge != null){
-                		Object o = sbridge.getObjectForHandle(landmark.getElementHandle());
-                		IProject project = sbridge.getProjectForObject(o);
+                		Object object = sbridge.getObjectForHandle(landmark.getHandleIdentifier());
+                		IProject project = sbridge.getProjectForObject(object);
                 		if(project != null){
                 			proj.add(project);
                 		}
                 	}
-                }  
-                
+                }                  
                 
                 res = new IProject[proj.size()];
                 res = proj.toArray(res);
@@ -165,7 +157,7 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
     
     private void addFilenamePatterns(SearchScope scope){
     	scope.addFileNamePattern(PdeStructureBridge.CONTENT_TYPE);
-    	scope.addFileNamePattern(AntStructureBridge.CONTENT_TYPE);
+//    	scope.addFileNamePattern(AntStructureBridge.CONTENT_TYPE);
     }
     
     protected boolean acceptElement(IJavaElement javaElement) {
@@ -173,7 +165,7 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
             && (javaElement instanceof IMember || javaElement instanceof IType);
     }
     
-    private void runJob(final IMylarContextNode node, final IJavaElement javaElement, final int degreeOfSeparation, final String kind) {
+    private void runJob(final IMylarElement node, final IJavaElement javaElement, final int degreeOfSeparation, final String kind) {
         
         // get the fully qualified name and if it is null, don't search
     	String fullyQualifiedName = getFullyQualifiedName(javaElement);
@@ -210,20 +202,19 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
                         
                                for(int j = 0; j < mar.length; j++){
                                    Match m = mar[j];
-                                   try{
-
+                                   try {
                                        IMylarStructureBridge bridge = MylarPlugin.getDefault().getStructureBridge(f.getName());
-                                       
                                        String handle = bridge.getHandleForOffsetInObject(f, m.getOffset());
-
-                                       String second = handle.substring(handle.indexOf(";"));
-                                       
-                                	   XmlNodeHelper xnode = new XmlNodeHelper(f.getFullPath().toString(), second);
-                                       nodeMap.put(m, xnode);
-                                       Object o = bridge.getObjectForHandle(handle);
-                                       String name = bridge.getName(o);
-                                       if(o != null){
-                                           nodes.put(handle, name);
+                                       if (handle != null) {
+	                                       String second = handle.substring(handle.indexOf(";"));
+	                                       
+	                                	   XmlNodeHelper xnode = new XmlNodeHelper(f.getFullPath().toString(), second);
+	                                       nodeMap.put(m, xnode);
+	                                       Object o = bridge.getObjectForHandle(handle);
+	                                       String name = bridge.getName(o);
+	                                       if(o != null){
+	                                           nodes.put(handle, name);
+	                                       }
                                        }
                                    } catch(Exception e){
                                 	   MylarPlugin.log(e, "search failed - unable to create match");
@@ -248,14 +239,14 @@ public class XmlReferencesProvider extends AbstractRelationshipProvider {
 	   			}
             });
             runningJobs.add(job);
-            job.setPriority(Job.DECORATE);
+            job.setPriority(Job.DECORATE-10);
             job.schedule();
         }
 	}
 
     @Override
-	public IMylarSearchOperation getSearchOperation(IMylarContextNode node, int limitTo, int degreeOfSeparation) {    	
-    	IJavaElement javaElement = JavaCore.create(node.getElementHandle());
+	public IMylarSearchOperation getSearchOperation(IMylarElement node, int limitTo, int degreeOfSeparation) {    	
+    	IJavaElement javaElement = JavaCore.create(node.getHandleIdentifier());
     	SearchScope scope = createTextSearchScope(degreeOfSeparation);
     	if(scope == null) return null;
     	

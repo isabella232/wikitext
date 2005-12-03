@@ -14,15 +14,20 @@
 package org.eclipse.mylar.ide;
 
 import org.eclipse.core.internal.resources.File;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.StructuredSelection;
-import org.eclipse.mylar.core.AbstractSelectionMonitor;
+import org.eclipse.mylar.core.AbstractUserInteractionMonitor;
+import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.part.EditorPart;
 
 /**
  * @author Mik Kersten
  */
-public class ResourceSelectionMonitor extends AbstractSelectionMonitor {
+public class ResourceSelectionMonitor extends AbstractUserInteractionMonitor {
 
 	@Override
     protected void handleWorkbenchPartSelection(IWorkbenchPart part, ISelection selection) {
@@ -34,6 +39,20 @@ public class ResourceSelectionMonitor extends AbstractSelectionMonitor {
                 File file = (File)selectedObject;
                 super.handleElementSelection(part, file);
             }       
+        } else if (selection instanceof TextSelection) {
+        	if (part instanceof EditorPart) {
+        		try {
+	        		Object object = ((EditorPart)part).getEditorInput().getAdapter(IResource.class);
+	        		if (object instanceof IFile) {
+	        			IFile file = (IFile)object;
+	        			if (!MylarPlugin.getDefault().getKnownContentTypes().contains(file.getFileExtension())) {
+		        			super.handleElementEdit(part, object);
+	        			}
+	        		}
+        		} catch (Throwable t) {
+        			MylarPlugin.fail(t, "failed to resolve resource edit", false);
+        		}
+        	}
         }
     }
 }

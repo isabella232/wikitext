@@ -8,11 +8,13 @@
  * Contributors:
  *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
+
 package org.eclipse.mylar.ide.ui.views;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
@@ -22,22 +24,25 @@ import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.jface.util.TransferDragSourceListener;
 import org.eclipse.jface.viewers.DecoratingLabelProvider;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerSorter;
-import org.eclipse.mylar.core.AbstractRelationshipProvider;
+import org.eclipse.mylar.core.AbstractRelationProvider;
 import org.eclipse.mylar.core.IMylarContext;
 import org.eclipse.mylar.core.IMylarContextListener;
-import org.eclipse.mylar.core.IMylarContextNode;
+import org.eclipse.mylar.core.IMylarElement;
 import org.eclipse.mylar.core.IMylarStructureBridge;
 import org.eclipse.mylar.core.InterestComparator;
 import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.mylar.dt.MylarWebRef;
+import org.eclipse.mylar.ide.ui.actions.LinkActiveSearchWithEditorAction;
+import org.eclipse.mylar.ide.ui.actions.ShowQualifiedNamesAction;
 import org.eclipse.mylar.ui.MylarImages;
 import org.eclipse.mylar.ui.actions.ToggleRelationshipProviderAction;
 import org.eclipse.mylar.ui.views.MylarContextContentProvider;
-import org.eclipse.mylar.ui.views.MylarContextLabelProvider;
+import org.eclipse.mylar.ui.views.MylarDelegatingContextLabelProvider;
 import org.eclipse.mylar.ui.views.TaskscapeNodeClickListener;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.dnd.DND;
@@ -52,6 +57,7 @@ import org.eclipse.ui.IWorkbenchActionConstants;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.internal.Workbench;
+import org.eclipse.ui.part.ResourceTransfer;
 import org.eclipse.ui.part.ViewPart;
 import org.eclipse.ui.views.navigator.LocalSelectionTransfer;
 
@@ -66,14 +72,20 @@ public class ActiveSearchView extends ViewPart {
 	
     private TreeViewer viewer;
     private List<ToggleRelationshipProviderAction> relationshipProviderActions = new ArrayList<ToggleRelationshipProviderAction>();
+    private MylarDelegatingContextLabelProvider labelProvider = new MylarDelegatingContextLabelProvider();
+    
+    /**
+     * For testing.
+     */
+	private boolean asyncRefreshMode = true;
     
     private final IMylarContextListener REFRESH_UPDATE_LISTENER = new IMylarContextListener() { 
-        public void interestChanged(IMylarContextNode node) { 
+        public void interestChanged(IMylarElement node) { 
             refresh(node, false);
-        }
+        } 
         
-        public void interestChanged(List<IMylarContextNode> nodes) {
-            refresh(nodes.get(nodes.size()-1), true);
+        public void interestChanged(List<IMylarElement> nodes) {
+            refresh(nodes.get(nodes.size()-1), false);
         }
 
         public void contextActivated(IMylarContext taskscape) {
@@ -88,19 +100,19 @@ public class ActiveSearchView extends ViewPart {
             refresh(null, true);
         }
         
-        public void landmarkAdded(IMylarContextNode node) { 
+        public void landmarkAdded(IMylarElement node) { 
             refresh(null, true);
         }
 
-        public void landmarkRemoved(IMylarContextNode node) { 
+        public void landmarkRemoved(IMylarElement node) { 
             refresh(null, true);
         }
 
-        public void edgesChanged(IMylarContextNode node) {
+        public void edgesChanged(IMylarElement node) {
             refresh(node, true);
         }
 
-        public void nodeDeleted(IMylarContextNode node) {
+        public void nodeDeleted(IMylarElement node) {
         	refresh(null, true);
         }
 
@@ -110,7 +122,7 @@ public class ActiveSearchView extends ViewPart {
         	}
         }
     };
-    
+
     static class DoiOrderSorter extends ViewerSorter { 
         protected InterestComparator<Object> comparator = new InterestComparator<Object>();
 
@@ -131,37 +143,66 @@ public class ActiveSearchView extends ViewPart {
         return null;    
     }
     
-    public ActiveSearchView() { 
+    @Override
+	public void dispose() {
+		super.dispose();
+		MylarPlugin.getContextManager().removeListener(REFRESH_UPDATE_LISTENER);
+	}
+
+	public ActiveSearchView() {
         MylarPlugin.getContextManager().addListener(REFRESH_UPDATE_LISTENER);
-        for(AbstractRelationshipProvider provider: MylarPlugin.getContextManager().getActiveProviders()){
-            provider.setEnabled(true);
+        for(AbstractRelationProvider provider: MylarPlugin.getContextManager().getActiveRelationProviders()){
+            provider.setEnabled(true); 
+        }
+        MylarPlugin.getContextManager().refreshRelatedElements();
+	}
+
+	/**
+	 * fix for bug 109235
+	 * @param node
+	 * @param updateLabels
+	 */
+    void refresh(final IMylarElement node, final boolean updateLabels) {
+        if (!asyncRefreshMode) { // for testing
+        	if (viewer != null && !viewer.getTree().isDisposed()) {
+        		internalRefresh(node, updateLabels);
+        	}
+        } else {
+	        Workbench.getInstance().getDisplay().asyncExec(new Runnable() {
+	            public void run() { 
+	                try {  
+	                    internalRefresh(node, updateLabels);
+	                } catch (Throwable t) {
+	                	MylarPlugin.log(t, "active searchrefresh failed");
+	                }
+	            }
+	        });
         }
     }
-
-    private void refresh(final IMylarContextNode node, final boolean updateLabels) {
-        Workbench.getInstance().getDisplay().asyncExec(new Runnable() {
-            public void run() { 
-                try {  
-                    if (viewer != null && !viewer.getTree().isDisposed()) {
-                    	if (node != null && containsNode(viewer.getTree(), node)) {
-                    		viewer.refresh(node, updateLabels);
-                    	} else if (node == null) {
-                    		viewer.refresh();
-                    	}
-                    	viewer.expandAll();
-                    }
-                } catch (Throwable t) {
-                	MylarPlugin.log(t, "active searchrefresh failed");
-                }
-            }
-        });
-    }
     
-	private boolean containsNode(Tree tree, IMylarContextNode node) {
+	private void internalRefresh(final IMylarElement node, boolean updateLabels) {
+		Object toRefresh = null;
+		if (node != null) {
+			IMylarStructureBridge bridge = MylarPlugin.getDefault().getStructureBridge(node.getContentType());
+			toRefresh = bridge.getObjectForHandle(node.getHandleIdentifier());
+		}
+		if (viewer != null && !viewer.getTree().isDisposed()) {
+			viewer.getControl().setRedraw(false);
+        	if (toRefresh != null && containsNode(viewer.getTree(), toRefresh)) {
+        		viewer.refresh(toRefresh, updateLabels);
+        	} else if (node == null) {
+        		viewer.refresh();
+        	} 
+			viewer.expandToLevel(3);
+			viewer.getControl().setRedraw(true);
+		}
+	}
+    
+	private boolean containsNode(Tree tree, Object object) {
     	boolean contains = false;
     	for (int i = 0; i < tree.getItems().length; i++) {
 			TreeItem item = tree.getItems()[i]; 
-			if (node.equals(item.getData())) contains = true;
+			if (object.equals(item.getData())) contains = true;
 		}
 		return contains;
 	}
@@ -171,14 +212,17 @@ public class ActiveSearchView extends ViewPart {
 		Transfer[] types = new Transfer[] { LocalSelectionTransfer.getInstance() };
 		viewer.addDropSupport(DND.DROP_MOVE, types, new ActiveViewDropAdapter(viewer));
 	}
-    
-	@Override
-	public void dispose() {
-		super.dispose();
-		MylarPlugin.getContextManager().removeListener(REFRESH_UPDATE_LISTENER);
-		for(AbstractRelationshipProvider provider: MylarPlugin.getContextManager().getActiveProviders()){
-            provider.setEnabled(false);
-        }
+	
+	private void initDrag() {
+		int ops= DND.DROP_COPY | DND.DROP_MOVE | DND.DROP_LINK;
+		Transfer[] transfers= new Transfer[] {
+			LocalSelectionTransfer.getInstance(), 
+			ResourceTransfer.getInstance()};
+		TransferDragSourceListener[] dragListeners = new TransferDragSourceListener[] {
+			new ActiveViewSelectionDragAdapter(viewer),
+			new ActiveViewResourceDragAdapter(viewer)
+		};
+		viewer.addDragSupport(ops, transfers, new ActiveViewDelegatingDragAdapter(dragListeners));
 	}
     
     /**
@@ -187,16 +231,19 @@ public class ActiveSearchView extends ViewPart {
      */
     @Override
     public void createPartControl(Composite parent) {
-        viewer = new TreeViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
+        
+    	viewer = new TreeViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
         viewer.setUseHashlookup(true);
         viewer.setContentProvider(new MylarContextContentProvider(viewer.getTree(), this.getViewSite(), true));
+//        viewer.setLabelProvider(labelProvider);
         viewer.setLabelProvider(new DecoratingLabelProvider(
-                new MylarContextLabelProvider(),
+        		labelProvider,
                 PlatformUI.getWorkbench().getDecoratorManager().getLabelDecorator()));
         viewer.setSorter(new DoiOrderSorter()); 
         viewer.setInput(getViewSite());
         hookContextMenu();
         initDrop();
+        initDrag();
         
         viewer.addOpenListener(new TaskscapeNodeClickListener(viewer));
         
@@ -229,40 +276,18 @@ public class ActiveSearchView extends ViewPart {
     }
 
     private void fillLocalToolBar(IToolBarManager manager) {
+    	IAction qualifyElements = new ShowQualifiedNamesAction(this);
+        manager.add(qualifyElements);
     	fillActions(manager);
     	manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
     }
     
     private void fillLocalPullDown(IMenuManager manager) {
     	fillActions(manager);
-    	manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
-    }
-    
-    private void fillActions(IContributionManager manager) {
-       	// needed to prevent toolbar from getting too tall, TODO: fille bug report
-    	IAction dummyAction = new Action(){
-			@Override
-			public void run() { }
-        };
-        dummyAction.setText("");
-        dummyAction.setImageDescriptor(MylarImages.BLANK);
-        manager.add(dummyAction);
-    	
-    	Map<String, IMylarStructureBridge> bridges = MylarPlugin.getDefault().getStructureBridges();
-        for (String extension : bridges.keySet()) {
-            IMylarStructureBridge bridge = bridges.get(extension);
-            List<AbstractRelationshipProvider> providers = bridge.getRelationshipProviders(); 
-            if(providers != null && providers.size() > 0) {
-	            ToggleRelationshipProviderAction action = new ToggleRelationshipProviderAction(bridge);
-	            relationshipProviderActions.add(action); 
-	            manager.add(action); 
-            }
-        }
-    	
     	IAction stopAction = new Action(){
 			@Override
 			public void run() {
-	            for(AbstractRelationshipProvider provider: MylarPlugin.getContextManager().getActiveProviders()){
+	            for(AbstractRelationProvider provider: MylarPlugin.getContextManager().getActiveRelationProviders()){
 	            	provider.stopAllRunningJobs();
 	            }
 			}
@@ -271,6 +296,22 @@ public class ActiveSearchView extends ViewPart {
         stopAction.setText(STOP_JOBS_LABEL);
         stopAction.setImageDescriptor(MylarImages.STOP_SEARCH);
         manager.add(stopAction);
+        manager.add(new Separator());
+        manager.add(new LinkActiveSearchWithEditorAction());
+    	manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
+    }
+    
+    private void fillActions(IContributionManager manager) {
+    	Map<String, IMylarStructureBridge> bridges = MylarPlugin.getDefault().getStructureBridges();
+        for (Entry<String, IMylarStructureBridge> entry: bridges.entrySet()) {
+            IMylarStructureBridge bridge = entry.getValue(); //bridges.get(extension);
+            List<AbstractRelationProvider> providers = bridge.getRelationshipProviders(); 
+            if(providers != null && providers.size() > 0) {
+	            ToggleRelationshipProviderAction action = new ToggleRelationshipProviderAction(bridge);
+	            relationshipProviderActions.add(action); 
+	            manager.add(action); 
+            }
+        }
     }
 
     /**
@@ -285,6 +326,18 @@ public class ActiveSearchView extends ViewPart {
 
 	public TreeViewer getViewer() {
 		return viewer;
+	}
+
+	/**
+	 * Set to false for testing
+	 */
+	public void setAsyncRefreshMode(boolean asyncRefreshMode) {
+		this.asyncRefreshMode = asyncRefreshMode;
+	}
+
+	public void setQualifiedNameMode(boolean qualifiedNameMode) {
+		MylarDelegatingContextLabelProvider.setQualifyNamesMode(qualifiedNameMode);
+		refresh(null, true); 
 	}
 }
 

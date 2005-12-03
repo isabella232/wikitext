@@ -22,15 +22,17 @@ import org.eclipse.ant.internal.ui.model.AntModel;
 import org.eclipse.ant.internal.ui.model.AntProjectNode;
 import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.viewers.ISelection;
-import org.eclipse.mylar.core.AbstractSelectionMonitor;
+import org.eclipse.mylar.core.AbstractUserInteractionMonitor;
 import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.mylar.xml.XmlNodeHelper;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.part.FileEditorInput;
 
-
-public class AntEditingMonitor extends AbstractSelectionMonitor {
+/**
+ * @author Mik Kersten
+ */
+public class AntEditingMonitor extends AbstractUserInteractionMonitor {
 
     public AntEditingMonitor() {
         super();
@@ -80,42 +82,42 @@ public class AntEditingMonitor extends AbstractSelectionMonitor {
         }     
         return;
     }
-
-	public static AntElementNode getNode(AntModel am, String elementPath) {
-		AntProjectNode topNode = am.getProjectNode();
+    
+	public static AntElementNode getNode(AntModel antModel, String elementPath) throws SecurityException, NoSuchMethodException {
+		AntProjectNode topNode;
 		try {
+			topNode = antModel.getProjectNode(); 
 			return getNode(topNode, elementPath);
 		} catch (Exception e) {
 			return null;
 		}
 	}
 
+	/**
+	 * HACK: using reflection to gain accessibility
+	 */
 	private static AntElementNode getNode(AntElementNode topNode, String elementPath) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-		if(topNode == null)
-			return null;
+		if (topNode == null) return null;
 		
 		Method method = AntElementNode.class.getDeclaredMethod("getElementPath", new Class[] { } );
         method.setAccessible(true);
         
 		String path = (String)method.invoke(topNode, new Object[] { });
-		if(path.compareTo(elementPath) == 0){
+		if (path.compareTo(elementPath) == 0){
 			return topNode;
 		}
         
-		if(topNode.getChildNodes() == null)
-			return null;
+		if (topNode.getChildNodes() == null) return null;
 		
-		for(Object obj: topNode.getChildNodes()){
-			if(obj instanceof AntElementNode){
+		for (Object obj: topNode.getChildNodes()){
+			if (obj instanceof AntElementNode){
 				AntElementNode node = (AntElementNode)obj;
 				path = (String)method.invoke(node, new Object[] { });
-				
-				if(path.compareTo(elementPath) == 0){
+				if (path.compareTo(elementPath) == 0) {
 					return node;
-				}
-				AntElementNode node2 = getNode(node, elementPath);
-				if(node2 != null){
-					return node2;
+				} else {
+					AntElementNode node2 = getNode(node, elementPath);
+					if (node2 != null) return node2;
 				}
 			}
 		}

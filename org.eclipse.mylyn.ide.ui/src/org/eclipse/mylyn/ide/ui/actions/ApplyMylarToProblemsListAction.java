@@ -13,6 +13,8 @@ package org.eclipse.mylar.ide.ui.actions;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.core.runtime.Preferences.PropertyChangeEvent;
 import org.eclipse.jface.viewers.IBaseLabelProvider;
@@ -36,10 +38,9 @@ import org.eclipse.ui.views.markers.internal.TableViewLabelProvider;
  */
 public class ApplyMylarToProblemsListAction extends AbstractApplyMylarAction {
 
-	public static ApplyMylarToProblemsListAction INSTANCE;
-    public TableViewer cachedProblemsTableViewer = null;
-    private MarkerFilter defaultFilter = null;	
-//    private ViewerSorter defaultSorter = null;
+	private static ApplyMylarToProblemsListAction INSTANCE;
+    private StructuredViewer cachedProblemsTableViewer = null;
+	private MarkerFilter defaultFilter = null;
     private ProblemsListDoiSorter interestSorter = new ProblemsListDoiSorter();
     
 	public ApplyMylarToProblemsListAction() {
@@ -69,22 +70,24 @@ public class ApplyMylarToProblemsListAction extends AbstractApplyMylarAction {
      * HACK: changing accessibility
      */
 	@Override
-	public StructuredViewer getViewer() {
-		if (cachedProblemsTableViewer != null) return cachedProblemsTableViewer;
-        try {
-        	ProblemView view = getProblemView();
-        	if (view != null) {
-                Class infoClass = TableView.class;//problemView.getClass();
-                Method method = infoClass.getDeclaredMethod("getViewer", new Class[] { } );
-                method.setAccessible(true);
-                cachedProblemsTableViewer = (TableViewer)method.invoke(view, new Object[] { });
-    			updateLabelProvider(cachedProblemsTableViewer);
-                return cachedProblemsTableViewer;
-            } 
-        } catch (Exception e) {
-        	MylarPlugin.log(e, "couldn't get problmes viewer");
-        }
-        return null;
+	public List<StructuredViewer> getViewers() {
+		List<StructuredViewer> viewers = new ArrayList<StructuredViewer>();
+		if (cachedProblemsTableViewer == null) {
+	        try {
+	        	ProblemView view = getProblemView();
+	        	if (view != null) {
+	                Class infoClass = TableView.class;//problemView.getClass();
+	                Method method = infoClass.getDeclaredMethod("getViewer", new Class[] { } );
+	                method.setAccessible(true);
+	                cachedProblemsTableViewer = (StructuredViewer)method.invoke(view, new Object[] { });
+	    			updateLabelProvider(cachedProblemsTableViewer);           
+	            } 
+	        } catch (Exception e) {
+	        	MylarPlugin.log(e, "couldn't get problmes viewer");
+	        }
+		}
+        if (cachedProblemsTableViewer != null) viewers.add(cachedProblemsTableViewer);
+        return viewers;
 	}
 
 	protected ProblemView getProblemView() {
@@ -97,13 +100,16 @@ public class ApplyMylarToProblemsListAction extends AbstractApplyMylarAction {
         return null;
 	}
 	
-	@Override
-	public void refreshViewer() {
-		StructuredViewer viewer = getViewer();
-		if (viewer != null && !viewer.getControl().isDisposed()) {
-			viewer.refresh();
-		}
-	}
+//	@Override
+//	public void refreshViewer() {
+//		for (StructuredViewer viewer : getViewer()) {
+//			if (viewer != null && !viewer.getControl().isDisposed()) {
+//				viewer.getControl().setRedraw(false);
+//				viewer.refresh();
+//				viewer.getControl().setRedraw(true);
+//			}
+//		}
+//	}
 	
 	private void updateLabelProvider(StructuredViewer viewer) {
 		IBaseLabelProvider currentProvider = viewer.getLabelProvider();
@@ -120,11 +126,15 @@ public class ApplyMylarToProblemsListAction extends AbstractApplyMylarAction {
 	public void update() {	
 		super.update();
 		cachedProblemsTableViewer = null;
-        TableViewer viewer = (TableViewer)getViewer();
-        if (viewer != null && !(viewer.getLabelProvider() instanceof ProblemsListLabelProvider)) {
-            viewer.setLabelProvider(new ProblemsListLabelProvider(
-                    (TableViewLabelProvider)viewer.getLabelProvider()));
-        }
+		for (StructuredViewer viewer : getViewers()) {
+			if (viewer instanceof TableViewer) {
+		        TableViewer tableViewer = (TableViewer)viewer;
+		        if (tableViewer != null && !(tableViewer.getLabelProvider() instanceof ProblemsListLabelProvider)) {
+		        	tableViewer.setLabelProvider(new ProblemsListLabelProvider(
+		                    (TableViewLabelProvider)tableViewer.getLabelProvider()));
+		        }
+			}
+		}
 	}
 
 	public void propertyChange(PropertyChangeEvent event) {
@@ -132,12 +142,24 @@ public class ApplyMylarToProblemsListAction extends AbstractApplyMylarAction {
 	}
 
 	@Override
-	protected void installInterestFilter(StructuredViewer viewer) {
+	protected boolean installInterestFilter(final StructuredViewer viewer) {
 //		defaultSorter = viewer.getSorter();
 //		viewer.setSorter(interestSorter);
-		super.installInterestFilter(viewer); 
-//		verifySorterInstalled(viewer);
+		super.installInterestFilter(viewer);
 		toggleMarkerFilter(false); 
+		return true;
+//		if (viewer instanceof TreeViewer) {
+//			IWorkbench workbench = PlatformUI.getWorkbench();
+//			workbench.getDisplay().asyncExec(new Runnable() {
+//	            public void run() {
+//	            	if (viewer != null && !viewer.getControl().isDisposed()) {
+//	        			viewer.getControl().setRedraw(false);
+//	        			((TreeViewer)viewer).expandToLevel(3);
+//	        			viewer.getControl().setRedraw(true);
+//	            	}
+//	            }
+//	        });
+//		}
 	}
 
 	@Override
@@ -155,22 +177,26 @@ public class ApplyMylarToProblemsListAction extends AbstractApplyMylarAction {
         	ProblemView view = getProblemView();
         	if (view != null) {
         		Class viewClass = view.getClass();
-        		Field problemFilter = viewClass.getDeclaredField("problemFilter");
-        		problemFilter.setAccessible(true);
-        		defaultFilter = (MarkerFilter)problemFilter.get(view);	
         		
-        		Class filterClass = defaultFilter.getClass().getSuperclass();
-        		Method method = filterClass.getDeclaredMethod("setEnabled", new Class[] { boolean.class } );
-                method.setAccessible(true);
-        		method.invoke(defaultFilter, new Object[] { enabled });
-        		
-                Method refresh = view.getClass().getSuperclass().getDeclaredMethod("refresh", new Class[] { } );
-                refresh.setAccessible(true);
-                refresh.invoke(view, new Object[] { } );
+        		try { 
+        			// 3.1 way of removing existing filter
+	        		Field problemFilter = viewClass.getDeclaredField("problemFilter");
+	        		problemFilter.setAccessible(true);
+	        		defaultFilter = (MarkerFilter)problemFilter.get(view);	
+	        		
+	        		Class filterClass = defaultFilter.getClass().getSuperclass();
+	        		Method method = filterClass.getDeclaredMethod("setEnabled", new Class[] { boolean.class } );
+	                method.setAccessible(true);
+	        		method.invoke(defaultFilter, new Object[] { enabled });
+	                Method refresh = view.getClass().getSuperclass().getDeclaredMethod("refresh", new Class[] { } );
+	                refresh.setAccessible(true);
+	                refresh.invoke(view, new Object[] { } );
+        		} catch (NoSuchFieldException nfe) {
+        			// 3.2 way
+        		}
             } 
         } catch (Exception e) {
-        	e.printStackTrace();
-        	MylarPlugin.log(e, "couldn't get problmes viewer");
+        	MylarPlugin.fail(e, "Couldn't toggle problem filter (not yet supported on Eclipse 3.2)", false);
         }
 	}
 
