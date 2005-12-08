@@ -9,7 +9,7 @@
  *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
 
-package org.eclipse.mylar.ide;
+package org.eclipse.mylar.ide.team;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.core.resources.IResource;
+import org.eclipse.mylar.ide.MylarIdePlugin;
 import org.eclipse.mylar.tasklist.ITask;
-import org.eclipse.mylar.tasklist.MylarTasklistPlugin;
 import org.eclipse.team.core.TeamException;
 import org.eclipse.team.core.synchronize.SyncInfo;
 import org.eclipse.team.internal.core.subscribers.ActiveChangeSet;
@@ -41,14 +41,9 @@ public class MylarContextChangeSet extends ActiveChangeSet {
 	 
 	private static final String CTX_TITLE = "title"; // HACK: copied from super
 
-//	private List<IResource> resources; // TODO: get rid of this?
-	
 	private boolean suppressInterestContribution = false;
 
 	private ITask task;
-
-	// private JavaStructureBridge javaStructureBridge = new
-	// JavaStructureBridge();
 
 	public static final String SOURCE_ID = "org.eclipse.mylar.java.context.changeset.add";
 
@@ -91,8 +86,8 @@ public class MylarContextChangeSet extends ActiveChangeSet {
 	
 	@Override
 	public String getComment() {
-		String completedPrefix = MylarTasklistPlugin.getPrefs().getString(MylarTasklistPlugin.COMMIT_PREFIX_COMPLETED);
-		String progressPrefix = MylarTasklistPlugin.getPrefs().getString(MylarTasklistPlugin.COMMIT_PREFIX_PROGRESS);
+		String completedPrefix = MylarIdePlugin.getDefault().getPreferenceStore().getString(MylarIdePlugin.COMMIT_PREFIX_COMPLETED);
+		String progressPrefix = MylarIdePlugin.getDefault().getPreferenceStore().getString(MylarIdePlugin.COMMIT_PREFIX_PROGRESS);
 		String comment = "";
 		comment = generateComment(task, completedPrefix, progressPrefix);
 		return comment;
@@ -168,7 +163,6 @@ public class MylarContextChangeSet extends ActiveChangeSet {
 	 * TODO: unnessary check context?
 	 */
 	public boolean contains(IResource local) {
-//		System.err.println(">>> " + getAllResourcesInChangeContext().contains(local) + " " + local);
 		return getAllResourcesInChangeContext().contains(local);
 	}
 
