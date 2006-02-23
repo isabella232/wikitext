@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="org.eclipse.mylar.bugzilla_feature"
-      label="Mylar Connector: Bugzilla"
+      id="org.eclipse.mylar.jira_feature"
+      label="Mylar Connector: JIRA (Experimental)"
       version="0.4.9"
       provider-name="Eclipse.org"
       plugin="org.eclipse.mylar">
 
    <description>
-      Bugzilla client integrated with Eclipse and Mylar, can be used standalone.
+      JIRA client integrated with Eclipse and Mylar, can be used standalone.
+NOTE: depends on the org.tigris.jira.core feature from http://jira-dashboard.tigris.org/update
    </description>
 
-   <license url="http://www.eclipse.org/legal/epl-v10.html">
+   <license>
       Eclipse Public License - v 1.0
 THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS
 ECLIPSE PUBLIC LICENSE (&quot;AGREEMENT&quot;). ANY USE, REPRODUCTION OR
@@ -214,44 +215,20 @@ litigation.
    </url>
 
    <requires>
-      <import feature="org.eclipse.mylar_feature" version="0.4.9" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.ui" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.core.runtime" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.core.resources" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.compare" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.search" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.ui.ide" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.update.core"/>
-      <import plugin="org.eclipse.update.ui"/>
-      <import plugin="org.eclipse.ui.views" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.ui.forms"/>
-      <import plugin="org.eclipse.jface.text" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.team.ui"/>
-      <import plugin="org.eclipse.team.cvs.ui"/>
-      <import plugin="org.eclipse.ui.workbench.texteditor" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.ui.editors" version="0.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.team.core"/>
-      <import plugin="org.eclipse.team.cvs.core"/>
-      <import plugin="org.eclipse.mylar.core"/>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.ui.views"/>
+      <import plugin="org.eclipse.jface.text"/>
       <import plugin="org.eclipse.mylar.tasklist"/>
+      <import plugin="org.eclipse.mylar.core"/>
+      <import plugin="org.tigris.jira.core.soap" version="0.7.0"/>
+      <import feature="org.tigris.jira.core" version="0.7.0" match="greaterOrEqual"/>
+      <import feature="org.eclipse.mylar_feature" version="0.4.9" match="greaterOrEqual"/>
+      <import feature="org.tigris.jira.core" version="0.7.0"/>
    </requires>
 
    <plugin
-         id="org.eclipse.mylar.bugzilla.core"
-         download-size="0"
-         install-size="0"
-         version="0.4.9"
-         unpack="false"/>
-
-   <plugin
-         id="org.eclipse.mylar.bugzilla.ui"
-         download-size="0"
-         install-size="0"
-         version="0.4.9"
-         unpack="false"/>
-
-   <plugin
-         id="org.eclipse.mylar.bugs"
+         id="org.eclipse.mylar.jira"
          download-size="0"
          install-size="0"
          version="0.4.9"
