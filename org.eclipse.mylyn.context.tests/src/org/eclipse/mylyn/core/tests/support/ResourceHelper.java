@@ -29,104 +29,106 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.mylar.core.MylarPlugin;
 import org.eclipse.mylar.core.tests.MylarCoreTestsPlugin;
+import org.eclipse.mylar.internal.core.util.MylarStatusHandler;
 import org.eclipse.pde.internal.PDE;
 import org.eclipse.pde.internal.PluginProject;
-
 
 /**
  * @since 3.0
  */
 public class ResourceHelper {
-	
-	private final static IProgressMonitor NULL_MONITOR= new NullProgressMonitor();
-	private static final int MAX_RETRY= 10;
-	
+
+	private final static IProgressMonitor NULL_MONITOR = new NullProgressMonitor();
+
+	private static final int MAX_RETRY = 10;
+
 	public static void deleteProject(String projectName) throws CoreException {
-		IWorkspaceRoot root= ResourcesPlugin.getWorkspace().getRoot();
-		IProject project= root.getProject(projectName);
+		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+		IProject project = root.getProject(projectName);
 		if (project.exists())
 			delete(project);
 	}
-	
+
 	public static void delete(final IResource resource) throws CoreException {
-		IWorkspaceRunnable runnable= new IWorkspaceRunnable() {
+		IWorkspaceRunnable runnable = new IWorkspaceRunnable() {
 			public void run(IProgressMonitor monitor) throws CoreException {
-				for (int i= 0; i < MAX_RETRY; i++) {
+				for (int i = 0; i < MAX_RETRY; i++) {
 					try {
 						resource.delete(true, null);
-						i= MAX_RETRY;
+						i = MAX_RETRY;
 					} catch (CoreException e) {
 						if (i == MAX_RETRY - 1) {
-							MylarPlugin.log(e.getStatus());
+							MylarStatusHandler.log(e.getStatus());
 							throw e;
 						}
-						System.gc(); // help windows to really close file locks
+						System.gc(); // help windows to really close file
+						// locks
 						try {
 							Thread.sleep(1000); // sleep a second
 						} catch (InterruptedException e1) {
-						} 
+						}
 					}
 				}
 			}
 		};
-		ResourcesPlugin.getWorkspace().run(runnable, null);	
-		
+		ResourcesPlugin.getWorkspace().run(runnable, null);
+
 	}
-	
+
 	private static IProject createProject(String projectName) throws CoreException {
-		
-		IWorkspaceRoot root= ResourcesPlugin.getWorkspace().getRoot();
-		IProject project= root.getProject(projectName);
+
+		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+		IProject project = root.getProject(projectName);
 		if (!project.exists())
 			project.create(NULL_MONITOR);
 		else
 			project.refreshLocal(IResource.DEPTH_INFINITE, null);
-		
+
 		if (!project.isOpen())
 			project.open(NULL_MONITOR);
-	
+
 		return project;
 	}
-	
-	private static IJavaProject createPluginProject(IProject project) throws CoreException, JavaModelException{
-	
-		if(project == null)
+
+	private static IJavaProject createPluginProject(IProject project) throws CoreException, JavaModelException {
+
+		if (project == null)
 			return null;
-		
+
 		IJavaProject javaProject = JavaCore.create(project);
-		
+
 		// create bin folder
-	    IFolder binFolder= project.getFolder("bin");
-	    if(!binFolder.exists())
-	    	binFolder.create(false, true, null);
-	    
-	    // set java nature
-	    IProjectDescription description= project.getDescription(); 
-        description.setNatureIds(new String[] {PDE.PLUGIN_NATURE, JavaCore.NATURE_ID });
-        project.setDescription(description, null);
-	    
-        // create output folder
-        IPath outputLocation = binFolder.getFullPath();
-    	javaProject.setOutputLocation(outputLocation, null);
-  	
-		PluginProject pluginProject= new PluginProject();
+		IFolder binFolder = project.getFolder("bin");
+		if (!binFolder.exists())
+			binFolder.create(false, true, null);
+
+		// set java nature
+		IProjectDescription description = project.getDescription();
+		description.setNatureIds(new String[] { PDE.PLUGIN_NATURE, JavaCore.NATURE_ID });
+		project.setDescription(description, null);
+
+		// create output folder
+		IPath outputLocation = binFolder.getFullPath();
+		javaProject.setOutputLocation(outputLocation, null);
+
+		PluginProject pluginProject = new PluginProject();
 		pluginProject.setProject(project);
 		pluginProject.configure();
-		
-    	return javaProject;
+
+		return javaProject;
 	}
-		
-		
-	public static IJavaProject createJavaPluginProjectFromZip(String projectName, String zipFileName) throws CoreException, ZipException, IOException {
+
+	public static IJavaProject createJavaPluginProjectFromZip(String projectName, String zipFileName)
+			throws CoreException, ZipException, IOException {
 		IProject project = ResourceHelper.createProject(projectName);
-		ZipFile zip = new ZipFile(FileTool.getFileInPlugin(MylarCoreTestsPlugin.getDefault(), new Path("testdata/projects/" + zipFileName)));
-				
+		ZipFile zip = new ZipFile(FileTool.getFileInPlugin(MylarCoreTestsPlugin.getDefault(), new Path(
+				"testdata/projects/" + zipFileName)));
+
 		FileTool.unzip(zip, project.getLocation().toFile());
-				
+
 		project.refreshLocal(IResource.DEPTH_INFINITE, null);
-		
+
 		IJavaProject javaProject = ResourceHelper.createPluginProject(project);
 		return javaProject;
 	}

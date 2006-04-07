@@ -8,20 +8,18 @@
  * Contributors:
  *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
-package org.eclipse.mylar.internal.tasklist.ui;
 
-import org.eclipse.mylar.provisional.tasklist.ITask;
+package org.eclipse.mylar.provisional.tasklist;
+
+import java.util.Date;
 
 /**
- * TODO: move to viewer filter
- * 
- * @author Mik Kersten
+ * @author Rob Elves
  */
-public abstract class AbstractTaskFilter {
+public interface IRemoteContextDelegate {
 
-	public abstract boolean select(Object element);
-
-	protected boolean shouldAlwaysShow(ITask task) {
-		return task.isActive() || (task.isPastReminder() && !task.isCompleted());
-	}
+	public Date getDate();
+	public String getAuthor();
+	public String getComment();	
+	
 }
