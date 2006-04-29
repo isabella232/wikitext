@@ -9,21 +9,15 @@
  *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
 
-package org.eclipse.mylar.internal.java.ui;
+package org.eclipse.mylar.internal.tasklist.ui;
 
-import org.eclipse.jdt.core.IMember;
-import org.eclipse.jdt.core.IType;
-import org.eclipse.jface.viewers.Viewer;
-import org.eclipse.jface.viewers.ViewerFilter;
+import java.util.Set;
 
 /**
- * @author Mik Kersten
+ * @author Rob Elves
  */
-public class MembersFilter extends ViewerFilter {
+public interface ITaskListNotificationProvider {
 
-	@Override
-	public boolean select(Viewer viewer, Object parent, Object element) {
-		return !(element instanceof IMember || element instanceof IType);
-	}
-
+	public Set<ITaskListNotification> getNotifications();
+	
 }
