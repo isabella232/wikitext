@@ -19,6 +19,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.mylar.internal.jira.JiraServerFacade;
 import org.eclipse.mylar.internal.jira.JiraTask;
+import org.eclipse.mylar.internal.tasklist.util.GridDataFactory;
 import org.eclipse.mylar.provisional.tasklist.MylarTaskListPlugin;
 import org.eclipse.mylar.provisional.tasklist.TaskRepository;
 import org.eclipse.swt.SWT;
@@ -45,7 +46,7 @@ import org.eclipse.ui.forms.widgets.Form;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ImageHyperlink;
 import org.eclipse.ui.forms.widgets.Section;
-import org.eclipse.ui.internal.forms.widgets.*;
+import org.eclipse.ui.internal.forms.widgets.FormUtil;
 import org.eclipse.ui.part.EditorPart;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 import org.tigris.jira.core.model.Comment;
@@ -142,7 +143,7 @@ public class JiraTaskEditor extends EditorPart {
 		Section summarySection = toolkit.createSection(formBody, ExpandableComposite.TITLE_BAR
 				| ExpandableComposite.TWISTIE);
 		summarySection.setText("Attributes");
-//		summarySection.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+		summarySection.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 		summarySection.setExpanded(true);
 		Composite summary = toolkit.createComposite(summarySection);
 		summary.setLayout(new GridLayout(6, false));
@@ -161,7 +162,7 @@ public class JiraTaskEditor extends EditorPart {
 			toolkit.createLabel(summary, DATE_FORMAT.format(issue.getDue()));
 		} else {
 			Label spacer = toolkit.createLabel(summary, "");
-//			spacer.setLayoutData(GridDataFactory.fillDefaults().span(2, 1).create());
+			spacer.setLayoutData(GridDataFactory.fillDefaults().span(2, 1).create());
 		}
 
 		Label lblStatus = toolkit.createLabel(summary, "Status:");
@@ -196,7 +197,7 @@ public class JiraTaskEditor extends EditorPart {
 
 		// spacer
 		Label spacer2 = toolkit.createLabel(summary, "");
-//		spacer2.setLayoutData(GridDataFactory.fillDefaults().span(2, 1).create());
+		spacer2.setLayoutData(GridDataFactory.fillDefaults().span(2, 1).create());
 
 		StringBuffer sbComponents = new StringBuffer();
 		if (issue.getComponents().length > 0) {
@@ -257,8 +258,8 @@ public class JiraTaskEditor extends EditorPart {
 				| ExpandableComposite.TWISTIE);
 		descriptionSection.setExpanded(true);
 		descriptionSection.setText("Description");
-//		final GridData dgd = GridDataFactory.fillDefaults().grab(true, false).create();
-//		descriptionSection.setLayoutData(dgd);
+		final GridData dgd = GridDataFactory.fillDefaults().grab(true, false).create();
+		descriptionSection.setLayoutData(dgd);
 
 		Composite c = toolkit.createComposite(descriptionSection);
 		GridLayout gl = new GridLayout(1, true);
@@ -267,8 +268,8 @@ public class JiraTaskEditor extends EditorPart {
 		c.setLayout(gl);
 
 		Text description = toolkit.createText(c, issue.getDescription(), SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
-//		description.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).minSize(200, 80).hint(200, 80)
-//				.create());
+		description.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).minSize(200, 80).hint(200, 80)
+				.create());
 
 		description.setText(issue.getDescription());
 		description.setEditable(false);
@@ -282,7 +283,7 @@ public class JiraTaskEditor extends EditorPart {
 
 		commentsSection.setTextClient(sortOrder);
 		commentsSection.setText("Comments");
-//		commentsSection.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
+		commentsSection.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
 
 		sc = new ScrolledComposite(commentsSection, SWT.H_SCROLL | SWT.V_SCROLL);
 		sc.setExpandHorizontal(true);
@@ -305,7 +306,7 @@ public class JiraTaskEditor extends EditorPart {
 			expandableComposite.setText("Comment by " + comment.getAuthor() + " ["
 					+ DATE_FORMAT.format(comment.getCreated()) + "]");
 			expandableComposite.setLayout(new FillLayout(SWT.HORIZONTAL));
-//			expandableComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+			expandableComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
 			Text t = toolkit.createText(expandableComposite, comment.getComment(), SWT.MULTI | SWT.WRAP);
 			t.setEditable(false);
@@ -322,7 +323,7 @@ public class JiraTaskEditor extends EditorPart {
 			});
 			commentToControlMap.put(comment, expandableComposite);
 
-//			t.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+			t.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
 			if (i == issue.getComments().length - 1) {
 				expandableComposite.setExpanded(true);
@@ -343,7 +344,7 @@ public class JiraTaskEditor extends EditorPart {
 
 		final Section commentSection = toolkit.createSection(formBody, ExpandableComposite.TWISTIE
 				| ExpandableComposite.TITLE_BAR);
-//		commentSection.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+		commentSection.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 		commentSection.setText("Add Comment");
 		commentSection.setExpanded(false);
 		commentSection.addExpansionListener(new ExpansionAdapter() {
@@ -383,6 +384,7 @@ public class JiraTaskEditor extends EditorPart {
 		sc.setMinSize(c1.computeSize(SWT.DEFAULT, SWT.DEFAULT));
 	}
 
+	@SuppressWarnings("restriction")
 	public void revealComment(Comment comment) {
 		Control control = (Control) this.commentToControlMap.get(comment);
 		if (control != null) {
