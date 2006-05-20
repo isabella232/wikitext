@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Ui Plug-in
+Bundle-Name: Mylar Bugzilla Client Ui Plug-in
 Bundle-SymbolicName: org.eclipse.mylar.bugzilla.ui; singleton:=true
-Bundle-Version: 0.3.9
-Bundle-Activator: org.eclipse.mylar.bugzilla.ui.BugzillaUiPlugin
+Bundle-Version: 0.5.1.v20060519-1700
+Bundle-Activator: org.eclipse.mylar.internal.bugzilla.ui.BugzillaUiPlugin
 Bundle-Vendor: Eclipse.org
 Bundle-Localization: plugin
 Require-Bundle: org.eclipse.ui,
@@ -17,15 +17,18 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.mylar.core,
  org.eclipse.ui.forms,
  org.eclipse.jface.text,
- org.eclipse.mylar.tasklist
+ org.eclipse.mylar.tasklist,
+ org.eclipse.team.ui,
+ org.eclipse.team.cvs.ui,
+ org.eclipse.ui.editors,
+ org.eclipse.ui.workbench.texteditor,
+ org.eclipse.update.ui
 Eclipse-AutoStart: true
-Export-Package: org.eclipse.mylar.bugzilla.ui,
- org.eclipse.mylar.bugzilla.ui.actions,
- org.eclipse.mylar.bugzilla.ui.editor,
- org.eclipse.mylar.bugzilla.ui.favorites.actions,
- org.eclipse.mylar.bugzilla.ui.outline,
- org.eclipse.mylar.bugzilla.ui.query,
- org.eclipse.mylar.bugzilla.ui.search,
- org.eclipse.mylar.bugzilla.ui.tasklist,
- org.eclipse.mylar.bugzilla.ui.wizard
+Export-Package: org.eclipse.mylar.internal.bugzilla.ui,
+ org.eclipse.mylar.internal.bugzilla.ui.actions,
+ org.eclipse.mylar.internal.bugzilla.ui.editor,
+ org.eclipse.mylar.internal.bugzilla.ui.search,
+ org.eclipse.mylar.internal.bugzilla.ui.tasklist,
+ org.eclipse.mylar.internal.bugzilla.ui.wizard
 Bundle-ClassPath: bugzilla-ui.jar
+Bundle-RequiredExecutionEnvironment: J2SE-1.5
