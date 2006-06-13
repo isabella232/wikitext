@@ -46,7 +46,7 @@ import org.eclipse.ui.forms.widgets.Form;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ImageHyperlink;
 import org.eclipse.ui.forms.widgets.Section;
-import org.eclipse.ui.internal.forms.widgets.FormUtil;
+import org.eclipse.ui.internal.forms.widgets.*;
 import org.eclipse.ui.part.EditorPart;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 import org.tigris.jira.core.model.Comment;
@@ -384,7 +384,6 @@ public class JiraTaskEditor extends EditorPart {
 		sc.setMinSize(c1.computeSize(SWT.DEFAULT, SWT.DEFAULT));
 	}
 
-	@SuppressWarnings("restriction")
 	public void revealComment(Comment comment) {
 		Control control = (Control) this.commentToControlMap.get(comment);
 		if (control != null) {
