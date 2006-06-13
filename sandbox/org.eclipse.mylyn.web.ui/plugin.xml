@@ -4,65 +4,26 @@
 <extension
          point="org.eclipse.mylar.core.context">
       <structureBridge
-            class="org.eclipse.mylar.internal.hypertext.HypertextStructureBridge"
-            name="Hypertext Structure Bridge"/>
-   </extension>
+            class="org.eclipse.mylar.internal.web.WebResourceStructureBridge"
+            name="Web Resource Structure Bridge"/>
+   </extension> 
    <extension
          point="org.eclipse.mylar.ui.context">
       <uiBridge
-            class="org.eclipse.mylar.internal.hypertext.HypertextUiBridge"
-            contentType="html"
-            id="org.eclipse.mylar.hypertext.uiBridge"/>
+            class="org.eclipse.mylar.internal.web.ui.WebResourceUiBridge"
+            contentType="http"
+            id="org.eclipse.mylar.web.uiBridge"/>
    </extension>
 
-<!--
-   <extension
-         point="org.eclipse.mylar.tasklist.editors">
-      <editorFactory class="org.eclipse.mylar.internal.hypertext.ui.editors.WebElementsEditorFactory"/>
-   </extension>
--->
-
-<!--
-  <extension  
-         point="org.eclipse.ui.navigator.navigatorContent">
-      <navigatorContent
-            activeByDefault="true"
-            contentProvider="org.eclipse.mylar.internal.hypertext.ui.editors.WebResourceContentProvider"
-            icon="icons/etool16/browser-editor.gif"
-            id="org.eclipse.mylar.hypertext.navigator.webContent"
-            labelProvider="org.eclipse.mylar.internal.hypertext.ui.editors.WebResourceLabelProvider"
-            name="Web Pages"
-            priority="low">
-		 <triggerPoints> 
-		 	<or>
-			<instanceof
-				value="java.lang.String"/>
-			</or>
-		</triggerPoints>              
-      </navigatorContent>
-  </extension>
-
-   <extension
-         point="org.eclipse.ui.navigator.viewer">
-		<viewerContentBinding 
-             viewerId="org.eclipse.ui.navigator.ProjectExplorer">
-          <includes>	       	      
-	          <contentExtension pattern="org.eclipse.mylar.hypertext.navigator.webContent"/>
-          </includes>
-       </viewerContentBinding>
-  </extension>
--->
-
-<!--
-  <extension point="org.eclipse.ui.actionSets">
+<extension point="org.eclipse.ui.actionSets">
 	<actionSet
-            id="org.eclipse.mylar.browser.actionSet"
-            label="Mylar Browser"
+            id="org.eclipse.mylar.web.actionSet"
+            label="Mylar Web"
             visible="true"> 
   		<action
-          class="org.eclipse.mylar.internal.hypertext.ui.actions.NewWebBrowserAction"
-          definitionId="org.eclipse.mylar.browser.tab.new"
-          icon="icons/etool16/browser-editor.gif" 
+          class="org.eclipse.mylar.internal.web.ui.NewWebBrowserAction"
+          definitionId="org.eclipse.mylar.web.browser.new"
+          icon="icons/etool16/browser-new.gif" 
           id="org.eclipse.mylar.browser.editor.new"
           label="New Browser"
           style="push"
@@ -76,7 +37,7 @@
 	  <command
          categoryId="org.eclipse.mylar.ui"
          description="Toggle Automatic Folding"
-         id="org.eclipse.mylar.browser.editor.new"
+         id="org.eclipse.mylar.web.browser.new"
          name="New Browser">
       </command>
    </extension>
@@ -85,10 +46,9 @@
 	  <key
             sequence="M1+M2+M3+T"
             contextId="org.eclipse.ui.globalScope"
-            commandId="org.eclipse.mylar.browser.editor.new"
+            commandId="org.eclipse.mylar.web.browser.new"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key>
-   </extension> 
-  -->
+   </extension>
   
 </plugin>
