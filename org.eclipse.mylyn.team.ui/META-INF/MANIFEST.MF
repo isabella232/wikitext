@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mylar Team Plug-in
 Bundle-SymbolicName: org.eclipse.mylar.team;singleton:=true
-Bundle-Version: 0.7.0.1
+Bundle-Version: 1.0.1.v20070112-1800
 Bundle-Activator: org.eclipse.mylar.team.MylarTeamPlugin
 Bundle-Vendor: Eclipse.org
 Bundle-Localization: plugin
@@ -10,8 +10,6 @@ Require-Bundle: org.eclipse.team.core,
  org.eclipse.team.cvs.ui,
  org.eclipse.team.cvs.core,
  org.eclipse.team.ui,
- org.tigris.subversion.subclipse.core;resolution:=optional,
- org.tigris.subversion.subclipse.ui;resolution:=optional,
  org.eclipse.jface,
  org.eclipse.core.resources,
  org.eclipse.core.runtime,
@@ -22,14 +20,16 @@ Require-Bundle: org.eclipse.team.core,
  org.eclipse.mylar.tasks.core,
  org.eclipse.mylar.tasks.ui,
  org.eclipse.mylar.resources,
- org.eclipse.compare
+ org.eclipse.compare,
+ org.eclipse.ui.navigator.resources
 Eclipse-LazyStart: true
 Export-Package: org.eclipse.mylar.internal.team,
  org.eclipse.mylar.internal.team.ccvs,
- org.eclipse.mylar.internal.team.subclipse,
+ org.eclipse.mylar.internal.team.template,
  org.eclipse.mylar.internal.team.ui,
  org.eclipse.mylar.internal.team.ui.actions,
  org.eclipse.mylar.internal.team.ui.preferences,
+ org.eclipse.mylar.internal.team.ui.preferences.workaround,
  org.eclipse.mylar.internal.team.ui.wizards,
  org.eclipse.mylar.team
 Bundle-ClassPath: .
