@@ -14,12 +14,15 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.Wizard;
-import org.eclipse.mylar.internal.bugzilla.core.NewBugzillaReport;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaAttributeFactory;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylar.internal.bugzilla.ui.BugzillaUiPlugin;
-import org.eclipse.mylar.internal.bugzilla.ui.editor.NewBugEditorInput;
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
+import org.eclipse.mylar.internal.tasks.ui.TaskListPreferenceConstants;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
+import org.eclipse.mylar.tasks.ui.editors.NewTaskEditorInput;
 import org.eclipse.ui.INewWizard;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
@@ -44,26 +47,27 @@ public class NewBugzillaTaskWizard extends Wizard implements INewWizard {
 	 */
 	protected boolean completed = false;
 
-	/** The model used to store all of the data for the wizard */
-	protected NewBugzillaReport model;
+	/** The taskData used to store all of the data for the wizard */
+	protected RepositoryTaskData taskData;
 
-	// TODO: Change model to a RepositoryTaskData
-	// protected RepositoryTaskData model;
+	// TODO: Change taskData to a RepositoryTaskData
+	// protected RepositoryTaskData taskData;
 
-	public NewBugzillaTaskWizard(TaskRepository repository, IStructuredSelection selection) {
-		this(false, repository, selection);
-		model = new NewBugzillaReport(repository.getUrl(), TasksUiPlugin.getDefault().getOfflineReportsFile()
-				.getNextOfflineBugId());
+	public NewBugzillaTaskWizard(TaskRepository repository) {
+		this(false, repository);
+		taskData = new RepositoryTaskData(new BugzillaAttributeFactory(), BugzillaCorePlugin.REPOSITORY_KIND,
+				repository.getUrl(), TasksUiPlugin.getDefault().getNextNewRepositoryTaskId());
+		taskData.setNew(true);
 		super.setDefaultPageImageDescriptor(BugzillaUiPlugin.imageDescriptorFromPlugin(
 				"org.eclipse.mylar.internal.bugzilla.ui", "icons/wizban/bug-wizard.gif"));
 		super.setWindowTitle(TITLE);
 		setNeedsProgressMonitor(true);
 	}
 
-	public NewBugzillaTaskWizard(boolean fromDialog, TaskRepository repository, IStructuredSelection selection) {
+	public NewBugzillaTaskWizard(boolean fromDialog, TaskRepository repository) {
 		super();
 		this.repository = repository;
-		this.productPage = new BugzillaProductPage(workbenchInstance, this, repository, selection);
+		this.productPage = new BugzillaProductPage(workbenchInstance, this, repository);
 	}
 
 	public void init(IWorkbench workbench, IStructuredSelection selection) {
@@ -86,9 +90,9 @@ public class NewBugzillaTaskWizard extends Wizard implements INewWizard {
 
 		try {
 			productPage.saveDataToModel();
-			NewBugEditorInput editorInput = new NewBugEditorInput(repository, model);
+			NewTaskEditorInput editorInput = new NewTaskEditorInput(repository, taskData);
 			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-			TaskUiUtil.openEditor(editorInput, BugzillaUiPlugin.NEW_BUG_EDITOR_ID, page);
+			TasksUiUtil.openEditor(editorInput, TaskListPreferenceConstants.TASK_EDITOR_ID, page);
 			return true;
 		} catch (Exception e) {
 			productPage.applyToStatusLine(new Status(IStatus.ERROR, "not_used", 0,
@@ -104,7 +108,7 @@ public class NewBugzillaTaskWizard extends Wizard implements INewWizard {
 // // AbstractRepositoryConnector client = (AbstractRepositoryConnector)
 // // MylarTaskListPlugin.getRepositoryManager()
 // // .getRepositoryConnector(BugzillaPlugin.REPOSITORY_KIND);
-// // client.saveOffline(model);
+// // client.saveOffline(taskData);
 // }
 //
 // @Override
@@ -126,13 +130,13 @@ public class NewBugzillaTaskWizard extends Wizard implements INewWizard {
 // }
 // } catch (NumberFormatException nfe) {
 // MessageDialog.openError(null, IBugzillaConstants.TITLE_MESSAGE_DIALOG,
-// "Could not create bug id, no valid id");
+// "Could not create bug taskId, no valid taskId");
 // return false;
 // }
 // // if (!validId) {
 // // MessageDialog.openError(null,
 // // IBugzillaConstants.TITLE_MESSAGE_DIALOG,
-// // "Could not create bug id, no valid id");
+// // "Could not create bug taskId, no valid taskId");
 // // return false;
 // // }
 //
@@ -155,7 +159,7 @@ public class NewBugzillaTaskWizard extends Wizard implements INewWizard {
 // MylarTaskListPlugin.getTaskListManager().getTaskList().getRootCategory());
 // }
 //
-// TaskUiUtil.refreshAndOpenTaskListElement(newTask);
+// TasksUiUtil.refreshAndOpenTaskListElement(newTask);
 // MylarTaskListPlugin.getSynchronizationManager().synchNow(0);
 //
 // return true;

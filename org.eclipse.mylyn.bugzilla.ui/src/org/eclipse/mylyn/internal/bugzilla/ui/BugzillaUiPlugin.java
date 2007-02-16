@@ -10,10 +10,7 @@
  *******************************************************************************/
 package org.eclipse.mylar.internal.bugzilla.ui;
 
-import java.io.IOException;
 import java.net.Authenticator;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,9 +20,9 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
-import org.eclipse.mylar.internal.bugzilla.core.BugzillaException;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
 import org.eclipse.mylar.internal.bugzilla.core.RepositoryConfiguration;
 import org.eclipse.mylar.internal.bugzilla.ui.search.IBugzillaResultEditorMatchAdapter;
@@ -44,11 +41,6 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 
 	public static final String PLUGIN_ID = "org.eclipse.mylar.bugzilla.ui";
 
-	// The id's of other bugzilla packages
-	public static final String EXISTING_BUG_EDITOR_ID = BugzillaUiPlugin.PLUGIN_ID + ".existingBugEditor";
-
-	public static final String NEW_BUG_EDITOR_ID = BugzillaUiPlugin.PLUGIN_ID + ".newBugEditor";
-
 	public static final String SEARCH_PAGE_ID = BugzillaUiPlugin.PLUGIN_ID + ".search.bugzillaSearchPage";
 
 	public static final String SEARCH_PAGE_CONTEXT = BugzillaUiPlugin.PLUGIN_ID + ".bugzillaSearchContext";
@@ -56,13 +48,13 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 	public static final String EDITOR_PAGE_CONTEXT = BugzillaUiPlugin.PLUGIN_ID + ".bugzillaEditorContext";
 
 	// The is's for hit markers used in the label provider and sorters
-	public static final String HIT_MARKER_ATTR_ID = "id";
+	public static final String HIT_MARKER_ATTR_ID = "taskId";
 
 	public static final String HIT_MARKER_ATTR_REPOSITORY = "repository";
 
 	public static final String HIT_MARKER_ATTR_HREF = "href";
 
-	public static final String HIT_MARKER_ATTR_DESC = "description";
+	public static final String HIT_MARKER_ATTR_DESC = "summary";
 
 	public static final String HIT_MARKER_ATTR_LABEL = "label";
 
@@ -97,12 +89,13 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 		plugin = this;
 	}
 
+	@Override
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		getPreferenceStore().setDefault(IBugzillaConstants.MAX_RESULTS, 100);
 
 		IPath repConfigCacheFile = getProductConfigurationCachePath();
-		if(repConfigCacheFile != null) {
+		if (repConfigCacheFile != null) {
 			BugzillaCorePlugin.setConfigurationCacheFile(repConfigCacheFile.toFile());
 		}
 
@@ -115,7 +108,10 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 		}
 		Authenticator.setDefault(authenticator);
 
-		// migrateOldAuthenticationData();
+		BugzillaRepositoryConnector bugzillaConnector = (BugzillaRepositoryConnector) TasksUiPlugin
+				.getRepositoryManager().getRepositoryConnector(BugzillaCorePlugin.REPOSITORY_KIND);
+
+		TasksUiPlugin.getRepositoryManager().addListener(bugzillaConnector.getClientManager());
 	}
 
 	/**
@@ -126,7 +122,7 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 		IPath configFile = stateLocation.append("repositoryConfigurations");
 		return configFile;
 	}
-	
+
 	public int getMaxResults() {
 		return getPreferenceStore().getInt(IBugzillaConstants.MAX_RESULTS);
 	}
@@ -134,7 +130,14 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 	/**
 	 * This method is called when the plug-in is stopped
 	 */
+	@Override
 	public void stop(BundleContext context) throws Exception {
+
+		BugzillaRepositoryConnector bugzillaConnector = (BugzillaRepositoryConnector) TasksUiPlugin
+				.getRepositoryManager().getRepositoryConnector(BugzillaCorePlugin.REPOSITORY_KIND);
+
+		TasksUiPlugin.getRepositoryManager().removeListener(bugzillaConnector.getClientManager());
+
 		super.stop(context);
 		plugin = null;
 	}
@@ -175,7 +178,8 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 			for (String product : selectedProducts) {
 				for (String option : convertQueryOptionsToArray(prefs.getString(prefId + PREF_DELIM_REPOSITORY
 						+ repositoryUrl + PREF_DELIM_REPOSITORY + product))) {
-					if(!options.contains(option)) options.add(option);
+					if (!options.contains(option))
+						options.add(option);
 				}
 			}
 			return options.toArray(new String[options.size()]);
@@ -224,34 +228,30 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 	}
 
 	/**
-	 * Update all of the query options for the bugzilla search page
-	 * 
-	 * @param monitor
-	 *            A reference to a progress monitor
-	 * @throws IOException
-	 * @throws NoSuchAlgorithmException 
-	 * @throws KeyManagementException 
-	 * @throws BugzillaException 
+	 * Update all of the query options for the bugzilla search page TODO: unify
+	 * update of search options with update of bug attributes
+	 * (BugzillaServerFacade.updateBugAttributeOptions)
 	 */
 	public static void updateQueryOptions(TaskRepository repository, IProgressMonitor monitor) {
-		
+
 		String repositoryUrl = repository.getUrl();
 
-		if(monitor.isCanceled())
+		if (monitor.isCanceled())
 			throw new OperationCanceledException();
-		
-		// TODO: pass monitor along since it is this call that does the work and can hang due to network IO
+
+		// TODO: pass monitor along since it is this call that does the work and
+		// can hang due to network IO
 		RepositoryConfiguration config = null;
 		try {
-			config = BugzillaCorePlugin.getRepositoryConfiguration(false, repository.getUrl(), TasksUiPlugin.getDefault().getProxySettings(), repository.getUserName(), repository.getPassword(), repository.getCharacterEncoding());
+			config = BugzillaCorePlugin.getRepositoryConfiguration(repository, false);
 		} catch (Exception e) {
 			MylarStatusHandler.fail(e, "Could not retrieve repository configuration for: " + repository, true);
 			return;
 		}
 
-		if(monitor.isCanceled())
+		if (monitor.isCanceled())
 			throw new OperationCanceledException();
-		
+
 		// get the preferences store so that we can change the data in it
 		IPreferenceStore prefs = BugzillaUiPlugin.getDefault().getPreferenceStore();
 
@@ -314,103 +314,3 @@ public class BugzillaUiPlugin extends AbstractUIPlugin {
 		}
 	}
 }
-
-// @SuppressWarnings("unchecked")
-// private void migrateOldAuthenticationData() {
-// String OLD_PREF_SERVER = "BUGZILLA_SERVER";
-// String serverUrl =
-// BugzillaPlugin.getDefault().getPreferenceStore().getString(OLD_PREF_SERVER);
-// if (serverUrl != null && serverUrl.trim() != "") {
-// URL oldFakeUrl = null;
-// try {
-// oldFakeUrl = new URL("http://org.eclipse.mylar.bugzilla");
-// } catch (MalformedURLException e) {
-// BugzillaPlugin.log(new Status(IStatus.WARNING, BugzillaPlugin.PLUGIN_ID,
-// IStatus.OK,
-// "Bad temp server url: BugzillaPreferencePage", e));
-// }
-//		
-// String user = "";
-// String password = "";
-// Map<String, String> map = Platform.getAuthorizationInfo(oldFakeUrl,
-// "Bugzilla",
-// BugzillaPreferencePage.AUTH_SCHEME);
-//
-// // get the information from the map and save it
-// if (map != null && !map.isEmpty()) {
-// String username = map.get(BugzillaPreferencePage.INFO_USERNAME);
-// if (username != null)
-// user = username;
-//
-// String pwd = map.get(BugzillaPreferencePage.INFO_PASSWORD);
-// if (pwd != null)
-// password = pwd;
-// }
-// TaskRepository repository;
-// // try {
-// repository = new TaskRepository(BugzillaPlugin.REPOSITORY_KIND, serverUrl);
-// repository.setAuthenticationCredentials(user, password);
-// MylarTaskListPlugin.getRepositoryManager().addRepository(repository);
-// BugzillaPlugin.getDefault().getPreferenceStore().setValue(OLD_PREF_SERVER,
-// "");
-// // } catch (MalformedURLException e) {
-// // MylarStatusHandler.fail(e, "could not create default repository",
-// // true);
-// // }
-// try {
-// // reset the authorization
-// Platform.addAuthorizationInfo(oldFakeUrl, "Bugzilla",
-// BugzillaPreferencePage.AUTH_SCHEME, new HashMap<String, String>());
-// } catch (CoreException e) {
-// // ignore
-// }
-// }
-// }
-
-// private void readOfflineReportsFile() {
-// IPath offlineReportsPath = getOfflineReportsFilePath();
-//
-// try {
-// offlineReportsFile = new OfflineTaskManager(offlineReportsPath.toFile(),
-// true);
-// } catch (Exception e) {
-// MylarStatusHandler.log(e,
-// "Could not restore offline Bugzilla reports file, creating new one
-// (possible version incompatibility)");
-// offlineReportsPath.toFile().delete();
-// // if (offlineReportsPath.toFile().delete()) {
-// try {
-// offlineReportsFile = new OfflineTaskManager(offlineReportsPath.toFile(),
-// false);
-// } catch (Exception e1) {
-// MylarStatusHandler.fail(e, "could not reset offline Bugzilla reports
-// file", true);
-// }
-// // } else {
-// // MylarStatusHandler.fail(null, "reset of Bugzilla offline reports file
-// failed", true);
-// // }
-// }
-// }
-//
-// /**
-// * Returns the path to the file cacheing the offline bug reports.
-// */
-// private IPath getOfflineReportsFilePath() {
-// IPath stateLocation =
-// Platform.getStateLocation(BugzillaPlugin.getDefault().getBundle());
-// IPath configFile = stateLocation.append("offlineReports");
-// return configFile;
-// }
-//
-// public OfflineTaskManager getOfflineReportsFile() {
-// if (offlineReportsFile == null) {
-// MylarStatusHandler.fail(null, "Offline reports file not created, try
-// restarting.", true);
-// }
-// return offlineReportsFile;
-// }
-
-// public List<BugzillaReport> getSavedBugReports() {
-// return offlineReportsFile.elements();
-//	}

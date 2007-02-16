@@ -17,19 +17,19 @@ import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryQuery;
 import org.eclipse.mylar.internal.bugzilla.ui.search.BugzillaSearchPage;
 import org.eclipse.mylar.internal.bugzilla.ui.wizard.NewBugzillaTaskWizard;
-import org.eclipse.mylar.internal.tasks.ui.search.AbstractRepositoryQueryPage;
-import org.eclipse.mylar.internal.tasks.ui.wizards.AbstractRepositorySettingsPage;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.AbstractRepositoryConnectorUi;
-import org.eclipse.ui.IWorkbenchPage;
-import org.eclipse.ui.PlatformUI;
+import org.eclipse.mylar.tasks.ui.search.AbstractRepositoryQueryPage;
+import org.eclipse.mylar.tasks.ui.wizards.AbstractRepositorySettingsPage;
 
 /**
  * @author Mik Kersten
+ * @author Eugene Kuleshov
  */
 public class BugzillaRepositoryUi extends AbstractRepositoryConnectorUi {
 
+	@Override
 	public AbstractRepositorySettingsPage getSettingsPage() {
 		return new BugzillaRepositorySettingsPage(this);
 	}
@@ -40,10 +40,11 @@ public class BugzillaRepositoryUi extends AbstractRepositoryConnectorUi {
 	}
 
 	@Override
-	public IWizard getNewTaskWizard(TaskRepository taskRepository, IStructuredSelection selection) {
-		return new NewBugzillaTaskWizard(taskRepository, selection);
+	public IWizard getNewTaskWizard(TaskRepository taskRepository) {
+		return new NewBugzillaTaskWizard(taskRepository);
 	}
 
+	@Override
 	public IWizard getQueryWizard(TaskRepository repository, AbstractRepositoryQuery query) {
 		if (query instanceof BugzillaRepositoryQuery) {
 			return new EditBugzillaQueryWizard(repository, (BugzillaRepositoryQuery) query);
@@ -67,18 +68,4 @@ public class BugzillaRepositoryUi extends AbstractRepositoryConnectorUi {
 		return BugzillaCorePlugin.REPOSITORY_KIND;
 	}
 
-	@Override
-	public void openRemoteTask(String repositoryUrl, String idString) {
-		int id = -1;
-		try {
-			id = Integer.parseInt(idString);
-		} catch (NumberFormatException e) {
-			// ignore
-		}
-		if (id != -1) {
-			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-			OpenBugzillaReportJob job = new OpenBugzillaReportJob(repositoryUrl, id, page);
-			job.schedule();
-		}
-	}
 }

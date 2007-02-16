@@ -15,39 +15,45 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URLDecoder;
 import java.security.GeneralSecurityException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.security.auth.login.LoginException;
-
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.ITreeContentProvider;
+import org.eclipse.jface.viewers.LabelProvider;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.wizard.WizardPage;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.bugzilla.core.BugzillaException;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaQueryHit;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaReportElement;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryQuery;
-import org.eclipse.mylar.internal.bugzilla.core.BugzillaServerFacade;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaTask;
 import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
-import org.eclipse.mylar.internal.bugzilla.core.NewBugzillaReport;
 import org.eclipse.mylar.internal.bugzilla.ui.BugzillaUiPlugin;
-import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesView;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
+import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 import org.eclipse.swt.SWT;
@@ -58,19 +64,25 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Listener;
 import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.dialogs.FilteredTree;
+import org.eclipse.ui.dialogs.PatternFilter;
+import org.eclipse.ui.progress.UIJob;
 
 /**
  * @author Shawn Minto
  * @author Rob Elves
  * @author Mik Kersten
+ * @author Eugene Kuleshov
+ * @author Willian Mitsuda
  * 
  * Product selection page of new bug wizard
  */
-public class BugzillaProductPage extends WizardPage implements Listener {
+public class BugzillaProductPage extends WizardPage {
+
+	private static final String OPTION_ALL = "All";
 
 	// A Map from Java's OS and Platform to Buzilla's
 	private Map<String, String> java2buzillaOSMap = new HashMap<String, String>();
@@ -96,23 +108,14 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 	/** The instance of the workbench */
 	protected IWorkbench workbench;
 
-	/** The list box for the list of items to choose from */
-	protected org.eclipse.swt.widgets.List listBox;
-
-	/** Status variable for the possible errors on this page */
-	protected IStatus listStatus;
-
 	/**
-	 * String to hold previous product; determines if attribute option values
-	 * need to be updated
+	 * Handle product selection
 	 */
-	private String prevProduct;
+	private FilteredTree productList;
 
 	private final TaskRepository repository;
 
 	protected IPreferenceStore prefs = BugzillaUiPlugin.getDefault().getPreferenceStore();
-
-	private final IStructuredSelection selection;
 
 	/**
 	 * Constructor for BugzillaProductPage
@@ -125,17 +128,11 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 	 *            The repository the data is coming from
 	 * @param selection
 	 */
-	public BugzillaProductPage(IWorkbench workbench, NewBugzillaTaskWizard bugWiz, TaskRepository repository,
-			IStructuredSelection selection) {
+	public BugzillaProductPage(IWorkbench workbench, NewBugzillaTaskWizard bugWiz, TaskRepository repository) {
 		super("Page1");
-		this.selection = selection;
 		setTitle(IBugzillaConstants.TITLE_NEW_BUG);
 		setDescription(DESCRIPTION);
 		this.workbench = workbench;
-
-		// set the status for the page
-		listStatus = new Status(IStatus.OK, "not_used", 0, "", null);
-
 		this.bugWizard = bugWiz;
 		this.repository = repository;
 		setImageDescriptor(BugzillaUiPlugin.imageDescriptorFromPlugin("org.eclipse.mylar.bugzilla.ui",
@@ -154,7 +151,7 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 		java2buzillaOSMap.put("macosx", "MacOS X");
 		java2buzillaOSMap.put("qnx", "QNX-Photon");
 		java2buzillaOSMap.put("solaris", "Solaris");
-		java2buzillaOSMap.put("win32", "Windows");
+		java2buzillaOSMap.put("win32", "Windows XP");
 	}
 
 	public void createControl(Composite parent) {
@@ -162,34 +159,74 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 		Composite composite = new Composite(parent, SWT.NULL);
 
 		// create the desired layout for this wizard page
-		composite.setLayout(new GridLayout(1, true));
+		composite.setLayout(new GridLayout());
 
 		// create the list of bug reports
-		listBox = new org.eclipse.swt.widgets.List(composite, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY | SWT.V_SCROLL);
-		GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd.heightHint = 200;
-		listBox.setLayoutData(gd);
+		productList = new FilteredTree(composite, SWT.SINGLE | SWT.BORDER, new PatternFilter());
+		productList.setLayoutData(GridDataFactory.swtDefaults().align(SWT.FILL, SWT.FILL).grab(true, true).hint(
+				SWT.DEFAULT, 200).create());
+		final TreeViewer productViewer = productList.getViewer();
+		productViewer.setLabelProvider(new LabelProvider());
+		productViewer.setContentProvider(new ITreeContentProvider() {
 
-		// Each wizard has different types of items to add to the list
-		populateList(true);
+			public Object[] getChildren(Object parentElement) {
+				if (parentElement instanceof Collection) {
+					return ((Collection<?>) parentElement).toArray();
+				}
+				return null;
+			}
 
-		listBox.addListener(SWT.Selection, this);
+			public Object getParent(Object element) {
+				return null;
+			}
 
-		listBox.setSelection(getSelectedProducts());
-		listBox.showSelection();
-//		listBox.addSelectionListener(new SelectionListener() {
-//
-//			public void widgetDefaultSelected(SelectionEvent e) {
-//				// ignore
-//			}
-//
-//			public void widgetSelected(SelectionEvent e) {
-//				getWizard().performFinish();
-//				getWizard().dispose();
-//				// TODO: is this the wrong way of doing the close?
-//				getContainer().getShell().close();
-//			}
-//		});
+			public boolean hasChildren(Object element) {
+				return false;
+			}
+
+			public Object[] getElements(Object inputElement) {
+				return getChildren(inputElement);
+			}
+
+			public void dispose() {
+			}
+
+			public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
+			}
+		});
+		initProducts();
+		productViewer.setInput(products);
+		productViewer.addPostSelectionChangedListener(new ISelectionChangedListener() {
+
+			public void selectionChanged(SelectionChangedEvent event) {
+				// Initialize a variable with the no error status
+				Status status = new Status(IStatus.OK, BugzillaUiPlugin.PLUGIN_ID, 0, "", null);
+				if (productViewer.getSelection().isEmpty()) {
+					status = new Status(IStatus.ERROR, BugzillaUiPlugin.PLUGIN_ID, 0, "You must select a product", null);
+				}
+
+				// Show the most serious error
+				applyToStatusLine(status);
+				isPageComplete();
+				getWizard().getContainer().updateButtons();
+			}
+
+		});
+
+		// HACK: waiting on delayed refresh of filtered tree
+		final String[] selectedProducts = getSelectedProducts();
+		if (selectedProducts.length > 0) {
+			new UIJob("") {
+				@Override
+				public IStatus runInUIThread(IProgressMonitor monitor) {
+					productViewer.setSelection(new StructuredSelection(selectedProducts), true);
+					productViewer.getControl().setFocus();
+					return Status.OK_STATUS;
+				}
+			}.schedule(300L);
+		} else {
+			productList.setFocus();
+		}
 
 		Button updateButton = new Button(composite, SWT.LEFT | SWT.PUSH);
 		updateButton.setText(LABEL_UPDATE);
@@ -208,18 +245,17 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 								InterruptedException {
 							monitor.beginTask("Updating repository report options...", IProgressMonitor.UNKNOWN);
 							try {
-								connector.updateAttributes(repository, TasksUiPlugin.getDefault().getProxySettings(),
-										monitor);
+								connector.updateAttributes(repository, monitor);
 							} catch (CoreException ce) {
 								if (ce.getStatus().getException() instanceof GeneralSecurityException) {
 									MylarStatusHandler.fail(ce,
 											"Bugzilla could not log you in to get the information you requested since login name or password is incorrect.\n"
 													+ "Please ensure proper configuration in "
-													+ TaskRepositoriesView.NAME + ". ", true);
+													+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ". ", true);
 								} else if (ce.getStatus().getException() instanceof IOException) {
 									MylarStatusHandler.fail(ce,
 											"Connection Error, please ensure proper configuration in "
-													+ TaskRepositoriesView.NAME + ".", true);
+													+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ".", true);
 								} else {
 									MylarStatusHandler.fail(ce, "Error updating repository attributes for "
 											+ repository.getUrl(), true);
@@ -235,7 +271,7 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 							}
 						}
 					});
-					populateList(false);
+					productViewer.setInput(products);
 				} catch (InvocationTargetException ex) {
 					MessageDialog.openError(null, "Error updating product list", "Error reported:\n"
 							+ ex.getCause().getMessage());
@@ -254,91 +290,72 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 
 	private void initProducts() {
 		// try to get the list of products from the server
-		if (!bugWizard.model.hasParsedProducts()) {
-			String repositoryUrl = repository.getUrl();
-			try {
-				String[] storedProducts = BugzillaUiPlugin.getQueryOptions(IBugzillaConstants.VALUES_PRODUCT, null,
-						repositoryUrl);
-				if (storedProducts.length > 0) {
-					products = Arrays.asList(storedProducts);
-				} else {
-					products = BugzillaServerFacade.getProductList(repository.getUrl(), TasksUiPlugin.getDefault()
-							.getProxySettings(), repository.getUserName(), repository.getPassword(), repository
-							.getCharacterEncoding());
+		try {
+			products = BugzillaCorePlugin.getRepositoryConfiguration(repository, false).getProducts();
+
+		} catch (final CoreException e) {
+			PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
+				public void run() {
+					MessageDialog.openError(Display.getDefault().getActiveShell(), NEW_BUGZILLA_TASK_ERROR_TITLE,
+							"Unable to get products. Ensure proper repository configuration in "
+									+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ".\n\n");
+					// MylarStatusHandler.log(e, "Failed to retrieve products
+					// from server");
 				}
-				bugWizard.model.setConnected(true);
-				bugWizard.model.setParsedProductsStatus(true);
-
-			} catch (final Exception e) {
-				bugWizard.model.setConnected(false);
-				PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
-					public void run() {
-						MessageDialog.openError(Display.getDefault().getActiveShell(), NEW_BUGZILLA_TASK_ERROR_TITLE,
-								"Unable to get products. Ensure proper repository configuration in "
-										+ TaskRepositoriesView.NAME + ".\n\n");
-						MylarStatusHandler.log(e, "Failed to retrieve products from server");
-					}
-				});
-			}
+			});
 		}
-	}
-
-	/**
-	 * Populates the listBox with all available products.
-	 * 
-	 * @param read
-	 */
-	protected void populateList(boolean init) {
-		if (init) {
-			initProducts();
-		}
-
-		if (products != null) {
-			listBox.removeAll();
-			Iterator<String> itr = products.iterator();
-
-			while (itr.hasNext()) {
-				String prod = itr.next();
-				listBox.add(prod);
-			}
-		}
-		listBox.setFocus();
 	}
 
 	private String[] getSelectedProducts() {
-		ArrayList<String> products = new ArrayList<String>();
+		IStructuredSelection selection = getSelection();
 		if (selection == null) {
-			return products.toArray(new String[0]);
+			return new String[0];
 		}
 
-		BugzillaRepositoryQuery query = null;
+		ArrayList<String> products = new ArrayList<String>();
+
 		Object element = selection.getFirstElement();
-		if (element instanceof BugzillaRepositoryQuery) {
-			query = (BugzillaRepositoryQuery) element;
+		if (element instanceof BugzillaTask) {
+			BugzillaTask task = (BugzillaTask) element;
+			products.add(task.getTaskData().getProduct());
+		} else {
+			BugzillaRepositoryQuery query = null;
+			if (element instanceof BugzillaRepositoryQuery) {
+				query = (BugzillaRepositoryQuery) element;
 
-		} else if (element instanceof BugzillaQueryHit) {
-			BugzillaQueryHit hit = (BugzillaQueryHit) element;
-			if (hit.getParent() != null && hit.getParent() instanceof BugzillaRepositoryQuery) {
-				query = (BugzillaRepositoryQuery) hit.getParent();
+			} else if (element instanceof BugzillaQueryHit) {
+				BugzillaQueryHit hit = (BugzillaQueryHit) element;
+				if (hit.getParent() != null && hit.getParent() instanceof BugzillaRepositoryQuery) {
+					query = (BugzillaRepositoryQuery) hit.getParent();
+				}
 			}
-		}
 
-		if (query != null) {
-			String queryUrl = query.getUrl();
-			queryUrl = queryUrl.substring(queryUrl.indexOf("?") + 1);
-			String[] options = queryUrl.split("&");
+			if (query != null) {
+				String queryUrl = query.getUrl();
+				queryUrl = queryUrl.substring(queryUrl.indexOf("?") + 1);
+				String[] options = queryUrl.split("&");
 
-			for (String option : options) {
-				String key = option.substring(0, option.indexOf("="));
-				if ("product".equals(key)) {
-					try {
-						products.add(URLDecoder.decode(option.substring(option.indexOf("=") + 1), repository
-								.getCharacterEncoding()));
-						// TODO: list box only accepts a single selection so we
-						// break on first found
-						break;
-					} catch (UnsupportedEncodingException ex) {
-						// ignore
+				for (String option : options) {
+					String key = option.substring(0, option.indexOf("="));
+					if ("product".equals(key)) {
+						try {
+							products.add(URLDecoder.decode(option.substring(option.indexOf("=") + 1), repository
+									.getCharacterEncoding()));
+							// TODO: list box only accepts a single selection so
+							// we break on first found
+							break;
+						} catch (UnsupportedEncodingException ex) {
+							// ignore
+						}
+					}
+				}
+			} else {
+				if (element instanceof IAdaptable) {
+					IAdaptable adaptable = (IAdaptable) element;
+					ITask task = (ITask) adaptable.getAdapter(ITask.class);
+					if (task instanceof BugzillaTask) {
+						BugzillaTask bugzillaTask = (BugzillaTask) task;
+						products.add(bugzillaTask.getTaskData().getProduct());
 					}
 				}
 			}
@@ -347,34 +364,13 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 		return products.toArray(new String[products.size()]);
 	}
 
-	public void handleEvent(Event event) {
-		handleEventHelper(event, "You must select a product");
-	}
-
-	/**
-	 * A helper function for "handleEvent"
-	 * 
-	 * @param event
-	 *            the event which occurred
-	 * @param errorMessage
-	 *            the error message unique to the wizard calling this function
-	 */
-	protected void handleEventHelper(Event event, String errorMessage) {
-		// Initialize a variable with the no error status
-		Status status = new Status(IStatus.OK, "not_used", 0, "", null);
-
-		// If the event is triggered by the list of items, respond with the
-		// corresponding status
-		if (event.widget == listBox) {
-			if (listBox.getSelectionIndex() == -1)
-				status = new Status(IStatus.ERROR, "not_used", 0, errorMessage, null);
-			listStatus = status;
+	private IStructuredSelection getSelection() {
+		IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+		ISelection selection = window.getSelectionService().getSelection();
+		if (selection instanceof IStructuredSelection) {
+			return (IStructuredSelection) selection;
 		}
-
-		// Show the most serious error
-		applyToStatusLine(listStatus);
-		isPageComplete();
-		getWizard().getContainer().updateButtons();
+		return null;
 	}
 
 	/**
@@ -408,37 +404,23 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 	}
 
 	/**
-	 * Save the currently selected product to the model when next is clicked
-	 * 
-	 * @throws IOException
-	 * @throws NoSuchAlgorithmException
-	 * @throws LoginException
-	 * @throws KeyManagementException
-	 * @throws BugzillaException
+	 * Save the currently selected product to the taskData when next is clicked
 	 */
-	public void saveDataToModel() throws KeyManagementException, GeneralSecurityException, IOException,
-			BugzillaException {
-		NewBugzillaReport model = bugWizard.model;
-		prevProduct = model.getProduct();
-		model.setProduct((listBox.getSelection())[0]);
-
-		if (!model.hasParsedAttributes() || !model.getProduct().equals(prevProduct)) {
-			BugzillaServerFacade.setupNewBugAttributes(repository.getUrl(), TasksUiPlugin.getDefault()
-					.getProxySettings(), repository.getUserName(), repository.getPassword(), model, repository
-					.getCharacterEncoding());
-			model.setParsedAttributesStatus(true);
-		}
-
+	public void saveDataToModel() throws CoreException {
+		RepositoryTaskData model = bugWizard.taskData;
+		model.setAttributeValue(BugzillaReportElement.PRODUCT.getKeyString(),
+				(String) ((IStructuredSelection) productList.getViewer().getSelection()).getFirstElement());
+		BugzillaRepositoryConnector.setupNewBugAttributes(repository, model);
 		setPlatformOptions(model);
 	}
 
 	@Override
 	public boolean isPageComplete() {
-		bugWizard.completed = listBox.getSelectionIndex() != -1;
+		bugWizard.completed = !productList.getViewer().getSelection().isEmpty();
 		return bugWizard.completed;
 	}
 
-	public void setPlatformOptions(NewBugzillaReport newBugModel) {
+	public void setPlatformOptions(RepositoryTaskData newBugModel) {
 		try {
 
 			// Get OS Lookup Map
@@ -455,9 +437,9 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 			String bugzillaPlatform = null; // Bugzilla String for Platform
 
 			if (java2buzillaOSMap != null && java2buzillaOSMap.containsKey(OS) && opSysAttribute != null
-					&& opSysAttribute.getOptionValues() != null) {
+					&& opSysAttribute.getOptions() != null) {
 				bugzillaOS = java2buzillaOSMap.get(OS);
-				if (opSysAttribute != null && !opSysAttribute.getOptionValues().values().contains(bugzillaOS)) {
+				if (opSysAttribute != null && opSysAttribute.getOptionParameter(bugzillaOS) == null) {
 					// If the OS we found is not in the list of available
 					// options, set bugzillaOS
 					// to null, and just use "other"
@@ -471,8 +453,7 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 
 			if (platform != null && java2buzillaPlatformMap.containsKey(platform)) {
 				bugzillaPlatform = java2buzillaPlatformMap.get(platform);
-				if (platformAttribute != null
-						&& !platformAttribute.getOptionValues().values().contains(bugzillaPlatform)) {
+				if (platformAttribute != null && platformAttribute.getOptionParameter(bugzillaPlatform) == null) {
 					// If the platform we found is not int the list of available
 					// optinos, set the
 					// Bugzilla Platform to null, and juse use "other"
@@ -484,11 +465,18 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 				bugzillaPlatform = null;
 			}
 
-			// Set the OS and the Platform in the model
-			if (bugzillaOS != null && opSysAttribute != null)
+			// Set the OS and the Platform in the taskData
+			if (bugzillaOS != null && opSysAttribute != null) {
 				opSysAttribute.setValue(bugzillaOS);
-			if (bugzillaPlatform != null && platformAttribute != null)
+			} else if (opSysAttribute != null && opSysAttribute.getOptionParameter(OPTION_ALL) != null) {
+				opSysAttribute.setValue(OPTION_ALL);
+			}
+
+			if (bugzillaPlatform != null && platformAttribute != null) {
 				platformAttribute.setValue(bugzillaPlatform);
+			} else if (platformAttribute != null && platformAttribute.getOptionParameter(OPTION_ALL) != null) {
+				opSysAttribute.setValue(OPTION_ALL);
+			}
 
 		} catch (Exception e) {
 			MylarStatusHandler.fail(e, "could not set platform options", false);
@@ -497,21 +485,21 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 
 	// @Override
 	// public IWizardPage getNextPage() {
-	// // save the product information to the model
+	// // save the product information to the taskData
 	// saveDataToModel();
 	// NewBugzillaTaskWizard wizard = (NewBugzillaTaskWizard) getWizard();
-	// NewBugzillaReport model = wizard.model;
+	// NewBugzillaTaskData taskData = wizard.model;
 	//
 	// // try to get the attributes from the bugzilla server
 	// try {
-	// if (!model.hasParsedAttributes() ||
-	// !model.getProduct().equals(prevProduct)) {
+	// if (!taskData.hasParsedAttributes() ||
+	// !taskData.getProduct().equals(prevProduct)) {
 	// BugzillaRepositoryUtil.setupNewBugAttributes(repository.getUrl(),
 	// MylarTaskListPlugin.getDefault()
 	// .getProxySettings(), repository.getUserName(), repository.getPassword(),
-	// model, repository
+	// taskData, repository
 	// .getCharacterEncoding());
-	// model.setParsedAttributesStatus(true);
+	// taskData.setParsedAttributesStatus(true);
 	// }
 	//
 	// // if (prevProduct == null) {
@@ -519,10 +507,10 @@ public class BugzillaProductPage extends WizardPage implements Listener {
 	// // bugWizard.addPage(bugWizard.getAttributePage());
 	// // } else {
 	// // // selected product has changed
-	// // // will createControl again with new attributes in model
+	// // // will createControl again with new attributes in taskData
 	// // bugWizard.getAttributePage().setControl(null);
 	// // }
-	//			
+	//
 	// } catch (final Exception e) {
 	// e.printStackTrace();
 	// PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {

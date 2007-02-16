@@ -14,14 +14,14 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 
 /**
  * @author Mik Kersten
  */
 public class BugzillaHyperLink implements IHyperlink {
 
-	private static final String SHOW_BUG_CGI = "/show_bug.cgi?id=";
+	private static final String SHOW_BUG_CGI = "/show_bug.cgi?taskId=";
 
 	private IRegion region;
 
@@ -54,10 +54,10 @@ public class BugzillaHyperLink implements IHyperlink {
 		// MylarTaskListPlugin.getRepositoryManager().getDefaultRepository(
 		// BugzillaPlugin.REPOSITORY_KIND);
 		if (repositoryUrl != null) {
-			TaskUiUtil.openRepositoryTask(repositoryUrl, id, repositoryUrl + IBugzillaConstants.POST_ARGS_SHOW_BUG
+			TasksUiUtil.openRepositoryTask(repositoryUrl, id, repositoryUrl + IBugzillaConstants.URL_GET_SHOW_BUG
 					+ id);
 			// OpenBugzillaReportJob job = new
-			// OpenBugzillaReportJob(repository.getUrl(), id);
+			// OpenBugzillaReportJob(repository.getUrl(), taskId);
 			// IProgressService service =
 			// PlatformUI.getWorkbench().getProgressService();
 			// try {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004 - 2006 University Of British Columbia and others.
+ * Copyright (c) 2003 - 2006 University Of British Columbia and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,93 +8,160 @@
  * Contributors:
  *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
-
 package org.eclipse.mylar.internal.bugzilla.ui.editor;
 
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.jface.action.IMenuListener;
-import org.eclipse.jface.action.IMenuManager;
-import org.eclipse.jface.action.MenuManager;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.editors.MylarTaskEditor;
-import org.eclipse.swt.widgets.Menu;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.layout.GridDataFactory;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryQuery;
+import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
+import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.editors.AbstractNewRepositoryTaskEditor;
+import org.eclipse.mylar.tasks.ui.search.SearchHitCollector;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
-import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.forms.editor.FormEditor;
+import org.eclipse.ui.forms.widgets.FormToolkit;
+import org.eclipse.ui.forms.widgets.Section;
 
 /**
- * @author Rob Elves 
+ * An editor used to view a locally created bug that does not yet exist on a
+ * repository.
  * 
- * TODO: Get rid of this wrapper.
- * Before this can be done a factory must be added to handle new bug editor input in MylarTaskEditor.addPages()
- * then all occurrences of BugzillaUiPlugin.NEW_BUG_EDITOR_ID can be replaced with TaskListPreferenceConstants.TASK_EDITOR_ID
- * so that MylarTaskEditor is opened rather than this.
+ * @author Rob Elves
  */
-public class NewBugzillaTaskEditor extends MylarTaskEditor {
+public class NewBugzillaTaskEditor extends AbstractNewRepositoryTaskEditor {
 
-	private Menu contextMenu;
-	
-	private NewBugEditor newBugEditor;
+	private static final int WRAP_LENGTH = 90;
 
-	@Override
-	public void init(IEditorSite site, IEditorInput input) throws PartInitException {
-		setSite(site);
-		setInput(input);		
+	public NewBugzillaTaskEditor(FormEditor editor) {
+		super(editor);
 	}
 
 	@Override
-	protected void addPages() {
-		MenuManager manager = new MenuManager();
-		IMenuListener listener = new IMenuListener() {
-			public void menuAboutToShow(IMenuManager manager) {
-				contextMenuAboutToShow(manager);
-			}
-		};
-		manager.setRemoveAllWhenShown(true);
-		manager.addMenuListener(listener);
-		contextMenu = manager.createContextMenu(getContainer());
-		getContainer().setMenu(contextMenu);
+	public void init(IEditorSite site, IEditorInput input) {
+		super.init(site, input);
+		expandedStateAttributes = true;
+	}
+
+	@Override
+	protected void updateTask() {
+		String text = descriptionTextViewer.getTextWidget().getText();
+		if (repository.getVersion().startsWith("2.18")) {
+			text = formatTextToLineWrap(text, true);
+			descriptionTextViewer.getTextWidget().setText(text);
+		}
+		super.updateTask();
+	}
+
+	@Override
+	protected void createPeopleLayout(Composite composite) {
+		FormToolkit toolkit = getManagedForm().getToolkit();
+		Section peopleSection = createSection(composite, getSectionLabel(SECTION_NAME.PEOPLE_SECTION));
+		GridDataFactory.fillDefaults().align(SWT.FILL, SWT.FILL).grab(true, true).applyTo(peopleSection);
+		Composite peopleComposite = toolkit.createComposite(peopleSection);
+		GridLayout layout = new GridLayout(2, false);
+		layout.marginRight = 5;
+		peopleComposite.setLayout(layout);
+		GridDataFactory.fillDefaults().align(SWT.FILL, SWT.FILL).grab(true, true).applyTo(peopleComposite);
+
+		Label label = toolkit.createLabel(peopleComposite, "Assign to:");
+		GridDataFactory.fillDefaults().align(SWT.RIGHT, SWT.CENTER).applyTo(label);
+		Composite textFieldComposite = toolkit.createComposite(peopleComposite);
+		GridLayout textLayout = new GridLayout();
+//		textLayout.marginWidth = 1;
+//		textLayout.verticalSpacing = 0;
+//		textLayout.marginHeight = 0;
+//		textLayout.marginRight = 5;
+		textFieldComposite.setLayout(textLayout);
+		Text textField = createTextField(textFieldComposite, taskData
+				.getAttribute(RepositoryTaskAttribute.USER_ASSIGNED), SWT.FLAT);
+		toolkit.paintBordersFor(textFieldComposite);
+		GridDataFactory.fillDefaults().hint(150, SWT.DEFAULT).applyTo(textField);
+		peopleSection.setClient(peopleComposite);
+		toolkit.paintBordersFor(peopleComposite);
+	}
+
+	@Override
+	public SearchHitCollector getDuplicateSearchCollector(String searchString) {
+		String queryUrl = "";
 		try {
-			newBugEditor = new NewBugEditor(this);
-			int index = addPage(newBugEditor);
-			String label = "<unsubmitted> "+((NewBugEditorInput)getEditorInput()).getRepository().getUrl();
-			setPageText(index, "Bugzilla");			
-			setPartName(label);
-		} catch (PartInitException e) {
-			MylarStatusHandler.fail(e, "Could not add new bug form", true);
+			queryUrl = repository.getUrl() + "/buglist.cgi?long_desc_type=allwordssubstr&long_desc="
+					+ URLEncoder.encode(searchString, repository.getCharacterEncoding());
+		} catch (UnsupportedEncodingException e) {
+			MylarStatusHandler.log(e, "Error during duplicate detection");
+			return null;
+		}
+
+		queryUrl += "&product=" + taskData.getProduct();
+
+		BugzillaRepositoryQuery bugzillaQuery = new BugzillaRepositoryQuery(repository.getUrl(), queryUrl, "search",
+				"100", TasksUiPlugin.getTaskListManager().getTaskList());
+
+		SearchHitCollector collector = new SearchHitCollector(TasksUiPlugin.getTaskListManager().getTaskList(),
+				repository, bugzillaQuery);
+		return collector;
+	}
+
+	@Override
+	public void submitToRepository() {
+		if (summaryText.getText().equals("")) {
+			MessageDialog.openInformation(this.getSite().getShell(), "Submit Error", "Please provide a brief summary with new reports.");
+			summaryText.setFocus();
+			return;
+		} else if (descriptionTextViewer.getTextWidget().getText().equals("")) {
+			MessageDialog.openInformation(this.getSite().getShell(), "Submit Error", "Please proved a detailed summary with new reports");
+			descriptionTextViewer.getTextWidget().setFocus();
+			return;
+		}
+		super.submitToRepository();
+	}
+	
+	/**
+	 * Break text up into lines so that it is displayed properly in bugzilla
+	 */
+	private static String formatTextToLineWrap(String origText, boolean hardWrap) {
+		// BugzillaServerVersion bugzillaServerVersion =
+		// IBugzillaConstants.BugzillaServerVersion.fromString(repository
+		// .getVersion());
+		// if (bugzillaServerVersion != null &&
+		// bugzillaServerVersion.compareTo(BugzillaServerVersion.SERVER_220) >=
+		// 0) {
+		// return origText;
+		if (!hardWrap) {
+			return origText;
+		} else {
+			String[] textArray = new String[(origText.length() / WRAP_LENGTH + 1) * 2];
+			for (int i = 0; i < textArray.length; i++)
+				textArray[i] = null;
+			int j = 0;
+			while (true) {
+				int spaceIndex = origText.indexOf(" ", WRAP_LENGTH - 5);
+				if (spaceIndex == origText.length() || spaceIndex == -1) {
+					textArray[j] = origText;
+					break;
+				}
+				textArray[j] = origText.substring(0, spaceIndex);
+				origText = origText.substring(spaceIndex + 1, origText.length());
+				j++;
+			}
+
+			String newText = "";
+
+			for (int i = 0; i < textArray.length; i++) {
+				if (textArray[i] == null)
+					break;
+				newText += textArray[i] + "\n";
+			}
+			return newText;
 		}
 	}
-	
-	@Override
-	public Object getAdapter(Class adapter) {
-		return newBugEditor.getAdapter(adapter);
-	}
-
-	public NewBugEditor getPage() {
-		return newBugEditor;
-	}
-
-	@Override
-	public void doSave(IProgressMonitor monitor) {
-		// ignore
-
-	}
-
-	@Override
-	public void doSaveAs() {
-		// ignore
-
-	}
-
-	@Override
-	public boolean isSaveAsAllowed() {
-		// ignore
-		return false;
-	}
-
-	@Override
-	public boolean isDirty() {
-		return true;
-	}
-
 }

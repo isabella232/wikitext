@@ -1,27 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
-<?eclipse version="3.0"?>
 <plugin>
-   
-   <!-- TODO: remove? -->
-   <extension
-         id="searchHit"
-         name="Bugzilla Search Match"
-         point="org.eclipse.core.resources.markers">
-      <super type="org.eclipse.search.searchmarker"/>
-      <attribute name="id"/>
-      <attribute name="href"/>
-      <attribute name="description"/>
-      <attribute name="label"/>
-      <attribute name="severity"/>
-      <attribute name="priority"/>
-      <attribute name="platform"/>
-      <attribute name="status"/>
-      <attribute name="result"/>
-      <attribute name="owner"/>
-      <attribute name="query"/>
-   </extension> 
-   
+      
    <extension
          id="org.eclipse.mylar.bugzilla.repository" 
          name="Bugzilla Repository"
@@ -46,7 +26,7 @@
   
    <extension
          point="org.eclipse.mylar.tasks.ui.editors">
-      <editorFactory class="org.eclipse.mylar.internal.bugzilla.ui.tasklist.BugzillaReportEditorFactory"/>
+      <editorFactory class="org.eclipse.mylar.internal.bugzilla.ui.tasklist.BugzillaTaskEditorFactory"/>
       <hyperlinkDetector
             class="org.eclipse.mylar.internal.bugzilla.ui.BugzillaTaskHyperlinkDetector"
             id="org.eclipse.mylar.tasks.hyperlinkdetector.bugzillatask"/>
@@ -73,81 +53,4 @@
 		 </description>
       </decorator>
    </extension>
-   
-   <extension
-         point="org.eclipse.ui.editors">
-      <editor
-            name="Bugzilla viewer"
-            icon="icons/etool16/task-remote.gif"
-            class="org.eclipse.mylar.internal.bugzilla.ui.editor.ExistingBugEditor"
-            id="org.eclipse.mylar.bugzilla.ui.existingBugEditor">
-      </editor>
-     <editor
-      		name="Bugzilla viewer"
-      		icon="icons/etool16/task-remote.gif"
-      		class="org.eclipse.mylar.internal.bugzilla.ui.editor.NewBugzillaTaskEditor"
-    		contributorClass="org.eclipse.mylar.internal.tasks.ui.editors.TaskEditorActionContributor"
-      		id="org.eclipse.mylar.bugzilla.ui.newBugEditor">
-      </editor>
-           <editor
-           icon="icons/etool16/task-repository.gif" 
-           name="Bugzilla task viewer"
-           class="org.eclipse.mylar.internal.bugzilla.ui.tasklist.BugzillaTaskEditor"
-           id="org.eclipse.mylar.bugzilla.ui.tasklist.bugzillaTaskEditor"/>
-   </extension>   
-   <extension
-         id="org.eclipse.mylar.bugzilla.help.context"
-         name="Bugzilla Context-sensitive Help"
-         point="org.eclipse.help.contexts">
-      <contexts 
-      		file="bugzilla-help.xml">
-      </contexts>
-   </extension>
-<!--   <extension
-         point="org.eclipse.search.searchPages"
-         id="org.eclipse.mylar.bugzilla.core.search.searchPage"
-         name="Bugzilla Search Page">
-      <page
-            class="org.eclipse.mylar.internal.bugzilla.ui.search.BugzillaSearchPage"
-            enabled="true"
-            icon="icons/elcl16/bug-search.gif"
-            id="org.eclipse.mylar.bugzilla.core.search.bugzillaSearchPage"
-            label="Bugzilla Search"
-            tabPosition="999"/>
-   </extension>
-   <extension
-         id="BugzillaSearchPage"
-         point="org.eclipse.search.searchResultViewPages">
-      <viewPage
-            class="org.eclipse.mylar.internal.tasks.ui.search.RepositorySearchResultView"
-            searchResultClass="org.eclipse.mylar.internal.bugzilla.ui.search.BugzillaSearchResult"
-            id="org.eclipse.mylar.bugzilla.BugzillaSearchResultPage"/>
-   </extension>-->
-<!--   <extension
-         point="org.eclipse.mylar.tasks.ui.templates">
-      <repository
-            addAutomatically="true"
-            label="Eclipse.org"
-            repositoryKind="bugzilla"
-            urlRepository="https://bugs.eclipse.org/bugs"           
-            version="2.20"/>
-   </extension>-->
-<!--   <extension
-         id="org.eclipse.mylar.bugzilla.core.search.repositorySearchPage"
-         name="Repository Search Page"
-         point="org.eclipse.search.searchPages">
-       <page
-            class="org.eclipse.mylar.internal.tasks.ui.TaskSearchPage"
-            enabled="true"
-            icon="icons/elcl16/bug-search.gif"
-            id="org.eclipse.mylar.bugzilla.core.search.repositorySearchPage"
-            label="Repository Search"
-            tabPosition="999"/>
-   </extension>-->
-<!--   <extension
-         point="org.eclipse.mylar.tasklist.editors">
-      <hyperlinkListener
-            class="org.eclipse.mylar.internal.bugzilla.ui.BugzillaTaskHyperlinkDetector"
-            type="org.eclipse.mylar.bugzilla.ui.hyperlinkListener1"/>
-   </extension>-->
 </plugin>

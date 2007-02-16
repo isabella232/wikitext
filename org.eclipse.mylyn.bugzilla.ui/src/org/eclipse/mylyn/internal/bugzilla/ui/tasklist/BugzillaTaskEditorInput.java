@@ -13,35 +13,32 @@
  */
 package org.eclipse.mylar.internal.bugzilla.ui.tasklist;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaTask;
-import org.eclipse.mylar.internal.tasks.ui.editors.ExistingBugEditorInput;
-import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
-import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskRepository;
+import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.editors.RepositoryTaskEditorInput;
 import org.eclipse.ui.IPersistableElement;
 
 /**
  * @author Eric Booth
  * @author Mik Kersten
+ * @author Rob Elves
  */
-public class BugzillaTaskEditorInput extends ExistingBugEditorInput {
+public class BugzillaTaskEditorInput extends RepositoryTaskEditorInput {
 
-	private String bugTitle;
+	private String bugTitle = "";
 
 	private BugzillaTask bugTask;
 
-	public BugzillaTaskEditorInput(TaskRepository repository, BugzillaTask bugTask, boolean offline)
-			throws IOException, GeneralSecurityException {
-		super(repository, bugTask.getTaskData(), AbstractRepositoryTask.getTaskId(bugTask.getHandleIdentifier()));
-		this.bugTask = bugTask;
-		migrateDescToReadOnly(bugTask);
-		id = AbstractRepositoryTask.getTaskId(bugTask.getHandleIdentifier());
-		bugTitle = "";
-
+	public BugzillaTaskEditorInput(TaskRepository repository, BugzillaTask bugzillaTask, boolean offline) {
+		super(repository, bugzillaTask.getHandleIdentifier(), bugzillaTask.getTaskUrl(), bugzillaTask.getTaskId());
+		this.bugTask = bugzillaTask;
+		updateOptions(getTaskData());
+		updateOptions(getOldTaskData());
 	}
 
 	protected void setBugTitle(String str) {
@@ -60,11 +57,6 @@ public class BugzillaTaskEditorInput extends ExistingBugEditorInput {
 	}
 
 	@Override
-	public String getName() {
-		return bugTask.getDescription();
-	}
-
-	@Override
 	public IPersistableElement getPersistable() {
 		return null;
 	}
@@ -74,6 +66,7 @@ public class BugzillaTaskEditorInput extends ExistingBugEditorInput {
 		return bugTitle;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Object getAdapter(Class adapter) {
 		return null;
@@ -86,13 +79,16 @@ public class BugzillaTaskEditorInput extends ExistingBugEditorInput {
 		return bugTask;
 	}
 
-	// TODO: migration code 0.6.1 -> 0.6.2
-	private void migrateDescToReadOnly(BugzillaTask task) {
-		if (task != null && task.getTaskData() != null) {
-			RepositoryTaskAttribute attrib = task.getTaskData().getDescriptionAttribute();
-			if (attrib != null) {
-				attrib.setReadOnly(true);
+	// TODO: repository configuration update (remove at some point)
+	private void updateOptions(RepositoryTaskData taskData) {
+		try {
+			if (taskData != null) {
+				BugzillaRepositoryConnector bugzillaConnector = (BugzillaRepositoryConnector) TasksUiPlugin
+						.getRepositoryManager().getRepositoryConnector(BugzillaCorePlugin.REPOSITORY_KIND);
+				bugzillaConnector.updateAttributeOptions(repository, taskData);
 			}
+		} catch (Exception e) {
+			// ignore
 		}
 	}
 }

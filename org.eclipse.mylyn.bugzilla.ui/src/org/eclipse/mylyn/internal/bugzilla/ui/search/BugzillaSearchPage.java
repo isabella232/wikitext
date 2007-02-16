@@ -13,7 +13,6 @@ package org.eclipse.mylar.internal.bugzilla.ui.search;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
-import java.net.Proxy;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
@@ -22,23 +21,20 @@ import java.util.Arrays;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.dialogs.IDialogSettings;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
-import org.eclipse.jface.preference.IPreferenceStore;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryQuery;
 import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
 import org.eclipse.mylar.internal.bugzilla.ui.BugzillaUiPlugin;
-import org.eclipse.mylar.internal.tasks.ui.search.AbstractRepositoryQueryPage;
-import org.eclipse.mylar.internal.tasks.ui.search.SearchHitCollector;
-import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesView;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.core.TaskRepositoryManager;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
-import org.eclipse.search.ui.NewSearchUI;
+import org.eclipse.mylar.tasks.ui.search.AbstractRepositoryQueryPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
@@ -78,8 +74,6 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 	private static final int HEIGHT_ATTRIBUTE_COMBO = 60;
 
-	private TaskRepository repository = null;
-
 	protected Combo summaryPattern = null;
 
 	// protected Combo repositoryCombo = null;
@@ -107,7 +101,7 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 	private static final String[] emailRoleValues = { "emailassigned_to1", "emailreporter1", "emailcc1",
 			"emaillongdesc1" };
 
-	protected IPreferenceStore prefs = BugzillaUiPlugin.getDefault().getPreferenceStore();
+	//protected IPreferenceStore prefs = BugzillaUiPlugin.getDefault().getPreferenceStore();
 
 	protected String maxHits;
 
@@ -116,6 +110,15 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 	protected boolean restoring = false;
 
 	private boolean restoreQueryOptions = true;
+
+	private SelectionAdapter updateActionSelectionAdapter = new SelectionAdapter() {
+		@Override
+		public void widgetSelected(SelectionEvent e) {
+			if (scontainer != null) {
+				scontainer.setPerformActionEnabled(canQuery());
+			}
+		}
+	};
 
 	// private TaskRepository selectedRepository = null;
 
@@ -149,7 +152,7 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 	}
 
 	public BugzillaSearchPage(TaskRepository repository, BugzillaRepositoryQuery origQuery) {
-		super(TITLE_BUGZILLA_QUERY, origQuery.getDescription());
+		super(TITLE_BUGZILLA_QUERY, origQuery.getSummary());
 		originalQuery = origQuery;
 		this.repository = repository;
 		setDescription("Select the Bugzilla query parameters.  Use the Update Attributes button to retrieve "
@@ -259,7 +262,7 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 		// Info text
 		label = new Label(group, SWT.LEFT);
-		label.setText("Summary/id contains: ");
+		label.setText("Summary/taskId contains: ");
 		gd = new GridData(GridData.BEGINNING);
 		gd.horizontalSpan = 1;
 		label.setLayoutData(gd);
@@ -412,16 +415,19 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = HEIGHT_ATTRIBUTE_COMBO;
 		component.setLayoutData(gd);
+		component.addSelectionListener(updateActionSelectionAdapter);
 
 		version = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = HEIGHT_ATTRIBUTE_COMBO;
 		version.setLayoutData(gd);
+		version.addSelectionListener(updateActionSelectionAdapter);
 
 		target = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = HEIGHT_ATTRIBUTE_COMBO;
 		target.setLayoutData(gd);
+		target.addSelectionListener(updateActionSelectionAdapter);
 
 		return group;
 	}
@@ -466,31 +472,37 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = 40;
 		status.setLayoutData(gd);
+		status.addSelectionListener(updateActionSelectionAdapter);
 
 		resolution = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = 40;
 		resolution.setLayoutData(gd);
+		resolution.addSelectionListener(updateActionSelectionAdapter);
 
 		severity = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = 40;
 		severity.setLayoutData(gd);
+		severity.addSelectionListener(updateActionSelectionAdapter);
 
 		priority = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = 40;
 		priority.setLayoutData(gd);
+		priority.addSelectionListener(updateActionSelectionAdapter);
 
 		hardware = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = 40;
 		hardware.setLayoutData(gd);
+		hardware.addSelectionListener(updateActionSelectionAdapter);
 
 		os = new List(group, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		gd.heightHint = 40;
 		os.setLayoutData(gd);
+		os.addSelectionListener(updateActionSelectionAdapter);
 
 		return group;
 	}
@@ -874,13 +886,8 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		operation.setText(operation.getItem(patternData.operation));
 	}
 
+	// TODO: avoid overriding?
 	public boolean performAction() {
-		if (repository == null) {
-			MessageDialog.openInformation(Display.getCurrent().getActiveShell(),
-					IBugzillaConstants.TITLE_MESSAGE_DIALOG, TaskRepositoryManager.MESSAGE_NO_REPOSITORY);
-			return false;
-		}
-
 		if (restoreQueryOptions) {
 			saveWidgetValues();
 		}
@@ -888,29 +895,11 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		getPatternData(summaryPattern, summaryOperation, previousSummaryPatterns);
 		getPatternData(commentPattern, commentOperation, previousCommentPatterns);
 		getPatternData(this.emailPattern, emailOperation, previousEmailPatterns);
-
-		// try {
-		// // if the summary contains a single bug id, open the bug directly
-		// int id = Integer.parseInt(summaryText);
-		// return BugzillaUITools.show(repository.getUrl(), id);
-		// } catch (NumberFormatException ignored) {
-		// // ignore this since this means that the text is not a bug id
-		// }
-
-		// Don't activate the search result view until it is known that the
-		// user is not opening a bug directly -- there is no need to open
-		// the view if no searching is going to take place.
-		NewSearchUI.activateSearchResultView();
-
+		
 		String summaryText = summaryPattern.getText();
 		BugzillaUiPlugin.getDefault().getPreferenceStore().setValue(IBugzillaConstants.MOST_RECENT_QUERY, summaryText);
 
-		Proxy proxySettings = TasksUiPlugin.getDefault().getProxySettings();
-		SearchHitCollector collector = new SearchHitCollector(TasksUiPlugin.getTaskListManager().getTaskList(),
-				repository, getQuery(), proxySettings);
-		NewSearchUI.runQueryInBackground(collector);
-
-		return true;
+		return super.performAction();
 	}
 
 	@Override
@@ -1191,25 +1180,25 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		selected = status.getSelectionIndices();
 		for (int i = 0; i < selected.length; i++) {
 			sb.append("&bug_status=");
-			sb.append(status.getItem(selected[i]));
+			sb.append(URLEncoder.encode(status.getItem(selected[i]), repository.getCharacterEncoding()));
 		}
 
 		selected = resolution.getSelectionIndices();
 		for (int i = 0; i < selected.length; i++) {
 			sb.append("&resolution=");
-			sb.append(resolution.getItem(selected[i]));
+			sb.append(URLEncoder.encode(resolution.getItem(selected[i]), repository.getCharacterEncoding()));
 		}
 
 		selected = severity.getSelectionIndices();
 		for (int i = 0; i < selected.length; i++) {
-			sb.append("&bug_severity=");
-			sb.append(severity.getItem(selected[i]));
+			sb.append("&bug_severity=");			
+			sb.append(URLEncoder.encode(severity.getItem(selected[i]), repository.getCharacterEncoding()));
 		}
 
 		selected = priority.getSelectionIndices();
 		for (int i = 0; i < selected.length; i++) {
 			sb.append("&priority=");
-			sb.append(priority.getItem(selected[i]));
+			sb.append(URLEncoder.encode(priority.getItem(selected[i]), repository.getCharacterEncoding()));
 		}
 
 		selected = hardware.getSelectionIndices();
@@ -1253,7 +1242,7 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 	// --------------- Configuration handling --------------
 
-	// Dialog store id constants
+	// Dialog store taskId constants
 	protected final static String PAGE_NAME = "BugzillaSearchPage"; //$NON-NLS-1$
 
 	private static final String STORE_PRODUCT_ID = PAGE_NAME + ".PRODUCT";
@@ -1365,27 +1354,30 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 					repository.getKind());
 
 			IRunnableWithProgress updateRunnable = new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					monitor.beginTask("Updating search options...", IProgressMonitor.UNKNOWN);
-
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {			
+					if(monitor == null) {
+						monitor = new NullProgressMonitor();
+					}
 					try {
-						connector.updateAttributes(repository, TasksUiPlugin.getDefault().getProxySettings(), monitor);
+						monitor.beginTask("Updating search options...", IProgressMonitor.UNKNOWN);
+						connector.updateAttributes(repository, monitor);					
+						BugzillaUiPlugin.updateQueryOptions(repository, monitor);
 					} catch (CoreException ce) {
 						if (ce.getStatus().getException() instanceof GeneralSecurityException) {
 							MylarStatusHandler.fail(ce,
 									"Bugzilla could not log you in to get the information you requested since login name or password is incorrect.\n"
-											+ "Please ensure proper configuration in " + TaskRepositoriesView.NAME
+											+ "Please ensure proper configuration in " + TasksUiPlugin.LABEL_VIEW_REPOSITORIES
 											+ ". ", true);
 						} else if (ce.getStatus().getException() instanceof IOException) {
 							MylarStatusHandler.fail(ce, "Connection Error, please ensure proper configuration in "
-									+ TaskRepositoriesView.NAME + ".", true);
+									+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ".", true);
 						} else {
 							MylarStatusHandler.fail(ce, "Error updating repository attributes for "
 									+ repository.getUrl(), true);
-						}
-						return;
+						}						
+					} finally {
+						monitor.done();
 					}
-					BugzillaUiPlugin.updateQueryOptions(repository, monitor);
 				}
 			};
 
@@ -1693,18 +1685,13 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 			try {
 				originalQuery.setUrl(getQueryURL(repository, getQueryParameters()));
 				originalQuery.setMaxHits(Integer.parseInt(getMaxHits()));
-
+				originalQuery.setDescription(getQueryTitle());
 			} catch (UnsupportedEncodingException e) {
 				return null;
 			}
 		}
 		return originalQuery;
 	}
-
-	// @Override
-	// public boolean isPageComplete() {
-	// return super.canFlipToNextPage();
-	// }
 
 	private String[] nonNullArray(IDialogSettings settings, String id) {
 		String[] value = settings.getArray(id);
