@@ -1,25 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
 <plugin>
-    <extension-point id="providers" name="Tasklist Providers" schema="schema/providers.exsd"/>
+    <extension-point id="actions" name="Tasklist Actions" schema="schema/actions.exsd"/>
     <extension-point id="repositories" name="Task Repositories" schema="schema/repositories.exsd"/>
     <extension-point id="editors" name="Task Editors" schema="schema/editors.exsd"/>
 
+	<!--
     <extension
          point="org.eclipse.mylar.context.core.bridges">
    	  	<contextStore class="org.eclipse.mylar.internal.tasks.ui.WorkspaceAwareContextStore"/>
     </extension>
+	-->
 
 	<extension point="org.eclipse.ui.views">
      	<category name="Mylar" id="org.eclipse.mylar"/>
     </extension>
+	
+    <extension
+         point="org.eclipse.ui.views">
+      <view
+         allowMultiple="true"
+         category="org.eclipse.mylar"
+         class="org.eclipse.mylar.internal.tasks.ui.views.TaskListView"
+         icon="icons/eview16/task-list.gif"
+         id="org.eclipse.mylar.tasks.ui.views.TaskListView"
+         name="Task List"/> 
+      <view
+            id="org.eclipse.mylar.tasklist.repositories"
+            allowMultiple="false"
+            category="org.eclipse.mylar"
+            class="org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesView"
+            icon="icons/eview16/repositories.gif"
+            name="Task Repositories">
+      </view>
+      <view
+            allowMultiple="false"
+            category="org.eclipse.mylar"
+            class="org.eclipse.mylar.internal.tasks.ui.views.TaskActivityView"
+            icon="icons/eview16/task-activity.gif"
+            id="org.eclipse.mylar.tasklist.activity"
+            name="Task Activity"/>
+  	</extension>
      	
     <extension point="org.eclipse.ui.newWizards">
         <category name="Mylar" id="org.eclipse.mylar.wizards"/>
     </extension>
 
     <extension
-         name="Mylar Task List Startup (required)"
+         name="Task List Startup (required)"
          point="org.eclipse.ui.startup">
     </extension>
 
@@ -34,7 +62,13 @@
       </toc>
     </extension>
     -->
-
+ <extension
+         point="org.eclipse.ui.elementFactories">
+      <factory
+            class="org.eclipse.mylar.internal.tasks.ui.editors.TaskEditorInputFactory"
+            id="org.eclipse.mylar.internal.tasks.ui.editors.TaskEditorInputFactory">
+      </factory>
+   </extension>
     <extension point="org.eclipse.ui.newWizards">
       <wizard
             canFinishEarly="true" 
@@ -70,7 +104,7 @@
             class="org.eclipse.mylar.internal.tasks.ui.planner.TaskActivityWizard"
             icon="icons/eview16/task-list.gif"
             id="org.eclipse.mylar.tasks.ui.activity.report"
-            name="Task Activity Report (Experimental)">
+            name="Task Activity Report">
       </wizard> 
 	</extension>
 
@@ -81,9 +115,9 @@
            class="org.eclipse.mylar.internal.tasks.ui.wizards.TaskDataImportWizard"
            icon="icons/eview16/task-list.gif"
            id="org.eclipse.mylar.tasklist.ui.importWizard"
-           name="Mylar Task Data">
+           name="Task List">
         <description>
-           Import Mylar task data files from file system.
+           Import task data files from file system.
         </description>
      </wizard>
      <category
@@ -97,9 +131,9 @@
             class="org.eclipse.mylar.internal.tasks.ui.wizards.TaskDataExportWizard"
             icon="icons/eview16/task-list.gif"
             id="org.eclipse.mylar.tasklist.ui.exportWizard"
-            name="Mylar Task Data"> 
+            name="Task Data"> 
          <description> 
-            Export Mylar task data files to the file system.
+            Export Task List data files to the file system.
          </description> 
       </wizard>
       <category
@@ -111,11 +145,11 @@
       <decorator
             class="org.eclipse.mylar.internal.tasks.ui.RepositoryTaskDecorator"
             id="org.eclipse.mylar.tasklist.ui.decorator.repositories"
-            label="Mylar Repository Task Decorator"
+            label="Task Decorator"
             lightweight="true"
             state="true">
          <description>
-			Mylar Repository Task Decorator
+			Task Decorator
 		 </description>
          <enablement>
             <or>
@@ -129,38 +163,11 @@
          </enablement>
       </decorator>
    </extension>
-	
-  
-   <extension
-         point="org.eclipse.ui.views">
-      <view
-         allowMultiple="true"
-         category="org.eclipse.mylar"
-         class="org.eclipse.mylar.internal.tasks.ui.views.TaskListView"
-         icon="icons/eview16/task-list.gif"
-         id="org.eclipse.mylar.tasks.ui.views.TaskListView"
-         name="Task List"/> 
-      <view
-            id="org.eclipse.mylar.tasklist.repositories"
-            allowMultiple="false"
-            category="org.eclipse.mylar"
-            class="org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesView"
-            icon="icons/eview16/repositories.gif"
-            name="Task Repositories">
-      </view>
-      <view
-            allowMultiple="false"
-            category="org.eclipse.mylar"
-            class="org.eclipse.mylar.internal.tasks.ui.views.TaskActivityView"
-            icon="icons/eview16/task-activity.gif"
-            id="org.eclipse.mylar.tasklist.activity"
-            name="Task Activity (Experimental)"/>
-  	</extension>
 
   	<extension
         point="org.eclipse.ui.editors">
      <editor
-           class="org.eclipse.mylar.internal.tasks.ui.editors.MylarTaskEditor"
+           class="org.eclipse.mylar.tasks.ui.editors.TaskEditor"
            contributorClass="org.eclipse.mylar.internal.tasks.ui.editors.TaskEditorActionContributor"
            icon="icons/etool16/task.gif"
            id="org.eclipse.mylar.tasklist.ui.taskEditor"
@@ -175,7 +182,7 @@
           contributorClass="org.eclipse.mylar.internal.tasks.ui.editors.TaskEditorActionContributor"
           icon="icons/eview16/task-list.gif"
           id="org.eclipse.mylar.tasklist.ui.planner.editor"
-          name="Mylar Task Planner"/>                      
+          name="Task Planner"/>                      
   </extension>
   
       <extension point="org.eclipse.ui.perspectiveExtensions">
@@ -206,10 +213,10 @@
             targetID="org.eclipse.ui.resourcePerspective">
             <viewShortcut id="org.eclipse.mylar.tasks.ui.views.TaskListView"/>
 	         <view
+                closeable="true"
                 id="org.eclipse.mylar.tasks.ui.views.TaskListView"
                 relationship="left"
-                relative="org.eclipse.ui.views.TaskList"
-                >
+                relative="org.eclipse.ui.views.TaskList">
          </view>
           <newWizardShortcut
                 id="org.eclipse.mylar.tasks.ui.wizard.new.task">
@@ -261,27 +268,44 @@
 		<viewContribution 
 			id="org.eclipse.mylar.tasklist.actions.view" 
 	   		targetID="org.eclipse.mylar.tasks.ui.views.TaskListView">
+    <action
+          class="org.eclipse.mylar.internal.tasks.ui.actions.RestoreTaskListAction"
+          id="org.eclipse.mylar.tasks.ui.action.restore"
+          label="Restore Tasks from History..."
+          menubarPath="tasks"
+          style="push">
+    </action>
+  		
+  		<action
+          class="org.eclipse.mylar.internal.tasks.ui.actions.SynchronizeAllAction"
+          enablesFor="*"
+          icon="icons/etool16/repository-synchronize.gif"
+          id="org.eclipse.mylar.tasklist.synchronize"
+          label="Synchronize All"
+          menubarPath="tasks"
+          toolbarPath="new"
+          tooltip="Synchronize All Tasks and Queries">
+         </action>
   		
   		<action
                class="org.eclipse.mylar.internal.tasks.ui.actions.NewRepositoryTaskAction"
                enablesFor="*"
                icon="icons/etool16/task-repository-new.gif"
-               id="org.eclipse.mylar.tasklist.new.repositorytask"
+               id="org.eclipse.mylar.tasks.ui.actions.new.repository.task"
                label="New Repository Task"
                style="push"
-               toolbarPath="reports"
+               toolbarPath="new"
                tooltip="New Repository Task"> 
   		</action>
-  		
-  		<action
-               class="org.eclipse.mylar.internal.tasks.ui.actions.SynchronizeAllAction"
-               enablesFor="*"
-               icon="icons/etool16/repository-synchronize.gif"
-               id="org.eclipse.mylar.tasklist.synchronize"
-               label="Synchronize All"
-               menubarPath="additions"
-               tooltip="Synchronize All Tasks and Queries">
-         </action>
+    <action
+          class="org.eclipse.mylar.internal.tasks.ui.actions.NewLocalTaskAction"
+          icon="icons/etool16/task-new.gif"
+          id="org.eclipse.mylar.tasks.ui.actions.newy.task"
+          label="Task"
+          style="push"
+          toolbarPath="new"
+          tooltip="New Task">
+    </action>
          <!--
     	<action
           class="org.eclipse.mylar.internal.tasklist.ui.actions.CopyDetailsAction"
@@ -302,9 +326,9 @@
                definitionId="org.eclipse.ui.file.refresh"
                enablesFor="*"
                icon="icons/etool16/repository-synchronize.gif"
-               id="org.eclipse.mylar.tasklist.synchronize.selected"
+               id="org.eclipse.mylar.tasks.ui.actions.synchronize.selection"
                label="Synchronize"
-               menubarPath="reports"
+               menubarPath="repository"
                tooltip="Synchronize with Repository">
             <enablement>
                <or>
@@ -316,36 +340,66 @@
             </enablement>
          </action>
          
+        <!--
 		<action
               class="org.eclipse.mylar.internal.tasks.ui.actions.AddRepositoryTaskAction"
               enablesFor="*"
               icon="icons/etool16/task-repository.gif"
-              id="org.eclipse.mylar.tasklist.actions.addQuery"
-              menubarPath="reports"
-              label="Add Existing Task"
+              id="org.eclipse.mylar.tasks.ui.actions.add.repository.task"
+              menubarPath="org.eclipse.mylar.tasks.ui.menu.new/repository"
+              label="Add Existing Task..."
               style="push"
               tooltip="Add Existing Task"> 
   		</action>
+  		-->
   		
   		<action
 	        class="org.eclipse.mylar.internal.tasks.ui.actions.NewRepositoryTaskAction"
 	        enablesFor="*"
 	        icon="icons/etool16/task-repository-new.gif"
-	        id="org.eclipse.mylar.tasklist.new.repositorytask"
-	        label="New Repository Task"
-	        menubarPath="reports"
+	        id="org.eclipse.mylar.tasks.ui.actions.new.repository.task"
+	        label="Repository Task..."
+	        menubarPath="org.eclipse.mylar.tasks.ui.menu.new/repository"
 	        tooltip="New Repository Task"/>
 	              
 		<action
               class="org.eclipse.mylar.internal.tasks.ui.actions.NewQueryAction"
               enablesFor="*"
               icon="icons/etool16/query-new.gif"
-              id="org.eclipse.mylar.tasklist.actions.addQuery"
-              menubarPath="reports"
-              label="New Query"
+              id="org.eclipse.mylar.tasks.ui.actions.new.query"
+              menubarPath="org.eclipse.mylar.tasks.ui.menu.new/repository"
+              label="Query..."
               style="push"
               tooltip="New Query"> 
   		</action>
+  <menu
+        id="org.eclipse.mylar.tasks.ui.menu.new"
+        label="New"
+        path="new">
+     <separator
+           name="local">
+     </separator>
+     <separator
+           name="repository">
+     </separator>
+  </menu>
+  <action
+        class="org.eclipse.mylar.internal.tasks.ui.actions.NewLocalTaskAction"
+        icon="icons/etool16/task-new.gif"
+        id="org.eclipse.mylar.tasks.ui.actions.new.task"
+        label="Task"
+        menubarPath="org.eclipse.mylar.tasks.ui.menu.new/local"
+        style="push"
+        tooltip="New Task">
+  </action>
+  <action
+        class="org.eclipse.mylar.internal.tasks.ui.actions.NewCategoryAction"
+        icon="icons/etool16/category-new.gif"
+        id="org.eclipse.mylar.tasks.ui.actions.new.category"
+        label="Category"
+        menubarPath="org.eclipse.mylar.tasks.ui.menu.new/local"
+        tooltip="New Category">
+  </action>
       </viewerContribution>
       
    </extension>
@@ -358,7 +412,7 @@
             <keywordReference id="org.eclipse.mylar.tasks.keywords"/>
       </page>  
       <page 
-         name="Tasks"
+         name="Task List"
          class="org.eclipse.mylar.internal.tasks.ui.preferences.TasksPreferencePage"
          id="org.eclipse.mylar.tasklist.ui.preferences"
          category="org.eclipse.mylar.ui.preferences">
@@ -387,7 +441,7 @@
    -->
   <extension point="org.eclipse.ui.bindings">
       <key
-            sequence="M2+M3+Q M"
+            sequence="M2+M3+Q K"
             contextId="org.eclipse.ui.contexts.window"
             commandId="org.eclipse.ui.views.showView"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
@@ -401,7 +455,7 @@
          point="org.eclipse.ui.themes">
       <themeElementCategory
            id="org.eclipse.mylar.tasklist.ui.presentation"
-           label="Mylar"/>
+           label="Tasks"/>         
      <colorDefinition
            categoryId="org.eclipse.mylar.tasklist.ui.presentation"
            id="org.eclipse.mylar.tasklist.ui.colors.foreground.overdue"
@@ -439,7 +493,17 @@
            label="Tasks - Completed Today"
            value="107,169,128">  
          <description>
-            Text color for tasks completed.
+            Text color for tasks completed today.
+         </description>
+     </colorDefinition>
+     <colorDefinition
+           categoryId="org.eclipse.mylar.tasklist.ui.presentation"
+           id="org.eclipse.mylar.tasklist.ui.colors.foreground.completed"
+           isEditable="true"
+           label="Tasks - Completed"
+           value="128,128,128">  
+         <description>
+            Text color for completed tasks.
          </description>
      </colorDefinition>
      <colorDefinition
@@ -452,21 +516,32 @@
             Background color of Task List categories and queries.
          </description>
      </colorDefinition>
-         
+     <colorDefinition
+           categoryId="org.eclipse.mylar.tasklist.ui.presentation"
+           id="org.eclipse.mylar.tasks.ui.colors.incoming.background"
+           isEditable="true"
+           label="Task Editor - Incoming Changes"
+           value="225,236,255"> 
+         <description>
+            Background color of attributes with incoming changes.
+         </description>
+     </colorDefinition>  
 	<fontDefinition
        categoryId="org.eclipse.mylar.tasklist.ui.presentation"
        id="org.eclipse.mylar.tasklist.ui.fonts.task.editor.comment"
        isEditable="true"
        label="Task Editor - Notes and Comments"
-       value="Tahoma-regular-10">
+       value="org.eclipse.jface.dialogfont-">
+	     <fontValue
+            ws="win32" 
+            value="Tahoma-regular-10">
+         </fontValue>
          <description>
             Text font used for task editor text areas.
          </description>
       </fontDefinition>
    </extension>
    <!-- defaultsTo="org.eclipse.jface.dialogfont"-->
-   
-    
 
    <extension
          point="org.eclipse.ui.perspectives">
@@ -478,11 +553,18 @@
    </extension>
   
      
-   <extension point="org.eclipse.mylar.tasks.ui.providers">    
-      <dynamicPopupMenu class="org.eclipse.mylar.internal.tasks.ui.TaskReminderMenuContributor"/>
-      <dynamicPopupMenu class="org.eclipse.mylar.internal.tasks.ui.TaskStatusMenuContributor"/>
-      <dynamicPopupMenu class="org.eclipse.mylar.internal.tasks.ui.MoveToCategoryMenuContributor"/>
+   <extension point="org.eclipse.mylar.tasks.ui.actions">    
+      <dynamicPopupMenu
+            class="org.eclipse.mylar.internal.tasks.ui.ScheduleTaskMenuContributor"
+            menuPath="tasks"/>
+      <dynamicPopupMenu
+            class="org.eclipse.mylar.internal.tasks.ui.TaskStatusMenuContributor"
+            menuPath="tasks"/>
+      <dynamicPopupMenu
+            class="org.eclipse.mylar.internal.tasks.ui.MoveToCategoryMenuContributor"
+            menuPath="tasks"/>
    </extension>
+   
    <extension
          point="org.eclipse.mylar.tasks.ui.editors">
       <hyperlinkDetector
@@ -500,21 +582,32 @@
             id="org.eclipse.mylar.tasks.navigation"
             label="Task Navigation"
             visible="true">
-         <action
+		<action
                class="org.eclipse.mylar.internal.tasks.ui.actions.DeactivateAllTasksAction"
                definitionId="org.eclipse.mylar.tasks.command.deactivateAllTasks"
+               icon="icons/etool16/task-inactive-centered.gif"
                id="org.eclipse.mylar.tasks.ui.deactivateAllTasks"
                label="&amp;Deactivate Task"
                menubarPath="navigate/open.ext3"
                style="push"/>
 		<action
-               class="org.eclipse.mylar.internal.tasks.ui.actions.ActivateTaskAction"
-               definitionId="org.eclipse.mylar.tasks.command.activateTask"
-               id="org.eclipse.mylar.tasks.ui.switchTask"
-               label="&amp;Activate Task..."
+        	class="org.eclipse.mylar.internal.tasks.ui.actions.ActivateTaskDialogAction"
+        	definitionId="org.eclipse.mylar.tasks.command.activateTask"
+        	icon="icons/etool16/task-active-centered.gif"
+        	id="org.eclipse.mylar.tasks.ui.switchTask"
+        	label="&amp;Activate Task..."
+        	menubarPath="navigate/open.ext3"
+        	style="push"/>
+		<action
+               class="org.eclipse.mylar.internal.tasks.ui.actions.OpenRepositoryTask"
+               definitionId="org.eclipse.mylar.tasks.command.openRemoteTask"
+               icon="icons/etool16/open-repository-task.gif"
+               id="org.eclipse.mylar.tasks.ui.open.task.remote"
+               label="Open &amp;Repository Task..."
                menubarPath="navigate/open.ext3"
-               style="push"/>
-         <action
+               style="push"
+               tooltip="Open Repository Task"/>
+        <action
                class="org.eclipse.mylar.internal.tasks.ui.actions.OpenTaskAction"
                definitionId="org.eclipse.mylar.tasks.command.openTask"
                icon="icons/etool16/open-task.gif"
@@ -534,6 +627,10 @@
             name="Open Task"/>
       <command
             categoryId="org.eclipse.ui.category.navigate"
+            id="org.eclipse.mylar.tasks.command.openRemoteTask"
+            name="Open Remote Task"/>
+      <command
+            categoryId="org.eclipse.ui.category.navigate"
             id="org.eclipse.mylar.tasks.command.activateTask"
             name="Activate Task"/>
       <command
@@ -546,11 +643,15 @@
       <key
             commandId="org.eclipse.mylar.tasks.command.openTask"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
-            sequence="M1+M2+F11"/>
+            sequence="M1+F12"/>
+      <key
+            commandId="org.eclipse.mylar.tasks.command.openRemoteTask"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="M1+M2+F12"/>
       <key
             commandId="org.eclipse.mylar.tasks.command.activateTask"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
-            sequence="M1+M2+F12"/>
+            sequence="M1+F9"/>
       <key
             commandId="org.eclipse.mylar.tasks.command.deactivateAllTasks"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
@@ -561,7 +662,7 @@
          point="org.eclipse.search.searchResultViewPages">
       <viewPage
             class="org.eclipse.mylar.internal.tasks.ui.search.RepositorySearchResultView"
-            searchResultClass="org.eclipse.mylar.internal.tasks.ui.search.RepositorySearchResult"
+            searchResultClass="org.eclipse.mylar.tasks.ui.search.RepositorySearchResult"
             id="org.eclipse.mylar.internal.tasks.ui.search.RepositorySearchResultView"/>
 <!--            id="org.eclipse.mylar.bugzilla.BugzillaSearchResultPage"/>-->
    </extension>
@@ -585,6 +686,25 @@
              id="org.eclipse.mylar.tasks.ui.project.repository"
              name="Task Repository"
              objectClass="org.eclipse.core.resources.IProject"/>
+    </extension>
+    <extension
+          point="org.eclipse.ui.commands">
+       <category
+             id="org.eclipse.mylar.tasks.category.taskRepository"
+             name="Task Repositories">
+       </category>
+       <command
+             categoryId="org.eclipse.mylar.tasks.category.taskRepository"
+             defaultHandler="org.eclipse.mylar.internal.tasks.ui.commands.AddTaskRepositoryHandler"
+             id="org.eclipse.mylar.tasks.command.addTaskRepository"
+             name="Add Task Repository">
+          <commandParameter
+                id="org.eclipse.mylar.tasks.command.taskRepositoryId"
+                name="Repository Type"
+                optional="true"
+                values="org.eclipse.mylar.internal.tasks.ui.commands.TaskRepositoryParameterValues">
+          </commandParameter>
+       </command>
     </extension>
   
 </plugin>
