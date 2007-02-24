@@ -36,6 +36,7 @@ import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IWorkbenchActionConstants;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.actions.BaseSelectionListenerAction;
 import org.eclipse.ui.part.ViewPart;
 
 /**
@@ -45,17 +46,15 @@ public class TaskRepositoriesView extends ViewPart {
 
 	public static final String ID = "org.eclipse.mylar.tasklist.repositories";
 
-	public static final String NAME = "Task Repositories View";
-
 	private TableViewer viewer;
 
 	private Action addRepositoryAction = new AddRepositoryAction();
 
-	private Action deleteRepositoryAction = new DeleteTaskRepositoryAction(this);
+	private BaseSelectionListenerAction deleteRepositoryAction;
 
-	private Action repositoryPropertiesAction = new EditRepositoryPropertiesAction(this);
+	private BaseSelectionListenerAction repositoryPropertiesAction;
 
-	private Action resetConrigurationAction = new ResetRepositoryConfigurationAction(this);
+	private BaseSelectionListenerAction resetConrigurationAction;
 
 	private final ITaskRepositoryListener REPOSITORY_LISTENER = new ITaskRepositoryListener() {
 
@@ -102,6 +101,7 @@ public class TaskRepositoriesView extends ViewPart {
 		return null;
 	}
 
+	@Override
 	public void createPartControl(Composite parent) {
 		viewer = new TableViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.FULL_SELECTION);
 		viewer.setContentProvider(new ViewContentProvider());
@@ -109,7 +109,7 @@ public class TaskRepositoriesView extends ViewPart {
 		viewer.setLabelProvider(new DecoratingLabelProvider(new TaskRepositoryLabelProvider(), PlatformUI
 				.getWorkbench().getDecoratorManager().getLabelDecorator()));
 
-		viewer.setSorter(new TaskRepositoriesViewSorter());
+		viewer.setSorter(new TaskRepositoriesSorter());
 				
 //				new ViewerSorter() {
 //
@@ -128,13 +128,27 @@ public class TaskRepositoriesView extends ViewPart {
 		viewer.addDoubleClickListener(new IDoubleClickListener() {
 
 			public void doubleClick(DoubleClickEvent event) {
-				repositoryPropertiesAction.run();
+				if(repositoryPropertiesAction.isEnabled()){
+					repositoryPropertiesAction.run();
+				}
 			}
 		});
 
+		makeActions();
 		hookContextMenu();
 		contributeToActionBars();
 		getSite().setSelectionProvider(getViewer());
+	}
+
+	private void makeActions() {
+		deleteRepositoryAction = new DeleteTaskRepositoryAction();
+		viewer.addSelectionChangedListener(deleteRepositoryAction);
+		
+		repositoryPropertiesAction = new EditRepositoryPropertiesAction();
+		viewer.addSelectionChangedListener(repositoryPropertiesAction);
+		
+		resetConrigurationAction = new ResetRepositoryConfigurationAction();
+		viewer.addSelectionChangedListener(resetConrigurationAction);
 	}
 
 	private void hookContextMenu() {
@@ -162,11 +176,12 @@ public class TaskRepositoriesView extends ViewPart {
 
 	private void fillContextMenu(IMenuManager manager) {
 		manager.add(addRepositoryAction);
-		manager.add(deleteRepositoryAction);
 		manager.add(new Separator());
-		manager.add(repositoryPropertiesAction);
+		manager.add(deleteRepositoryAction);
 		manager.add(resetConrigurationAction);
 		manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
+		manager.add(new Separator());
+		manager.add(repositoryPropertiesAction);
 	}
 
 	private void fillLocalToolBar(IToolBarManager manager) {
@@ -176,6 +191,7 @@ public class TaskRepositoriesView extends ViewPart {
 	/**
 	 * Passing the focus request to the viewer's control.
 	 */
+	@Override
 	public void setFocus() {
 		viewer.getControl().setFocus();
 	}

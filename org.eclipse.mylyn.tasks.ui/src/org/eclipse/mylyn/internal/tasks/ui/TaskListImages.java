@@ -37,6 +37,8 @@ public class TaskListImages {
 
 	private static final String T_WIZBAN = "wizban";
 	
+	private static final String T_OVR = "ovr16";
+	
 	public static final Point SIZE = new Point(16, 16);
 
 	private static final URL baseURL = TasksUiPlugin.getDefault().getBundle().getEntry("/icons/");
@@ -59,12 +61,16 @@ public class TaskListImages {
 
 	public static final ImageDescriptor COLOR_PALETTE = create(T_ELCL, "color-palette.gif");
 
+	public static final ImageDescriptor FILTER = create(T_TOOL, "view-filter.gif");
+	
 	public static final ImageDescriptor TASK = createSize(create(T_TOOL, "task.gif"), SIZE);
 
 	public static final ImageDescriptor TASK_COMPLETED = createSize(create(T_TOOL, "task-completed.gif"), SIZE);
 	
 	public static final ImageDescriptor TASK_NOTES = createSize(create(T_TOOL, "task-notes.gif"), SIZE);
 
+	public static final ImageDescriptor TASK_REPOSITORY_HISTORY = createSize(create(T_TOOL, "task-repository-history.gif"), SIZE);
+	
 	public static final ImageDescriptor TASK_REPOSITORY_NOTES = createSize(create(T_TOOL, "task-repository-notes.gif"), SIZE);
 
 	public static final ImageDescriptor TASK_REPOSITORY_COMPLETED = createSize(create(T_TOOL, "task-repository-completed.gif"), SIZE);
@@ -74,6 +80,8 @@ public class TaskListImages {
 	public static final ImageDescriptor OVERLAY_WEB = create(T_TOOL, "overlay-web.gif");
  
 	public static final ImageDescriptor OVERLAY_SYNCHRONIZING = create(T_EVIEW, "overlay-synchronizing.gif");
+
+	public static final ImageDescriptor OVERLAY_DUE = create(T_EVIEW, "overlay-due.gif");
 	
 	public static final ImageDescriptor TASK_WEB = createWithOverlay(TASK, OVERLAY_WEB, false, true);
 
@@ -96,7 +104,9 @@ public class TaskListImages {
 	public static final ImageDescriptor PERSON = create(T_TOOL, "person.gif");
 	
 	public static final ImageDescriptor CONTEXT_ATTACH = create(T_TOOL, "context-attach.gif");
-		
+
+	public static final ImageDescriptor CONTEXT_RETRIEVE = create(T_TOOL, "context-retrieve.gif");
+	
 	public static final ImageDescriptor OVERLAY_INCOMMING = create(T_EVIEW, "overlay-incoming.gif");
 
 	public static final ImageDescriptor OVERLAY_OUTGOING = create(T_EVIEW, "overlay-outgoing.gif");
@@ -107,6 +117,8 @@ public class TaskListImages {
 	
 	public static final ImageDescriptor OVERLAY_REPOSITORY_CONTEXT = create(T_EVIEW, "overlay-repository-context.gif");
 		
+	public static final ImageDescriptor OVERLAY_WARNING = create(T_OVR, "overlay-warning.gif");
+	
 	public static final ImageDescriptor STATUS_NORMAL = create(T_EVIEW, "status-normal.gif");
 	
 	public static final ImageDescriptor STATUS_CONTEXT = create(T_EVIEW, "status-server-context.gif");
@@ -134,7 +146,7 @@ public class TaskListImages {
 	public static final ImageDescriptor STATUS_CONTEXT_CONFLICT = createWithOverlay(
 			STATUS_CONTEXT,
 			OVERLAY_CONFLICT, true, true);  	
-   
+
 	public static final ImageDescriptor QUERY = createSize(create(T_TOOL, "query.gif"), SIZE);
 
 	public static final ImageDescriptor QUERY_NEW = create(T_TOOL, "query-new.gif");
@@ -153,11 +165,13 @@ public class TaskListImages {
 
 	public static final ImageDescriptor TASK_ACTIVE = createSize(create(T_TOOL, "task-active.gif"), SIZE);
 
+	public static final ImageDescriptor TASK_ACTIVE_CENTERED = createSize(create(T_TOOL, "task-active-centered.gif"), SIZE);
+	
 	public static final ImageDescriptor TASK_INACTIVE = createSize(create(T_TOOL, "task-inactive.gif"), SIZE);
 
 	public static final ImageDescriptor TASK_INACTIVE_CONTEXT = createSize(create(T_TOOL, "task-context.gif"),
 			SIZE);
-
+	
 	public static final ImageDescriptor TASK_COMPLETE = create(T_TOOL, "task-complete.gif");
 
 	public static final ImageDescriptor TASK_INCOMPLETE = create(T_TOOL, "task-incomplete.gif");
@@ -166,7 +180,9 @@ public class TaskListImages {
 
 	public static final ImageDescriptor NOTIFICATION_CLOSE = create(T_EVIEW, "notification-close.gif");
 	
-	public static final ImageDescriptor EXPAND_ALL = create(T_ELCL, "expandall.gif"); 
+	public static final ImageDescriptor EXPAND_ALL = create(T_ELCL, "expandall.gif");
+	
+	public static final ImageDescriptor REPLY = create(T_ELCL, "reply.gif");
 	
 	public static final ImageDescriptor PRIORITY_1 = createSize(create(T_EVIEW, "priority-1.gif"), SIZE);
 
@@ -183,7 +199,12 @@ public class TaskListImages {
 	public static final ImageDescriptor BANNER_REPOSITORY = create(T_WIZBAN, "banner-repository.gif");
 	
 	public static final ImageDescriptor BANNER_REPOSITORY_CONTEXT = create(T_WIZBAN, "banner-repository-context.gif");
-	
+
+	public static final ImageDescriptor STATUS_WARNING = createWithOverlay(TaskListImages.STATUS_NORMAL,
+								TaskListImages.OVERLAY_WARNING, false, true);
+
+	public static final ImageDescriptor BLANK = create(T_ELCL, "blank.gif");
+
 	private static ImageDescriptor create(String prefix, String name) {
 		try {
 			return ImageDescriptor.createFromURL(makeIconFileURL(prefix, name));
@@ -196,7 +217,7 @@ public class TaskListImages {
 		return new TaskListImageDescriptor(base, size);
 	}
 
-	private static ImageDescriptor createWithOverlay(ImageDescriptor base, ImageDescriptor overlay, boolean top,
+	public static ImageDescriptor createWithOverlay(ImageDescriptor base, ImageDescriptor overlay, boolean top,
 			boolean left) {
 		return new TaskListImageDescriptor(base, overlay, top, left);
 	}

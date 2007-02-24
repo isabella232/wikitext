@@ -15,39 +15,33 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
-import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.tasks.ui.actions.AbstractTaskRepositoryAction;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
-import org.eclipse.ui.IViewPart;
 
 /**
  * @author Mik Kersten
  */
-public class ResetRepositoryConfigurationAction extends Action {
+public class ResetRepositoryConfigurationAction extends AbstractTaskRepositoryAction {
 
 	private static final String ID = "org.eclipse.mylar.tasklist.repositories.reset";
 
-	private TaskRepositoriesView repositoriesView;
-
-	public ResetRepositoryConfigurationAction(TaskRepositoriesView repositoriesView) {
-		this.repositoriesView = repositoriesView;
-		setText("Update Attributes");
+	public ResetRepositoryConfigurationAction() {
+		super("Update Attributes");
 		setId(ID);
+		setEnabled(false);
 	}
 
-	public void init(IViewPart view) {
-		// ignore
-	}
-
+	@Override
 	public void run() {
 		try {
-			IStructuredSelection selection = (IStructuredSelection) repositoriesView.getViewer().getSelection();
-			for (Iterator iter = selection.iterator(); iter.hasNext();) {
+			IStructuredSelection selection = getStructuredSelection();
+			for (Iterator<?> iter = selection.iterator(); iter.hasNext();) {
 				Object selectedObject = iter.next();
 				if (selectedObject instanceof TaskRepository) {
 					final TaskRepository repository = (TaskRepository) selectedObject;
@@ -61,7 +55,7 @@ public class ResetRepositoryConfigurationAction extends Action {
 								monitor.beginTask(jobName,
 										IProgressMonitor.UNKNOWN);
 								try {
-									connector.updateAttributes(repository, TasksUiPlugin.getDefault().getProxySettings(), monitor);
+									connector.updateAttributes(repository, monitor);
 								} catch (CoreException ce) {
 									MylarStatusHandler.fail(ce, ce.getStatus().getMessage(), true);
 								}
@@ -81,6 +75,5 @@ public class ResetRepositoryConfigurationAction extends Action {
 	}
 
 	public void selectionChanged(IAction action, ISelection selection) {
-		// TODO Auto-generated method stub
 	}
 }

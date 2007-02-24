@@ -11,9 +11,14 @@
 
 package org.eclipse.mylar.internal.tasks.ui.wizards;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.eclipse.jface.viewers.IOpenListener;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.OpenEvent;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.Viewer;
@@ -23,6 +28,7 @@ import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoryLabelProvider;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.ui.AbstractRepositoryConnectorUi;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.wizards.AbstractRepositorySettingsPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -49,7 +55,14 @@ public class SelectRepositoryClientPage extends WizardPage {
 		}
 
 		public Object[] getElements(Object parent) {
-			return TasksUiPlugin.getRepositoryManager().getRepositoryConnectors().toArray();
+			List<AbstractRepositoryConnector> userManagedRepositories = new ArrayList<AbstractRepositoryConnector>();
+			for(AbstractRepositoryConnector connector: TasksUiPlugin.getRepositoryManager().getRepositoryConnectors()){
+				if(connector.isUserManaged()){
+					userManagedRepositories.add(connector);
+				}
+			}
+			
+			return userManagedRepositories.toArray();
 		}
 	}
 
@@ -87,6 +100,13 @@ public class SelectRepositoryClientPage extends WizardPage {
 			}
 
 		});
+		
+		viewer.addOpenListener(new IOpenListener() {
+			public void open(OpenEvent event) {
+				getContainer().showPage(getNextPage());
+			}
+		});
+		
 		setControl(container);
 	}
 

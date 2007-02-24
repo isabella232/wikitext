@@ -29,16 +29,14 @@ import org.eclipse.jface.wizard.IWizard;
 import org.eclipse.jface.wizard.IWizardNode;
 import org.eclipse.jface.wizard.WizardSelectionPage;
 import org.eclipse.mylar.internal.tasks.ui.actions.AddRepositoryAction;
-import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesView;
+import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesSorter;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoryLabelProvider;
-import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
-import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
-import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.core.TaskRepositoryFilter;
 import org.eclipse.mylar.tasks.core.TaskRepositoryManager;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -58,7 +56,7 @@ import org.eclipse.ui.PlatformUI;
  */
 public abstract class SelectRepositoryPage extends WizardSelectionPage {
 
-	private static final String DESCRIPTION = "Add new repositories using the " + TaskRepositoriesView.NAME
+	private static final String DESCRIPTION = "Add new repositories using the " + TasksUiPlugin.LABEL_VIEW_REPOSITORIES
 			+ " view.\n" + "If a repository is missing it does not support the requested operation.";
 
 	private static final String TITLE = "Select a repository";
@@ -68,8 +66,6 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 	protected MultiRepositoryAwareWizard wizard;
 
 	private List<TaskRepository> repositories = new ArrayList<TaskRepository>();
-
-	private IStructuredSelection selection;
 
 	private final TaskRepositoryFilter taskRepositoryFilter;
 
@@ -111,21 +107,14 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		return repositories;
 	}
 
-	public SelectRepositoryPage setSelection(IStructuredSelection selection) {
-		this.selection = selection;
-		return this;
-	}
-
-	public IStructuredSelection getSelection() {
-		return this.selection;
-	}
-
 	public void createControl(Composite parent) {
 		Composite container = new Composite(parent, SWT.NULL);
 		GridLayout layout = new GridLayout(1, true);
 		container.setLayout(layout);
 
 		Table table = createTableViewer(container);
+		viewer.setSorter(new TaskRepositoriesSorter());
+		
 		GridData gridData = new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL | GridData.GRAB_VERTICAL);
 		table.setLayoutData(gridData);
 
@@ -135,6 +124,7 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		button.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING | GridData.VERTICAL_ALIGN_BEGINNING));
 		button.setText(AddRepositoryAction.TITLE);
 		button.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				action.run();
 				SelectRepositoryPage.this.repositories = getTaskRepositories();
@@ -158,13 +148,13 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 				IStructuredSelection selection = (IStructuredSelection) event.getSelection();
 				if (selection.getFirstElement() instanceof TaskRepository) {
 					setSelectedNode(new CustomWizardNode((TaskRepository) selection.getFirstElement()));
-					setPageComplete(true);
+					setPageComplete(true);					
 				}
 				setPageComplete(false);
 			}
 		});
 
-		viewer.setSelection(new StructuredSelection(new Object[] { getSelectedRepository() }));
+		viewer.setSelection(new StructuredSelection(new Object[] { TasksUiUtil.getSelectedRepository(viewer) }));
 
 		viewer.addOpenListener(new IOpenListener() {
 
@@ -178,40 +168,27 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		return viewer.getTable();
 	}
 
-	protected TaskRepository getSelectedRepository() {
-		if (selection == null) {
-			return (TaskRepository) viewer.getElementAt(0);
-		}
-
-		Object element = selection.getFirstElement();
-		if (element instanceof AbstractRepositoryQuery) {
-			AbstractRepositoryQuery query = (AbstractRepositoryQuery) element;
-			return getRepository(query.getRepositoryUrl(), query.getRepositoryKind());
-
-		} else if (element instanceof AbstractQueryHit) {
-			AbstractQueryHit queryHit = (AbstractQueryHit) element;
-			if (queryHit.getParent() != null) {
-				return getRepository(queryHit.getRepositoryUrl(), queryHit.getParent().getRepositoryKind());
-			} else {
-				return TasksUiPlugin.getRepositoryManager().getRepository(queryHit.getRepositoryUrl());
-			}
-		} else if (element instanceof AbstractRepositoryTask) {
-			AbstractRepositoryTask task = (AbstractRepositoryTask) element;
-			return getRepository(task.getRepositoryUrl(), task.getRepositoryKind());
-		}
-
-		// TODO handle project (when link from projects to repositories is
-		// implemented)
-
-		return null;
-	}
-
-	private TaskRepository getRepository(String repositoryUrl, String repositoryKind) {
-		return TasksUiPlugin.getRepositoryManager().getRepository(repositoryKind, repositoryUrl);
-	}
-
 	protected abstract IWizard createWizard(TaskRepository taskRepository);
 
+	@Override
+	public boolean canFlipToNextPage() {
+		return getSelectedNode() != null && getNextPage() != null;
+	}
+	
+	public boolean canFinish() {
+		return getSelectedNode() != null && getNextPage() == null;
+	}
+
+	public boolean performFinish() {
+		if (getSelectedNode() == null || getNextPage() != null) {
+			// finish event will get forwarded to nested wizard
+			// by container
+			return false;
+		}
+		
+		return getSelectedNode().getWizard().performFinish();
+	}
+	
 	private class CustomWizardNode implements IWizardNode {
 
 		private final TaskRepository repository;
@@ -235,6 +212,7 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		public IWizard getWizard() {
 			if (wizard == null) {
 				wizard = SelectRepositoryPage.this.createWizard(repository);
+				wizard.setContainer(getContainer());
 			}
 
 			return wizard;
@@ -264,4 +242,5 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		}
 
 	}
+
 }

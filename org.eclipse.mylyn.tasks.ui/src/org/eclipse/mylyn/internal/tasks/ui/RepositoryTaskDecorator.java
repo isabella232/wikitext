@@ -34,7 +34,7 @@ public class RepositoryTaskDecorator implements ILightweightLabelDecorator {
 
 	public void decorate(Object element, IDecoration decoration) {
 		if (element instanceof AbstractRepositoryQuery) {
-			AbstractRepositoryQuery query = (AbstractRepositoryQuery)element;
+			AbstractRepositoryQuery query = (AbstractRepositoryQuery) element;
 			String repositoryUrl = query.getRepositoryUrl();
 			if (repositoryUrl != null) {
 				try {
@@ -43,41 +43,51 @@ public class RepositoryTaskDecorator implements ILightweightLabelDecorator {
 				} catch (MalformedURLException e) {
 					decoration.addSuffix("   [ <unknown host> ]");
 				}
-			} 
+			}
 			if (query.isSynchronizing()) {
 				decoration.addOverlay(TaskListImages.OVERLAY_SYNCHRONIZING, IDecoration.TOP_LEFT);
 			}
-		} else if (element instanceof AbstractRepositoryTask) { 
-			AbstractRepositoryTask task = (AbstractRepositoryTask)element;
-			AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager().getRepositoryConnector(task.getRepositoryKind());
-			AbstractRepositoryConnectorUi connectorUi = TasksUiPlugin.getRepositoryUi(
+		} else if (element instanceof AbstractRepositoryTask) {
+			AbstractRepositoryTask task = (AbstractRepositoryTask) element;
+			AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager().getRepositoryConnector(
 					task.getRepositoryKind());
-			TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(task.getRepositoryKind(), task.getRepositoryUrl());
-			if (!connectorUi.hasRichEditor()) {
-				decoration.addOverlay(TaskListImages.OVERLAY_WEB, IDecoration.BOTTOM_LEFT);
-			} else if (connector != null && connector.hasRepositoryContext(repository, task)) { 
-				decoration.addOverlay(TaskListImages.OVERLAY_REPOSITORY_CONTEXT, IDecoration.BOTTOM_LEFT);
-			} else {
-				decoration.addOverlay(TaskListImages.OVERLAY_REPOSITORY, IDecoration.BOTTOM_LEFT);
+			AbstractRepositoryConnectorUi connectorUi = TasksUiPlugin.getRepositoryUi(task.getRepositoryKind());
+			TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(task.getRepositoryKind(),
+					task.getRepositoryUrl());
+			if (connectorUi != null) {
+				if (!connectorUi.hasRichEditor()) {
+					decoration.addOverlay(TaskListImages.OVERLAY_WEB, IDecoration.BOTTOM_LEFT);
+				} else if (connector != null && connector.hasRepositoryContext(repository, task)) {
+					decoration.addOverlay(TaskListImages.OVERLAY_REPOSITORY_CONTEXT, IDecoration.BOTTOM_LEFT);
+				} else {
+					decoration.addOverlay(TaskListImages.OVERLAY_REPOSITORY, IDecoration.BOTTOM_LEFT);
+				}
 			}
 			if (task.isSynchronizing()) {
 				decoration.addOverlay(TaskListImages.OVERLAY_SYNCHRONIZING, IDecoration.TOP_LEFT);
 			}
+			if (!task.isCompleted() && TasksUiPlugin.getTaskListManager().isDue(task)) {
+				decoration.addOverlay(TaskListImages.OVERLAY_DUE, IDecoration.TOP_LEFT);
+			}
 		} else if (element instanceof AbstractQueryHit) {
-			ITask correspondingTask = ((AbstractQueryHit)element).getCorrespondingTask();
+			ITask correspondingTask = ((AbstractQueryHit) element).getCorrespondingTask();
 			decorate(correspondingTask, decoration);
 		} else if (element instanceof ITask) {
-			String url = ((ITask)element).getUrl();
+			ITask task = (ITask) element;
+			String url = task.getTaskUrl();
 			if (url != null && !url.trim().equals("") && !url.equals("http://")) {
 				decoration.addOverlay(TaskListImages.OVERLAY_WEB, IDecoration.BOTTOM_LEFT);
 			}
+			if (!task.isCompleted() && TasksUiPlugin.getTaskListManager().isDue(task)) {
+				decoration.addOverlay(TaskListImages.OVERLAY_DUE, IDecoration.TOP_LEFT);
+			}
 		} else if (element instanceof TaskRepository) {
-			ImageDescriptor overlay = TasksUiPlugin.getDefault().getOverlayIcon(((TaskRepository)element).getKind());
+			ImageDescriptor overlay = TasksUiPlugin.getDefault().getOverlayIcon(((TaskRepository) element).getKind());
 			if (overlay != null) {
 				decoration.addOverlay(overlay, IDecoration.BOTTOM_RIGHT);
 			}
 		}
-	} 
+	}
 
 	public void addListener(ILabelProviderListener listener) {
 		// ignore
@@ -89,7 +99,7 @@ public class RepositoryTaskDecorator implements ILightweightLabelDecorator {
 
 	}
 
-	public boolean isLabelProperty(Object element, String property) { 
+	public boolean isLabelProperty(Object element, String property) {
 		return false;
 	}
 

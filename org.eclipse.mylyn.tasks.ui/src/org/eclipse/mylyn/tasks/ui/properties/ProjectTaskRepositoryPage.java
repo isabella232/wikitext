@@ -18,9 +18,9 @@ import org.eclipse.jface.viewers.DecoratingLabelProvider;
 import org.eclipse.jface.viewers.ICheckStateListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.Viewer;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.tasks.ui.actions.AddRepositoryAction;
-import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesViewSorter;
+import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesSorter;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoryLabelProvider;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
@@ -57,6 +57,7 @@ public class ProjectTaskRepositoryPage extends PropertyPage {
 		// Do nothing on creation
 	}
 
+	@Override
 	protected Control createContents(Composite parent) {
 
 		Font font = parent.getFont();
@@ -99,14 +100,9 @@ public class ProjectTaskRepositoryPage extends PropertyPage {
 
 		});
 
-		listViewer.setSorter(new TaskRepositoriesViewSorter());
+		listViewer.setSorter(new TaskRepositoriesSorter());
 		listViewer.setInput(project.getWorkspace());
 
-		TaskRepository repository = TasksUiPlugin.getDefault().getRepositoryForResource(project, true);
-
-		if (repository != null) {
-			listViewer.setCheckedElements(new Object[] { repository });
-		}
 		listViewer.addCheckStateListener(new ICheckStateListener() {
 			public void checkStateChanged(CheckStateChangedEvent event) {
 				if (event.getChecked()) {
@@ -117,6 +113,7 @@ public class ProjectTaskRepositoryPage extends PropertyPage {
 				modified = true;
 			}
 		});
+		updateLinkedRepository();
 
 		final AddRepositoryAction action = new AddRepositoryAction();
 
@@ -124,13 +121,23 @@ public class ProjectTaskRepositoryPage extends PropertyPage {
 		button.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING | GridData.VERTICAL_ALIGN_BEGINNING));
 		button.setText(AddRepositoryAction.TITLE);
 		button.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				action.run();
 				listViewer.setInput(project.getWorkspace());
+				updateLinkedRepository();
 			}
 		});
 
 		return composite;
+	}
+
+	void updateLinkedRepository() {
+		TaskRepository repository = TasksUiPlugin.getDefault().getRepositoryForResource(project, true);
+		if (repository != null) {
+			listViewer.setCheckedElements(new Object[] { repository });
+		}
+		listViewer.getControl().setEnabled(TasksUiPlugin.getDefault().canSetRepositoryForResource(project));
 	}
 
 	private static int getDefaultFontHeight(Control control, int lines) {
@@ -157,6 +164,7 @@ public class ProjectTaskRepositoryPage extends PropertyPage {
 	/**
 	 * @see PreferencePage#performOk
 	 */
+	@Override
 	public boolean performOk() {
 		if (!modified) {
 			return true;
@@ -164,7 +172,10 @@ public class ProjectTaskRepositoryPage extends PropertyPage {
 		if (listViewer.getCheckedElements().length > 0) {
 			TaskRepository selectedRepository = (TaskRepository) listViewer.getCheckedElements()[0];
 			try {
-				TasksUiPlugin.getDefault().setRepositoryForResource(project, selectedRepository);
+				TasksUiPlugin plugin = TasksUiPlugin.getDefault();
+				if(plugin.canSetRepositoryForResource(project)) {
+					plugin.setRepositoryForResource(project, selectedRepository);
+				}
 			} catch (CoreException e) {
 				MylarStatusHandler.fail(e, "Unable to associate project with task repository", true);
 			}

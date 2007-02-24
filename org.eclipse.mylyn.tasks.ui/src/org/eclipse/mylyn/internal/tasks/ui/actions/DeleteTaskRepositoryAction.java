@@ -15,13 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import org.eclipse.jface.action.Action;
-import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.views.TaskRepositoriesView;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
@@ -33,30 +29,29 @@ import org.eclipse.ui.internal.WorkbenchImages;
 /**
  * @author Mik Kersten
  */
-public class DeleteTaskRepositoryAction extends Action {
+public class DeleteTaskRepositoryAction extends AbstractTaskRepositoryAction {
 
 	private static final String ID = "org.eclipse.mylar.tasklist.repositories.delete";
 
-	private TaskRepositoriesView repositoriesView;
-
-	public DeleteTaskRepositoryAction(TaskRepositoriesView repositoriesView) {
-		this.repositoriesView = repositoriesView;
+	public DeleteTaskRepositoryAction() {
+		super("Delete Repository");
 		setImageDescriptor(WorkbenchImages.getImageDescriptor(ISharedImages.IMG_TOOL_DELETE));
-		setText("Delete Repository");
 		setId(ID);
+		setEnabled(false);
 	}
 
 	public void init(IViewPart view) {
 		// ignore
 	}
-
+	
+	@Override
 	public void run() {
 		try {
 
 			boolean deleteConfirmed = MessageDialog.openQuestion(PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 					.getShell(), "Confirm Delete", "Delete the selected task repositories?");
 			if (deleteConfirmed) {
-				IStructuredSelection selection = (IStructuredSelection) repositoriesView.getViewer().getSelection();
+				IStructuredSelection selection = getStructuredSelection();
 				Set<AbstractRepositoryQuery> queries = TasksUiPlugin.getTaskListManager().getTaskList()
 						.getQueries();
 				List<TaskRepository> repositoriesInUse = new ArrayList<TaskRepository>();
@@ -92,9 +87,5 @@ public class DeleteTaskRepositoryAction extends Action {
 		} catch (Exception e) {
 			MylarStatusHandler.fail(e, e.getMessage(), true);
 		}
-	}
-
-	public void selectionChanged(IAction action, ISelection selection) {
-		// TODO Auto-generated method stub
 	}
 }

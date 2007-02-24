@@ -20,7 +20,7 @@ import java.util.List;
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
-import org.eclipse.mylar.tasks.core.IOfflineTaskHandler;
+import org.eclipse.mylar.tasks.core.ITaskDataHandler;
 import org.eclipse.mylar.tasks.core.RepositoryAttachment;
 import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
 import org.eclipse.mylar.tasks.core.TaskRepository;
@@ -44,7 +44,7 @@ public class ContextRetrieveWizardPage extends WizardPage {
 
 	private static final String DESCRIPTION = "Loads context from repository task into the workspace";
 
-	private static final String COLUMN_COMMENT = "Comment";
+	private static final String COLUMN_COMMENT = "Description";
 
 	private static final String COLUMN_AUTHOR = "Author";
 
@@ -67,7 +67,7 @@ public class ContextRetrieveWizardPage extends WizardPage {
 		Composite composite = new Composite(parent, SWT.NONE);
 		composite.setLayout(new GridLayout(1, false));
 
-		new Label(composite, SWT.NONE).setText("Task: " + task.getDescription());
+		new Label(composite, SWT.NONE).setText("Task: " + task.getSummary());
 		new Label(composite, SWT.NONE).setText("Repository: " + repository.getUrl());
 		new Label(composite, SWT.NONE).setText("Select context below:");
 
@@ -75,6 +75,7 @@ public class ContextRetrieveWizardPage extends WizardPage {
 		contextTable.setHeaderVisible(true);
 		contextTable.setLinesVisible(true);
 		contextTable.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (contextTable.getSelectionIndex() > -1) {
 					selectedContextAttachment = (RepositoryAttachment) contextTable.getItem(
@@ -90,14 +91,14 @@ public class ContextRetrieveWizardPage extends WizardPage {
 		List<RepositoryAttachment> contextAttachments = new ArrayList<RepositoryAttachment>(connector
 				.getContextAttachments(repository, task));
 
-		final IOfflineTaskHandler offlineHandler = connector.getOfflineTaskHandler();
+		final ITaskDataHandler offlineHandler = connector.getTaskDataHandler();
 		if (offlineHandler != null) {
 			Collections.sort(contextAttachments, new Comparator<RepositoryAttachment>() {
 
 				public int compare(RepositoryAttachment attachment1, RepositoryAttachment attachment2) {
-					Date created1 = offlineHandler.getDateForAttributeType(RepositoryTaskAttribute.ATTACHMENT_DATE,
+					Date created1 = task.getTaskData().getAttributeFactory().getDateForAttributeType(RepositoryTaskAttribute.ATTACHMENT_DATE,
 							attachment1.getDateCreated());
-					Date created2 = offlineHandler.getDateForAttributeType(RepositoryTaskAttribute.ATTACHMENT_DATE,
+					Date created2 = task.getTaskData().getAttributeFactory().getDateForAttributeType(RepositoryTaskAttribute.ATTACHMENT_DATE,
 							attachment2.getDateCreated());
 					if (created1 != null && created2 != null) {
 						return created1.compareTo(created2);
