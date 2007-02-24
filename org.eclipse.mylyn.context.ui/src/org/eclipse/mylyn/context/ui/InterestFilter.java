@@ -22,9 +22,10 @@ import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
+import org.eclipse.mylar.context.core.IAlwaysIntersting;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.context.core.MylarContextManager;
 import org.eclipse.swt.widgets.Tree;
 
@@ -45,8 +46,7 @@ public class InterestFilter extends ViewerFilter {
 	@Override
 	public boolean select(Viewer viewer, Object parent, Object object) {
 		try {
-			if (!(viewer instanceof StructuredViewer) || 
-				!containsMylarInterestFilter((StructuredViewer) viewer)) {
+			if (!(viewer instanceof StructuredViewer) || !containsMylarInterestFilter((StructuredViewer) viewer)) {
 				return true;
 			}
 			if (isTemporarilyUnfiltered(parent)) {
@@ -59,30 +59,28 @@ public class InterestFilter extends ViewerFilter {
 			}
 
 			IMylarElement element = null;
-			if (object instanceof IMylarElement) {
+			if (object instanceof IAlwaysIntersting) {
+				return true;
+			} else if (object instanceof IMylarElement) {
 				element = (IMylarElement) object;
 			} else {
-				IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(object);
+				AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(object);
 				if (bridge.getContentType() == null) {
 					// try to resolve the resource
 					if (object instanceof IAdaptable) {
-						Object adapted = ((IAdaptable)object).getAdapter(IResource.class);
+						Object adapted = ((IAdaptable) object).getAdapter(IResource.class);
 						if (adapted instanceof IResource) {
 							object = adapted;
 						}
 						bridge = ContextCorePlugin.getDefault().getStructureBridge(object);
 					} else {
-//						System.err.println(">>" + object.getClass());
 						return false;
 					}
 				}
 				if (!bridge.canFilter(object)) {
 					return true;
 				}
-//				if (isImplicitlyInteresting(object, bridge)) {
-//					return true;
-//				}
-				
+
 				if (!object.getClass().getName().equals(Object.class.getCanonicalName())) {
 					String handle = bridge.getHandleIdentifier(object);
 					element = ContextCorePlugin.getContextManager().getElement(handle);
@@ -91,11 +89,7 @@ public class InterestFilter extends ViewerFilter {
 				}
 			}
 			if (element != null) {
-				if (element.getInterest().isPredicted()) {
-					return false;
-				} else {
-					return element.getInterest().getValue() > MylarContextManager.getScalingFactors().getInteresting();
-				}
+				return isInteresting(element);
 			}
 		} catch (Throwable t) {
 			MylarStatusHandler.fail(t, "interest filter failed on viewer: " + viewer.getClass(), false);
@@ -103,22 +97,28 @@ public class InterestFilter extends ViewerFilter {
 		return false;
 	}
 
+	protected boolean isInteresting(IMylarElement element) {
+		if (element.getInterest().isPredicted()) {
+			return false;
+		} else {
+			return element.getInterest().getValue() > MylarContextManager.getScalingFactors().getInteresting();
+		}
+	}
+
 	private boolean isTemporarilyUnfiltered(Object parent) {
 		if (parent instanceof TreePath) {
-			TreePath treePath = (TreePath)parent;
+			TreePath treePath = (TreePath) parent;
 			parent = treePath.getLastSegment();
 		}
 		return temporarilyUnfiltered != null && temporarilyUnfiltered.equals(parent);
 	}
 
-
-
 	protected boolean containsMylarInterestFilter(StructuredViewer viewer) {
-	    for (ViewerFilter filter : viewer.getFilters()) {
-	        if (filter instanceof InterestFilter) {
+		for (ViewerFilter filter : viewer.getFilters()) {
+			if (filter instanceof InterestFilter) {
 				return true;
-	        }
-		} 
+			}
+		}
 		return false;
 	}
 
@@ -127,7 +127,7 @@ public class InterestFilter extends ViewerFilter {
 	}
 
 	/**
-	 * @return	true if there was an unfiltered node
+	 * @return true if there was an unfiltered node
 	 */
 	public boolean resetTemporarilyUnfiltered() {
 		if (temporarilyUnfiltered != null) {
@@ -142,32 +142,4 @@ public class InterestFilter extends ViewerFilter {
 		return temporarilyUnfiltered;
 	}
 
-//	public String getExcludedMatches() {
-//		return excludedMatches;
-//	}
-//
-//	public void setExcludedMatches(String excludedMatches) {
-//		this.excludedMatches = excludedMatches;
-//	}
-//
-//	protected boolean isImplicitlyInteresting(Object element, IMylarStructureBridge bridge) {
-//	if (excludedMatches == null)
-//		return false;
-//	if (excludedMatches.equals("*"))
-//		return false;
-//	try {
-//		String name = bridge.getName(element);
-//		return name.matches(excludedMatches.replaceAll("\\.", "\\\\.").replaceAll("\\*", ".*"));
-//	} catch (Throwable t) {
-//		return false;
-//	}
-//}
-//	
-//	public void propertyChange(PropertyChangeEvent event) {
-//		if (ContextUiPrefContstants.INTEREST_FILTER_EXCLUSION.equals(event.getProperty())
-//				&& event.getNewValue() instanceof String) {
-//
-//			excludedMatches = (String) event.getNewValue();
-//		}
-//	}
 }
