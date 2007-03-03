@@ -11,11 +11,12 @@
 
 package org.eclipse.mylar.internal.context.ui;
 
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.tasks.ui.AbstractTaskListFilter;
 import org.eclipse.mylar.internal.tasks.ui.actions.NewLocalTaskAction;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
+import org.eclipse.mylar.tasks.core.DateRangeContainer;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask.RepositoryTaskSyncState;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
@@ -30,6 +31,10 @@ public class TaskListInterestFilter extends AbstractTaskListFilter {
 	@Override
 	public boolean select(Object object) {
 		try {
+			if (object instanceof DateRangeContainer) {				
+					DateRangeContainer dateRangeTaskContainer = (DateRangeContainer) object;
+					return(TasksUiPlugin.getTaskListManager().isWeekDay(dateRangeTaskContainer));// || dateRangeTaskContainer.isFuture()				
+			} 
 			if (object instanceof ITask || object instanceof AbstractQueryHit) {
 				ITask task = null;
 				if (object instanceof ITask) {
@@ -55,10 +60,9 @@ public class TaskListInterestFilter extends AbstractTaskListFilter {
 
 	protected boolean isUninteresting(ITask task) {
 		return !task.isActive()
-				&& ((task.isCompleted() 
-						&& !TasksUiPlugin.getTaskListManager().isCompletedToday(task)
-						&& !hasChanges(task)) 
-					|| (TasksUiPlugin.getTaskListManager().isReminderAfterThisWeek(task)) && !hasChanges(task));
+				&& ((task.isCompleted() && !TasksUiPlugin.getTaskListManager().isCompletedToday(task) && !hasChanges(task)) || (TasksUiPlugin
+						.getTaskListManager().isScheduledAfterThisWeek(task))
+						&& !hasChanges(task));
 	}
 
 	// TODO: make meta-context more explicit
@@ -68,17 +72,17 @@ public class TaskListInterestFilter extends AbstractTaskListFilter {
 
 	@Override
 	public boolean shouldAlwaysShow(ITask task) {
-		return super.shouldAlwaysShow(task) 
-			|| hasChanges(task) 
-			|| (TasksUiPlugin.getTaskListManager().isCompletedToday(task))
-			|| (isInterestingForThisWeek(task) && !task.isCompleted())
-			|| NewLocalTaskAction.DESCRIPTION_DEFAULT.equals(task.getDescription());
+		return super.shouldAlwaysShow(task) || hasChanges(task)
+				|| (TasksUiPlugin.getTaskListManager().isCompletedToday(task))
+				|| (isInterestingForThisWeek(task) && !task.isCompleted())
+				|| (TasksUiPlugin.getTaskListManager().isOverdue(task))
+				|| NewLocalTaskAction.DESCRIPTION_DEFAULT.equals(task.getSummary());
+//				|| isCurrentlySelectedInEditor(task);
 	}
 
 	public static boolean isInterestingForThisWeek(ITask task) {
-		return TasksUiPlugin.getTaskListManager().isReminderThisWeek(task)
-			|| TasksUiPlugin.getTaskListManager().isReminderToday(task) 
-			|| task.isPastReminder();
+		return TasksUiPlugin.getTaskListManager().isScheduledForThisWeek(task)
+				|| TasksUiPlugin.getTaskListManager().isScheduledForToday(task) || task.isPastReminder();
 	}
 
 	public static boolean hasChanges(ITask task) {

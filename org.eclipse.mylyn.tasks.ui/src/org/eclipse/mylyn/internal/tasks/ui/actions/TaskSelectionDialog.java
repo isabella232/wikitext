@@ -9,7 +9,6 @@
 package org.eclipse.mylar.internal.tasks.ui.actions;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -17,8 +16,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.jface.viewers.ArrayContentProvider;
+import org.eclipse.jface.viewers.IOpenListener;
+import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.OpenEvent;
 import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.Viewer;
@@ -27,6 +30,7 @@ import org.eclipse.jface.viewers.ViewerFilter;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskElementLabelProvider;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
+import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListElement;
 import org.eclipse.mylar.tasks.core.TaskList;
@@ -43,18 +47,20 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.IWorkbenchWindow;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.dialogs.SelectionStatusDialog;
 
 /**
- * @author wmitsuda
+ * @author Willian Mitsuda
+ * @author Mik Kersten
+ * @author Eugene Kuleshov
  */
 public class TaskSelectionDialog extends SelectionStatusDialog {
 
 	/**
 	 * Implements a {@link ViewFilter} based on content typed in the filter
 	 * field
-	 * 
-	 * @author wmitsuda
 	 */
 	private static class TaskFilter extends ViewerFilter {
 
@@ -78,18 +84,21 @@ public class TaskSelectionDialog extends SelectionStatusDialog {
 				return TasksUiPlugin.getTaskListManager().getTaskActivationHistory().getPreviousTasks().contains(
 						element);
 			}
-			if (element instanceof ITask) {
-				ITask task = (ITask) element;
-				String description = task.getDescription();
-				return pattern.matcher(description).find();
+			if (element instanceof AbstractRepositoryTask) {
+				AbstractRepositoryTask repositoryTask = (AbstractRepositoryTask) element;
+				String taskString = repositoryTask.getTaskKey() + ": "
+						+ repositoryTask.getSummary();
+				return pattern.matcher(taskString).find();
+			} else if (element instanceof ITask) {
+				String taskString = ((ITask) element).getSummary();
+				return pattern.matcher(taskString).find();
 			} else if (element instanceof AbstractQueryHit) {
 				AbstractQueryHit hit = (AbstractQueryHit) element;
-				String description = hit.getDescription();
-				return pattern.matcher(description).find();
+				String taskString = hit.getIdentifyingLabel() + ": " + hit.getSummary();
+				return pattern.matcher(taskString).find();
 			}
 			return false;
 		}
-
 	}
 
 	private TableViewer viewer;
@@ -132,7 +141,7 @@ public class TaskSelectionDialog extends SelectionStatusDialog {
 
 		Label matches = new Label(area, SWT.NONE);
 		matches.setText("&Matching tasks:");
-		viewer = new TableViewer(area);
+		viewer = new TableViewer(area, SWT.SINGLE | SWT.BORDER);
 		Control control = viewer.getControl();
 		GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
 		control.setLayoutData(gd);
@@ -151,11 +160,17 @@ public class TaskSelectionDialog extends SelectionStatusDialog {
 
 		// Compute all existing tasks or query hits (if corresponding task does
 		// not exist yet...)
-		Collection<ITaskListElement> allTasks = new HashSet<ITaskListElement>();
+		Set<ITaskListElement> allTasks = new HashSet<ITaskListElement>();
 		TaskList taskList = TasksUiPlugin.getTaskListManager().getTaskList();
 		allTasks.addAll(taskList.getAllTasks());
 		for (AbstractRepositoryQuery query : taskList.getQueries()) {
 			allTasks.addAll(query.getChildren());
+			// TODO: should not need to do this
+			for (AbstractQueryHit hit : query.getHits()) {
+				if (hit.getCorrespondingTask() == null) {
+					allTasks.add(hit);
+				}
+			}
 		}
 
 		// Compute the task navigation history (in recent-to-older order)
@@ -206,8 +221,17 @@ public class TaskSelectionDialog extends SelectionStatusDialog {
 					return taskHistory.indexOf(t1) - taskHistory.indexOf(t2);
 				}
 
-				// Both are not in task history; sort by description...
+				// Both are not in task history; sort by summary...
 				return labelProvider.getText(e1).compareTo(labelProvider.getText(e2));
+			}
+
+		});
+		viewer.addOpenListener(new IOpenListener() {
+
+			public void open(OpenEvent event) {
+				if (getOkButton().getEnabled()) {
+					okPressed();
+				}
 			}
 
 		});
@@ -234,6 +258,17 @@ public class TaskSelectionDialog extends SelectionStatusDialog {
 			}
 
 		});
+		IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+		ISelection selection = window.getSelectionService().getSelection();
+		if (selection instanceof ITextSelection) {
+			String text = ((ITextSelection) selection).getText();
+			int n = text.indexOf('\n');
+			if (n > -1) {
+				text.substring(0, n);
+			}
+			filterText.setText(text);
+			filterText.setSelection(0, text.length());
+		}
 
 		return area;
 	}

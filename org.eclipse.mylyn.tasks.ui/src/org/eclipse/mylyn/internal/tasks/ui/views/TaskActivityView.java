@@ -102,7 +102,7 @@ public class TaskActivityView extends ViewPart {
 
 	private TreeViewer treeViewer;
 
-	private TaskActivityContentProvider taskActivityTableContentProvider;
+	private TaskActivityViewContentProvider taskActivityTableContentProvider;
 
 	private IThemeManager themeManager;
 
@@ -272,7 +272,7 @@ public class TaskActivityView extends ViewPart {
 
 		sorter = new TaskActivityViewSorter();
 		getViewer().setSorter(sorter);
-		taskActivityTableContentProvider = new TaskActivityContentProvider(TasksUiPlugin.getTaskListManager());
+		taskActivityTableContentProvider = new TaskActivityViewContentProvider(TasksUiPlugin.getTaskListManager());
 
 		getViewer().setContentProvider(taskActivityTableContentProvider);
 		getViewer().setLabelProvider(taskHistoryTreeLabelProvider);
@@ -341,7 +341,7 @@ public class TaskActivityView extends ViewPart {
 					return false;
 				}
 
-				for (Iterator iter = selection.iterator(); iter.hasNext();) {
+				for (Iterator<?> iter = selection.iterator(); iter.hasNext();) {
 					Object selectedObject = iter.next();
 					ITask task = null;
 					if (selectedObject instanceof ITask) {
@@ -350,7 +350,7 @@ public class TaskActivityView extends ViewPart {
 						task = ((AbstractQueryHit) selectedObject).getOrCreateCorrespondingTask();
 					}
 					if (task != null) {
-						TasksUiPlugin.getTaskListManager().setReminder(task, reminderCalendar.getTime());
+						TasksUiPlugin.getTaskListManager().setScheduledFor(task, reminderCalendar.getTime());
 					}
 				}
 				return true;
@@ -469,7 +469,7 @@ public class TaskActivityView extends ViewPart {
 					DateRangeActivityDelegate dateRangeActivityDelegate = (DateRangeActivityDelegate) selection;
 					Date newReminder = reminderEditor.getReminderDate();
 					if (newReminder != null) {
-						TasksUiPlugin.getTaskListManager().setReminder(
+						TasksUiPlugin.getTaskListManager().setScheduledFor(
 								dateRangeActivityDelegate.getCorrespondingTask(), newReminder);						
 					}
 				}
@@ -530,9 +530,9 @@ public class TaskActivityView extends ViewPart {
 				int columnIndex = Arrays.asList(columnNames).indexOf(property);
 				if (element instanceof ITask) {
 					if (columnIndex == 5) {
-						if (((ITask) element).getReminderDate() != null) {
+						if (((ITask) element).getScheduledForDate() != null) {
 							return DateFormat.getDateInstance(DateFormat.MEDIUM).format(
-									((ITask) element).getReminderDate());
+									((ITask) element).getScheduledForDate());
 						} else {
 							return null;
 						}

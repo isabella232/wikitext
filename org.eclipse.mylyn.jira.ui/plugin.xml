@@ -8,18 +8,18 @@
          point="org.eclipse.mylar.tasks.ui.repositories">
 
       <connectorCore
-            class="org.eclipse.mylar.internal.jira.JiraRepositoryConnector"
+            class="org.eclipse.mylar.internal.jira.ui.JiraRepositoryConnector"
             id="org.eclipse.mylar.jira.tasklist.repositories"
             name="JIRA Repository Connector"
             type="jira"/>
 	  <connectorUi
          brandingIcon="icons/eview16/jira-logo.gif"
-         class="org.eclipse.mylar.internal.jira.JiraRepositoryUi"
+         class="org.eclipse.mylar.internal.jira.ui.JiraRepositoryUi"
          name="JIRA Repository UI"
          overlayIcon="icons/eview16/overlay-jira.gif"/>
             
       <externalizer 
-            class="org.eclipse.mylar.internal.jira.JiraTaskExternalizer"
+            class="org.eclipse.mylar.internal.jira.ui.JiraTaskExternalizer"
             id="org.eclipse.mylar.jira.tasklist.externalizer"/>
    </extension>  
    
@@ -45,12 +45,32 @@
             id="org.eclipse.mylar.jira.task.editor"
             name="Jira Task Editor"/>
    </extension>
-   -->
+   --> 
    <extension
          point="org.eclipse.mylar.tasks.ui.editors">
       <editorFactory
-            class="org.eclipse.mylar.internal.jira.ui.JiraTaskEditorFactory"
+            class="org.eclipse.mylar.internal.jira.ui.editor.JiraTaskEditorFactory"
             id="org.eclipse.mylar.jira.ui.JiraTaskEditorFactory"/>
+      <hyperlinkDetector
+            class="org.eclipse.mylar.internal.jira.ui.JiraTaskHyperlinkDetector"
+            id="org.eclipse.mylar.tasks.hyperlinkdetector.jiratask"/>
+            
    </extension>
 
+   <extension
+         point="org.eclipse.mylar.tasks.core.templates">
+      <repository
+            addAutomatically="false"
+            anonymous="false"
+            repositoryKind="jira"
+            label="Codehaus"
+            urlRepository="http://jira.codehaus.org/"/>
+      <repository
+            addAutomatically="false"
+            anonymous="false"
+            repositoryKind="jira"
+            label="Apache"
+            urlRepository="http://issues.apache.org/jira/"/>
+   </extension>
+  
 </plugin>

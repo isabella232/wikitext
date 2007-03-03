@@ -15,6 +15,7 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.mylar.internal.tasks.ui.actions.AddRepositoryAction;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.wizards.AbstractRepositorySettingsPage;
 import org.eclipse.ui.IWorkbench;
 
 /**
@@ -23,8 +24,13 @@ import org.eclipse.ui.IWorkbench;
 public class NewRepositoryWizard extends AbstractRepositoryClientWizard {
 
 	public NewRepositoryWizard() {
-		super();
-		super.setForcePreviousAndNextButtons(true);
+		this(null);
+	}
+
+	public NewRepositoryWizard(String repositoryType) {
+		super(repositoryType);
+		setForcePreviousAndNextButtons(true);
+		setNeedsProgressMonitor(true);
 		setWindowTitle(AddRepositoryAction.TITLE);
 	}
 
@@ -32,7 +38,9 @@ public class NewRepositoryWizard extends AbstractRepositoryClientWizard {
 	public boolean performFinish() {
 		if (canFinish()) {
 			TaskRepository repository = abstractRepositorySettingsPage.createTaskRepository();
-			TasksUiPlugin.getRepositoryManager().addRepository(repository, TasksUiPlugin.getDefault().getRepositoriesFilePath());
+			abstractRepositorySettingsPage.updateProperties(repository);
+			TasksUiPlugin.getRepositoryManager().addRepository(repository,
+					TasksUiPlugin.getDefault().getRepositoriesFilePath());
 			return true;
 		}
 		return false;
@@ -42,10 +50,6 @@ public class NewRepositoryWizard extends AbstractRepositoryClientWizard {
 	}
 
 	@Override
-	public void addPages() {
-		super.addPages();
-	}
-
 	public void setRepositorySettingsPage(AbstractRepositorySettingsPage abstractRepositorySettingsPage) {
 		this.abstractRepositorySettingsPage = abstractRepositorySettingsPage;
 	}

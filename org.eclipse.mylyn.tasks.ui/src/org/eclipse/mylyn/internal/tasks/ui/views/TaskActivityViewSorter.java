@@ -87,6 +87,7 @@ public class TaskActivityViewSorter extends ViewerSorter {
 		System.arraycopy(DEFAULT_DIRECTIONS, 0, directions, 0, directions.length);
 	}
 
+	@SuppressWarnings("unchecked")
 	private int compare(DateRangeActivityDelegate task1, DateRangeActivityDelegate task2) {
 		if (sortColumn >= directions.length)
 			return 0;
@@ -99,9 +100,9 @@ public class TaskActivityViewSorter extends ViewerSorter {
 			return result * directions[sortColumn];
 		}
 		case DESCRIPTION: {
-			String description1 = task1.getDescription();
-			String description2 = task2.getDescription();
-			int result = collator.compare(description1, description2);
+			String description1 = task1.getSummary();
+			String description2 = task2.getSummary();
+			int result = getComparator().compare(description1, description2);
 			return result * directions[sortColumn];
 		}
 		case ELAPSED: {
@@ -118,13 +119,13 @@ public class TaskActivityViewSorter extends ViewerSorter {
 		}
 		case REMINDER: {
 			int result = 0;
-			if (task1.getReminderDate() != null && task2.getReminderDate() != null) {
-				long reminder1 = task1.getReminderDate().getTime();
-				long reminder2 = task2.getReminderDate().getTime();
+			if (task1.getScheduledForDate() != null && task2.getScheduledForDate() != null) {
+				long reminder1 = task1.getScheduledForDate().getTime();
+				long reminder2 = task2.getScheduledForDate().getTime();
 				result = new Long(reminder1).compareTo(new Long(reminder2));				
-			} else if (task1.getReminderDate() != null) {
+			} else if (task1.getScheduledForDate() != null) {
 				result = 1;
-			} else if (task2.getReminderDate() != null) {
+			} else if (task2.getScheduledForDate() != null) {
 				result = -1;
 			}			
 			return result * directions[sortColumn];
@@ -139,14 +140,15 @@ public class TaskActivityViewSorter extends ViewerSorter {
 		return 0;
 	}
 
+	@Override
 	public int compare(Viewer viewer, Object o1, Object o2) {
 		if (o1 instanceof DateRangeContainer) {
 			if (o2 instanceof DateRangeContainer) {
 				DateRangeContainer dateRangeTaskContainer1 = (DateRangeContainer) o1;
 				DateRangeContainer dateRangeTaskContainer2 = (DateRangeContainer) o2;
-				return dateRangeTaskContainer2.getStart().compareTo(dateRangeTaskContainer1.getStart());
+				return -1*dateRangeTaskContainer2.getStart().compareTo(dateRangeTaskContainer1.getStart());
 			} else {
-				return 1;
+				return -1;
 			}
 		} else if (o1 instanceof ITask) {
 			if (o2 instanceof AbstractTaskContainer) {
