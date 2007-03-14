@@ -12,12 +12,13 @@
 package org.eclipse.mylar.internal.bugzilla.core;
 
 import java.io.IOException;
-import java.net.Proxy;
-import java.net.URL;
-import java.security.GeneralSecurityException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.io.InputStream;
+import java.util.Locale;
 
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.mylar.tasks.core.IMylarStatusConstants;
+import org.eclipse.mylar.tasks.core.MylarStatus;
 import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 
 /**
@@ -27,25 +28,30 @@ import org.eclipse.mylar.tasks.core.RepositoryTaskData;
  */
 public class RepositoryReportFactory extends AbstractReportFactory {
 
+	public RepositoryReportFactory(InputStream inStream, String encoding) {
+		super(inStream, encoding);
+	}
+
 	private static BugzillaAttributeFactory bugzillaAttributeFactory = new BugzillaAttributeFactory();
 
-	private static final String SHOW_BUG_CGI_XML = "/show_bug.cgi?ctype=xml&id=";
-
-	public void populateReport(RepositoryTaskData bugReport, String repositoryUrl, Proxy proxySettings,
-			String userName, String password, String characterEncoding) throws GeneralSecurityException, KeyManagementException,
-			NoSuchAlgorithmException, IOException, BugzillaException {
+	public void populateReport(RepositoryTaskData bugReport) throws IOException, CoreException {
 
 		SaxBugReportContentHandler contentHandler = new SaxBugReportContentHandler(bugzillaAttributeFactory, bugReport);
-
-		String xmlBugReportUrl = repositoryUrl + SHOW_BUG_CGI_XML + bugReport.getId();
-		xmlBugReportUrl = BugzillaServerFacade.addCredentials(xmlBugReportUrl, userName, password);
-		URL serverURL = new URL(xmlBugReportUrl);
-
-		collectResults(serverURL, proxySettings, characterEncoding, contentHandler, false);
+		collectResults(contentHandler, false);
 
 		if (contentHandler.errorOccurred()) {
-			throw new IOException(contentHandler.getErrorMessage());
+			String errorResponse = contentHandler.getErrorMessage().toLowerCase(Locale.ENGLISH);
+			if (errorResponse.equals(IBugzillaConstants.XML_ERROR_NOTFOUND)
+					|| errorResponse.equals(IBugzillaConstants.XML_ERROR_INVALIDBUGID)) {
+				throw new CoreException(new MylarStatus(IStatus.WARNING, BugzillaCorePlugin.PLUGIN_ID,
+						IMylarStatusConstants.REPOSITORY_ERROR, bugReport.getRepositoryUrl(),
+						IBugzillaConstants.ERROR_MSG_INVALID_BUG_ID));
+			}
+			if (errorResponse.equals(IBugzillaConstants.XML_ERROR_NOTPERMITTED)) {
+				throw new CoreException(new MylarStatus(IStatus.WARNING, BugzillaCorePlugin.PLUGIN_ID,
+						IMylarStatusConstants.REPOSITORY_ERROR, bugReport.getRepositoryUrl(),
+						IBugzillaConstants.ERROR_MSG_OP_NOT_PERMITTED));
+			}
 		}
-
 	}
 }

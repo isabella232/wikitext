@@ -32,11 +32,11 @@ import org.eclipse.mylar.context.core.IMylarContext;
 import org.eclipse.mylar.context.core.IMylarContextListener;
 import org.eclipse.mylar.context.core.IMylarElement;
 import org.eclipse.mylar.context.core.IMylarRelation;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.InteractionEvent;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.InterestComparator;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 
 /**
  * This is the core class resposible for context management.
@@ -48,8 +48,6 @@ import org.eclipse.mylar.context.core.MylarStatusHandler;
 public class MylarContextManager {
 
 	// TODO: move constants
-
-	public static final String CONTEXTS_DIRECTORY = "contexts";
 
 	public static final String CONTEXT_FILENAME_ENCODING = "UTF-8";
 
@@ -85,7 +83,7 @@ public class MylarContextManager {
 
 	public static final String CONTEXT_FILE_EXTENSION = ".xml.zip";
 
-	public static final String OLD_CONTEXT_FILE_EXTENSION = ".xml";
+	public static final String CONTEXT_FILE_EXTENSION_OLD = ".xml";
 
 	private static final int MAX_PROPAGATION = 17; // TODO: parametrize this
 
@@ -114,7 +112,7 @@ public class MylarContextManager {
 	private static ScalingFactors scalingFactors = new ScalingFactors();
 
 	public MylarContextManager() {
-		
+
 	}
 
 	public MylarContext getActivityHistoryMetaContext() {
@@ -123,15 +121,20 @@ public class MylarContextManager {
 		}
 		return activityMetaContext;
 	}
-	
+
 	public void loadActivityMetaContext() {
-		File contextActivityFile = getFileForContext(CONTEXT_HISTORY_FILE_NAME);
-		activityMetaContext = externalizer.readContextFromXML(CONTEXT_HISTORY_FILE_NAME, contextActivityFile);
-		if (activityMetaContext == null) {
+		if (ContextCorePlugin.getDefault().getContextStore() != null) {
+			File contextActivityFile = getFileForContext(CONTEXT_HISTORY_FILE_NAME);
+			activityMetaContext = externalizer.readContextFromXML(CONTEXT_HISTORY_FILE_NAME, contextActivityFile);
+			if (activityMetaContext == null) {
+				resetActivityHistory();
+			}
+			for (IMylarContextListener listener : activityMetaContextListeners) {
+				listener.contextActivated(activityMetaContext);
+			}
+		} else {
 			resetActivityHistory();
-		}
-		for (IMylarContextListener listener : activityMetaContextListeners) {
-			listener.contextActivated(activityMetaContext);
+			MylarStatusHandler.log("No context store installed, not restoring activity context.", this);
 		}
 	}
 
@@ -147,7 +150,7 @@ public class MylarContextManager {
 			}
 		}
 	}
-	
+
 	public void resetActivityHistory() {
 		activityMetaContext = new MylarContext(CONTEXT_HISTORY_FILE_NAME, MylarContextManager.getScalingFactors());
 		saveActivityHistoryContext();
@@ -302,7 +305,7 @@ public class MylarContextManager {
 
 	protected void checkForLandmarkDeltaAndNotify(float previousInterest, IMylarElement node) {
 		// TODO: don't call interestChanged if it's a landmark?
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
 		if (bridge.canBeLandmark(node.getHandleIdentifier())) {
 			if (previousInterest >= scalingFactors.getLandmark() && !node.getInterest().isLandmark()) {
 				for (IMylarContextListener listener : new ArrayList<IMylarContextListener>(listeners))
@@ -316,7 +319,8 @@ public class MylarContextManager {
 
 	private void propegateInterestToParents(InteractionEvent.Kind kind, IMylarElement node, float previousInterest,
 			float decayOffset, int level, List<IMylarElement> interestDelta) {
-		if (level > MAX_PROPAGATION || node == null || node.getInterest().getValue() <= 0) {
+
+		if (level > MAX_PROPAGATION || node == null || node.getHandleIdentifier() == null || node.getInterest().getValue() <= 0) {
 			return;
 		}
 
@@ -325,12 +329,26 @@ public class MylarContextManager {
 		level++; // original is 1st level
 		float propagatedIncrement = node.getInterest().getValue() - previousInterest + decayOffset;
 
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
-
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
 		String parentHandle = bridge.getParentHandle(node.getHandleIdentifier());
+		
+		// check if should use child bridge
+		for (String contentType : ContextCorePlugin.getDefault().getChildContentTypes(bridge.getContentType())) {
+			AbstractContextStructureBridge childBridge = ContextCorePlugin.getDefault().getStructureBridge(contentType);
+			Object resolved = childBridge.getObjectForHandle(parentHandle);
+			if (resolved != null) {
+				AbstractContextStructureBridge canonicalBridge = ContextCorePlugin.getDefault().getStructureBridge(resolved);
+				// HACK: hard-coded resource content type
+				if (!canonicalBridge.getContentType().equals(ContextCorePlugin.CONTENT_TYPE_ANY)) {
+					// NOTE: resetting bridge
+					bridge = canonicalBridge;
+				}
+			}
+		} 
+	
 		if (parentHandle != null) {
 			InteractionEvent propagationEvent = new InteractionEvent(InteractionEvent.Kind.PROPAGATION, bridge
-					.getContentType(node.getHandleIdentifier()), bridge.getParentHandle(node.getHandleIdentifier()),
+					.getContentType(node.getHandleIdentifier()), parentHandle,
 					SOURCE_ID_MODEL_PROPAGATION, CONTAINMENT_PROPAGATION_ID, propagatedIncrement);
 			IMylarElement previous = currentContext.get(propagationEvent.getStructureHandle());
 			if (previous != null && previous.getInterest() != null) {
@@ -341,9 +359,6 @@ public class MylarContextManager {
 				float parentOffset = ((-1) * parentNode.getInterest().getEncodedValue()) + 1;
 				currentContext.addEvent(new InteractionEvent(InteractionEvent.Kind.MANIPULATION, parentNode
 						.getContentType(), parentNode.getHandleIdentifier(), SOURCE_ID_DECAY_CORRECTION, parentOffset));
-				// ensureIsInteresting(parentNode.getContentType(),
-				// parentNode.getHandleIdentifier(), parentNode,
-				// parentNode.getInterest().getEncodedValue());
 			}
 			if (isInterestDelta(previousInterest, previous.getInterest().isPredicted(), previous.getInterest()
 					.isPropagated(), parentNode)) {
@@ -530,7 +545,7 @@ public class MylarContextManager {
 		}
 	}
 
-	public void saveContext(String handleIdentifier) {
+	public synchronized void saveContext(String handleIdentifier) {
 		boolean wasPaused = contextCapturePaused;
 		try {
 			if (!wasPaused) {
@@ -551,12 +566,16 @@ public class MylarContextManager {
 	}
 
 	public void saveActivityHistoryContext() {
+		if (ContextCorePlugin.getDefault().getContextStore() == null) {
+			return;
+		}
 		boolean wasPaused = contextCapturePaused;
 		try {
 			if (!wasPaused) {
 				setContextCapturePaused(true);
 			}
-			externalizer.writeContextToXml(getActivityHistoryMetaContext(), getFileForContext(CONTEXT_HISTORY_FILE_NAME));
+			externalizer.writeContextToXml(getActivityHistoryMetaContext(),
+					getFileForContext(CONTEXT_HISTORY_FILE_NAME));
 		} catch (Throwable t) {
 			MylarStatusHandler.fail(t, "could not save activity history", false);
 		} finally {
@@ -570,11 +589,7 @@ public class MylarContextManager {
 		String encoded;
 		try {
 			encoded = URLEncoder.encode(handleIdentifier, CONTEXT_FILENAME_ENCODING);
-			File dataDirectory = ContextCorePlugin.getDefault().getContextStore().getRootDirectory();
-			File contextDirectory = new File(dataDirectory, MylarContextManager.CONTEXTS_DIRECTORY);
-			if (!contextDirectory.exists()) {
-				contextDirectory.mkdir();
-			}
+			File contextDirectory = ContextCorePlugin.getDefault().getContextStore().getContextDirectory();
 			File contextFile = new File(contextDirectory, encoded + CONTEXT_FILE_EXTENSION);
 			return contextFile;
 		} catch (UnsupportedEncodingException e) {
@@ -599,7 +614,7 @@ public class MylarContextManager {
 			}
 		}
 		for (IMylarContextListener listener : listeners)
-			listener.edgesChanged(null);
+			listener.relationsChanged(null);
 	}
 
 	/**
@@ -611,15 +626,15 @@ public class MylarContextManager {
 		if (suppressListenerNotification)
 			return;
 		for (IMylarContextListener listener : new ArrayList<IMylarContextListener>(listeners)) {
-			listener.edgesChanged(node);
+			listener.relationsChanged(node);
 		}
 	}
 
 	public List<AbstractRelationProvider> getActiveRelationProviders() {
 		List<AbstractRelationProvider> providers = new ArrayList<AbstractRelationProvider>();
-		Map<String, IMylarStructureBridge> bridges = ContextCorePlugin.getDefault().getStructureBridges();
-		for (Entry<String, IMylarStructureBridge> entry : bridges.entrySet()) {
-			IMylarStructureBridge bridge = entry.getValue();// bridges.get(extension);
+		Map<String, AbstractContextStructureBridge> bridges = ContextCorePlugin.getDefault().getStructureBridges();
+		for (Entry<String, AbstractContextStructureBridge> entry : bridges.entrySet()) {
+			AbstractContextStructureBridge bridge = entry.getValue();// bridges.get(extension);
 			if (bridge.getRelationshipProviders() != null) {
 				providers.addAll(bridge.getRelationshipProviders());
 			}
@@ -639,7 +654,7 @@ public class MylarContextManager {
 		List<IMylarElement> allLandmarks = currentContext.getLandmarks();
 		List<IMylarElement> acceptedLandmarks = new ArrayList<IMylarElement>();
 		for (IMylarElement node : allLandmarks) {
-			IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
+			AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
 
 			if (bridge.canBeLandmark(node.getHandleIdentifier())) {
 				acceptedLandmarks.add(node);
@@ -692,7 +707,7 @@ public class MylarContextManager {
 		}
 		float originalValue = element.getInterest().getValue();
 		float changeValue = 0;
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(element.getContentType());
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(element.getContentType());
 		if (!increment) {
 			if (element.getInterest().isLandmark() && bridge.canBeLandmark(element.getHandleIdentifier())) {
 				// keep it interesting
@@ -706,7 +721,7 @@ public class MylarContextManager {
 				// reduce interest of children
 				for (String childHandle : bridge.getChildHandles(element.getHandleIdentifier())) {
 					IMylarElement childElement = getElement(childHandle);
-					if (childElement.getInterest().isInteresting() && !childElement.equals(element)) {
+					if (childElement != null && childElement.getInterest().isInteresting() && !childElement.equals(element)) {
 						manipulateInterestForElement(childElement, increment, forceLandmark, sourceId);
 					}
 				}
@@ -788,7 +803,7 @@ public class MylarContextManager {
 			return;
 		getActiveContext().delete(element);
 		for (IMylarContextListener listener : new ArrayList<IMylarContextListener>(listeners)) {
-			listener.nodeDeleted(element);
+			listener.elementDeleted(element);
 		}
 	}
 

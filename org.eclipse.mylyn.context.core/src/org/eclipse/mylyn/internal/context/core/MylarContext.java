@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.mylar.context.core.IMylarContext;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.InteractionEvent;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 
 /**
  * @author Mik Kersten
@@ -38,8 +38,6 @@ public class MylarContext implements IMylarContext {
 	protected Map<String, IMylarElement> landmarkMap;
 	
 	protected MylarContextElement activeNode = null;
-
-	protected List tempRaised = new ArrayList();
 
 	private InteractionEvent lastEdgeEvent = null;
 
@@ -70,11 +68,16 @@ public class MylarContext implements IMylarContext {
 	}
 
 	/**
-	 * Propagations and predictions are not addes as edges
+	 * Propagations and predictions are not added as edges
 	 */
 	private IMylarElement parseInteractionEvent(InteractionEvent event) {
-		if (event.getKind().isUserEvent())
+		if (event.getStructureHandle() == null) {
+			return null;
+		}
+		
+		if (event.getKind().isUserEvent()) {
 			numUserEvents++;
+		}
 		MylarContextElement node = elementMap.get(event.getStructureHandle());
 		if (node == null) {
 			node = new MylarContextElement(event.getStructureKind(), event.getStructureHandle(), this);
@@ -121,7 +124,11 @@ public class MylarContext implements IMylarContext {
 	}
 
 	public IMylarElement get(String elementHandle) {
-		return elementMap.get(elementHandle);
+		if (elementHandle == null) {
+			return null;
+		} else {
+			return elementMap.get(elementHandle);
+		}
 	}
 
 	public List<IMylarElement> getInteresting() {
@@ -221,7 +228,6 @@ public class MylarContext implements IMylarContext {
 						.equals(context.interactionHistory))
 				&& (elementMap == null ? context.elementMap == null : elementMap.equals(context.elementMap))
 				&& (activeNode == null ? context.activeNode == null : activeNode.equals(context.activeNode))
-				&& (tempRaised == null ? context.tempRaised == null : tempRaised.equals(context.tempRaised))
 				&& (landmarkMap == null ? context.landmarkMap == null : landmarkMap.equals(context.landmarkMap))
 				&& (scalingFactors == null ? context.scalingFactors == null : scalingFactors.equals(context.scalingFactors))
 				&& (numUserEvents == context.numUserEvents);
@@ -238,8 +244,6 @@ public class MylarContext implements IMylarContext {
 			hashCode += elementMap.hashCode();
 		if (activeNode != null)
 			hashCode += activeNode.hashCode();
-		if (tempRaised != null)
-			hashCode += tempRaised.hashCode();
 		if (landmarkMap != null)
 			hashCode += landmarkMap.hashCode();
 		if (scalingFactors != null)

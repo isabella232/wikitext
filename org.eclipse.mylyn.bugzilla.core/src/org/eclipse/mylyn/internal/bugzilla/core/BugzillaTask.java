@@ -17,8 +17,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskComment;
 
 /**
@@ -30,28 +31,26 @@ public class BugzillaTask extends AbstractRepositoryTask {
 
 	private static SimpleDateFormat comment_creation_ts_format = new SimpleDateFormat(COMMENT_FORMAT);
 
-	public BugzillaTask(String handle, String label, boolean newTask) {
-		super(handle, label, newTask);
+	public BugzillaTask(String repositoryUrl, String id, String label, boolean newTask) {
+		super(repositoryUrl, id, label, newTask);
 		if (newTask) {
 			setSyncState(RepositoryTaskSyncState.INCOMING);
 		}
 		isDirty = false;
-		initFromHandle();
+		initTaskUrl(taskId);
 	}
 
 	public BugzillaTask(BugzillaQueryHit hit, boolean newTask) {
-		this(hit.getHandleIdentifier(), hit.getDescription(), newTask);
+		this(hit.getRepositoryUrl(), hit.getTaskId(), hit.getSummary(), newTask);
 		setPriority(hit.getPriority());
-		initFromHandle();
+		initTaskUrl(taskId);
 	}
 
-	private void initFromHandle() {
-		String id = AbstractRepositoryTask.getTaskId(getHandleIdentifier());
-		String repositoryUrl = getRepositoryUrl();
+	private void initTaskUrl(String taskId) {
 		try {
-			String url = BugzillaServerFacade.getBugUrlWithoutLogin(repositoryUrl, Integer.parseInt(id));
+			String url = BugzillaClient.getBugUrlWithoutLogin(repositoryUrl, Integer.parseInt(taskId));
 			if (url != null) {
-				super.setUrl(url);
+				super.setTaskUrl(url);
 			}
 		} catch (Exception e) {
 			MylarStatusHandler.fail(e, "Task initialization failed due to malformed id or URL: "
@@ -60,43 +59,32 @@ public class BugzillaTask extends AbstractRepositoryTask {
 	}
 
 	@Override
-	public String getDescription() {
-		if (this.isDownloaded() || !super.getDescription().startsWith("<")) {
-			return super.getDescription();
+	public String getSummary() {
+		if (this.isDownloaded() || !super.getSummary().startsWith("<")) {
+			return super.getSummary();
 		} else {
 			if (isSynchronizing()) {
-				//return AbstractRepositoryTask.getTaskId(getHandleIdentifier()) + ": <synchronizing>";
+				// return
+				// AbstractRepositoryTask.getTaskId(getHandleIdentifier()) + ":
+				// <synchronizing>";
 				return "<synchronizing>";
 			} else {
-				//return AbstractRepositoryTask.getTaskId(getHandleIdentifier()) + ": ";
+				// return
+				// AbstractRepositoryTask.getTaskId(getHandleIdentifier()) + ":
+				// ";
 				return "";
 			}
 		}
 	}
 
-	public String getTaskType() {
-		if (taskData != null && taskData.getAttribute(BugzillaReportElement.BUG_SEVERITY.getKeyString()) != null) {
-			return taskData.getAttribute(BugzillaReportElement.BUG_SEVERITY.getKeyString()).getValue();
-		} else {
-			return null;
-		}
+	@Override
+	public String getTaskKind() {
+		return IBugzillaConstants.BUGZILLA_TASK_KIND;
 	}
 
 	@Override
 	public String toString() {
-		return "bugzilla report id: " + getHandleIdentifier();
-	}
-
-	@Override
-	public String getUrl() {
-		// fix for bug 103537 - should login automatically, but dont want to
-		// show the login info in the query string
-		try {
-			return BugzillaServerFacade.getBugUrlWithoutLogin(getRepositoryUrl(), Integer
-					.parseInt(AbstractRepositoryTask.getTaskId(handle)));
-		} catch (NumberFormatException nfe) {
-			return super.getUrl();
-		}
+		return "bugzilla report taskId: " + getHandleIdentifier();
 	}
 
 	@Override
@@ -132,12 +120,13 @@ public class BugzillaTask extends AbstractRepositoryTask {
 				}
 			}
 		} catch (Exception e) {
-			//MylarStatusHandler.log(e, "BugzillaTask.getCompletionDate()");
+			// MylarStatusHandler.log(e, "BugzillaTask.getCompletionDate()");
 			return null;
 		}
 		return super.getCompletionDate();
 	}
 
+	@Override
 	public String getRepositoryKind() {
 		return BugzillaCorePlugin.REPOSITORY_KIND;
 	}
@@ -160,4 +149,8 @@ public class BugzillaTask extends AbstractRepositoryTask {
 		}
 	}
 
+	public RepositoryTaskData getOldTaskData() {
+		// ignore
+		return null;
+	}
 }

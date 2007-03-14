@@ -17,6 +17,7 @@ import org.eclipse.mylar.internal.context.core.CompositeContextElement;
 import org.eclipse.mylar.internal.context.core.IMylarSearchOperation;
 import org.eclipse.mylar.internal.context.core.MylarContextElement;
 import org.eclipse.mylar.internal.context.core.MylarContextRelation;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 
 /**
  * @author Mik Kersten
@@ -129,7 +130,7 @@ public abstract class AbstractRelationProvider implements IMylarContextListener 
 		return degreeOfSeparation;
 	}
 
-	public void nodeDeleted(IMylarElement node) {
+	public void elementDeleted(IMylarElement node) {
 		// we don't care when this happens
 	}
 
@@ -149,7 +150,7 @@ public abstract class AbstractRelationProvider implements IMylarContextListener 
 		// we don't care about this event
 	}
 
-	public void edgesChanged(IMylarElement node) {
+	public void relationsChanged(IMylarElement node) {
 		// we don't care about this event
 	}
 
