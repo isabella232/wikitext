@@ -11,10 +11,7 @@
 
 package org.eclipse.mylar.bugzilla.tests;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Set;
-
-import javax.security.auth.login.LoginException;
 
 import junit.framework.TestCase;
 
@@ -22,15 +19,11 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.mylar.context.tests.support.MylarTestUtils;
 import org.eclipse.mylar.context.tests.support.MylarTestUtils.Credentials;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
-import org.eclipse.mylar.internal.bugzilla.core.BugzillaException;
-import org.eclipse.mylar.internal.bugzilla.core.BugzillaReportSubmitForm;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaTask;
 import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
-import org.eclipse.mylar.internal.bugzilla.core.PossibleBugzillaFailureException;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
-import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskList;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.core.TaskRepositoryManager;
@@ -109,20 +102,28 @@ public abstract class AbstractBugzillaTest extends TestCase {
 	}
 
 	protected BugzillaTask generateLocalTaskAndDownload(String taskNumber) throws CoreException {
-		BugzillaTask task = (BugzillaTask) connector.createTaskFromExistingKey(repository, taskNumber, null);
+		BugzillaTask task = (BugzillaTask) connector.createTaskFromExistingKey(repository, taskNumber);
 		TasksUiPlugin.getSynchronizationManager().synchronize(connector, task, true, null);
-				
+
 		assertNotNull(task);
 		TasksUiPlugin.getTaskListManager().getTaskList().moveToRoot(task);
 		assertTrue(task.isDownloaded());
 		return task;
 	}
 
-	protected BugzillaReportSubmitForm makeExistingBugPost(RepositoryTaskData taskData)
-			throws UnsupportedEncodingException {
-		return BugzillaReportSubmitForm.makeExistingBugPost(taskData, repository.getUrl(), repository.getUserName(),
-				repository.getPassword(), null, null, repository.getCharacterEncoding());
+	protected void submit(AbstractRepositoryTask task) throws CoreException {
+		connector.getTaskDataHandler().postTaskData(repository, task.getTaskData());
+		task.getTaskData().setHasLocalChanges(true);
+		task.setSyncState(RepositoryTaskSyncState.OUTGOING);
 	}
+
+	// protected BugzillaReportSubmitForm makeExistingBugPost(RepositoryTaskData
+	// taskData)
+	// throws UnsupportedEncodingException {
+	// return BugzillaReportSubmitForm.makeExistingBugPost(taskData,
+	// repository.getUrl(), repository.getUserName(),
+	// repository.getPassword(), repository.getCharacterEncoding());
+	// }
 
 	protected void synchAndAssertState(Set<AbstractRepositoryTask> tasks, RepositoryTaskSyncState state) {
 		for (AbstractRepositoryTask task : tasks) {
@@ -131,17 +132,18 @@ public abstract class AbstractBugzillaTest extends TestCase {
 		}
 	}
 
-	class MockBugzillaReportSubmitForm extends BugzillaReportSubmitForm {
-
-		public MockBugzillaReportSubmitForm(String encoding_utf_8) {
-			super(encoding_utf_8);
-		}
-
-		@Override
-		public String submitReportToRepository() throws BugzillaException, LoginException,
-				PossibleBugzillaFailureException {
-			return "test-submit";
-		}
-
-	}
+	// class MockBugzillaReportSubmitForm extends BugzillaReportSubmitForm {
+	//
+	// public MockBugzillaReportSubmitForm() {
+	// super();
+	// }
+	//
+	// @Override
+	// public String submitReportToRepository(BugzillaClient client) throws
+	// BugzillaException, LoginException,
+	// PossibleBugzillaFailureException {
+	// return "test-submit";
+	// }
+	//
+	// }
 }

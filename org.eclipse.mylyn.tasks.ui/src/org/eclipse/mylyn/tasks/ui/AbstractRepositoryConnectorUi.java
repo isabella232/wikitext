@@ -9,26 +9,34 @@
 package org.eclipse.mylar.tasks.ui;
 
 import org.eclipse.jface.dialogs.Dialog;
-import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.IWizard;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.jface.wizard.WizardPage;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.wizards.AbstractRepositorySettingsPage;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.tasks.ui.wizards.CommonAddExistingTaskWizard;
+import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
+import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.TaskRepository;
+import org.eclipse.mylar.tasks.core.TaskRepositoryManager;
+import org.eclipse.mylar.tasks.ui.wizards.AbstractRepositorySettingsPage;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
 
 /**
  * TODO: refactor wizards into extension points
  * 
  * @author Mik Kersten
+ * @author Eugene Kuleshov
  */
 public abstract class AbstractRepositoryConnectorUi {
 	
+	private static final String LABEL_TASK_DEFAULT = "Task";
+
 	/**
 	 * @return the unique type of the repository, e.g. "bugzilla"
 	 */
@@ -36,19 +44,24 @@ public abstract class AbstractRepositoryConnectorUi {
 		
 	public abstract AbstractRepositorySettingsPage getSettingsPage();
 
-//	public abstract IWizard getNewQueryWizard(TaskRepository repository);
-
 	/**
 	 * @param repository
 	 * @param queryToEdit can be null
 	 */
 	public abstract IWizard getQueryWizard(TaskRepository repository, AbstractRepositoryQuery queryToEdit);
 	
-	public abstract IWizard getNewTaskWizard(TaskRepository taskRepository, IStructuredSelection selection);
+	public abstract IWizard getNewTaskWizard(TaskRepository taskRepository);
 		
 	public abstract boolean hasRichEditor();
 			
 	public abstract boolean hasSearchPage();
+	
+	/**
+	 * @param repositoryTask can be null
+	 */
+	public String getTaskKindLabel(AbstractRepositoryTask repositoryTask) {
+		return LABEL_TASK_DEFAULT;
+	}
 	
 	public void openEditQueryDialog(AbstractRepositoryQuery query) {
 		try {
@@ -83,8 +96,41 @@ public abstract class AbstractRepositoryConnectorUi {
 		return null;
 	}
 
-	public void openRemoteTask(String repositoryUrl, String idString) {
-		MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
-				TasksUiPlugin.TITLE_DIALOG, "Not supported by connector: " + this.getClass().getSimpleName());
+	/**
+	 * Only override if task should be opened by a custom editor, default
+	 * behavior is to open with a rich editor, falling back to the web browser
+	 * if not available.
+	 * 
+	 * @return true if the task was successfully opened
+	 */
+	public boolean openRepositoryTask(String repositoryUrl, String id) {
+		TaskRepositoryManager repositoryManager = TasksUiPlugin.getRepositoryManager();
+		AbstractRepositoryConnector connector = repositoryManager.getRepositoryConnector(getRepositoryType());
+		String taskUrl = connector.getTaskWebUrl(repositoryUrl, id);
+		if(taskUrl == null) {
+			return false;
+		}
+		
+		IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+		if (window == null) {
+			IWorkbenchWindow[] windows = PlatformUI.getWorkbench().getWorkbenchWindows();
+			if (windows != null && windows.length > 0) {
+				window = windows[0];
+			}
+		}
+		if (window == null) {
+			return false;
+		}
+		IWorkbenchPage page = window.getActivePage();
+		
+		OpenRepositoryTaskJob job = new OpenRepositoryTaskJob(getRepositoryType(), repositoryUrl, id, taskUrl, page);
+		job.schedule();
+
+		return true;
 	}
+	
+	public IHyperlink[] findHyperlinks(TaskRepository repository, String text, int lineOffset, int regionOffset) {
+		return new IHyperlink[0];
+	}
+
 }

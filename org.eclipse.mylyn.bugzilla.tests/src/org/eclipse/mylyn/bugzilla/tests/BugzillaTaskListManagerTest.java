@@ -57,7 +57,8 @@ public class BugzillaTaskListManagerTest extends TestCase {
 	protected void tearDown() throws Exception {
 		super.tearDown();
 		manager.resetTaskList();
-		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
+		TasksUiPlugin.getTaskListManager().saveTaskList(); 
+//		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
 		TasksUiPlugin.getRepositoryManager().removeRepository(repository, TasksUiPlugin.getDefault().getRepositoriesFilePath());
 	}
 	
@@ -68,7 +69,7 @@ public class BugzillaTaskListManagerTest extends TestCase {
 
 		String bugNumber = "106939";
 
-		BugzillaTask task1 = new BugzillaTask(repositoryUrl + "-" + bugNumber, "label", false);
+		BugzillaTask task1 = new BugzillaTask(repositoryUrl, bugNumber, "label", false);
 		manager.getTaskList().addTask(task1);
 
 		task1.setReminded(true);
@@ -88,7 +89,7 @@ public class BugzillaTaskListManagerTest extends TestCase {
 	}
 	
 	public void testRepositoryTaskExternalization() {
-		BugzillaTask repositoryTask = new BugzillaTask("bug-1", "label", true);
+		BugzillaTask repositoryTask = new BugzillaTask("repo", "1", "label", true);
 		repositoryTask.setKind("kind");
 		manager.getTaskList().moveToRoot(repositoryTask);
 		manager.saveTaskList();
@@ -103,8 +104,8 @@ public class BugzillaTaskListManagerTest extends TestCase {
 				.next();
 
 		assertEquals(repositoryTask.getHandleIdentifier(), readTask.getHandleIdentifier());
-		assertEquals(repositoryTask.getDescription(), readTask.getDescription());
-		assertEquals(repositoryTask.getTaskType(), readTask.getTaskType());
+		assertEquals(repositoryTask.getSummary(), readTask.getSummary());
+		assertEquals(repositoryTask.getTaskKind(), readTask.getTaskKind());
 	}
 	
 	public void testQueryExternalization() {

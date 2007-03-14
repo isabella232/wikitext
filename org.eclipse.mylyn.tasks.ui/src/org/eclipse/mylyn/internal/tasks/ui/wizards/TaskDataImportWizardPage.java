@@ -20,7 +20,7 @@ import org.apache.commons.httpclient.util.DateUtil;
 import org.eclipse.jface.dialogs.IDialogSettings;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.wizard.WizardPage;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
@@ -31,10 +31,8 @@ import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Group;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
@@ -48,8 +46,6 @@ import org.eclipse.swt.widgets.Text;
  * @author Rob Elves (Adaption to Import wizard)
  */
 public class TaskDataImportWizardPage extends WizardPage {
-
-	private static final String LABEL_IMPORT_FOLDER = "From 0.6.2 and older task data folder";
 
 	private static final String LABEL_IMPORT_ZIP = "From zip file";
 
@@ -67,17 +63,11 @@ public class TaskDataImportWizardPage extends WizardPage {
 
 	private Button taskContextsCheckBox = null;
 
-	private Button browseButtonFolder = null;
-
 	private Button browseButtonZip = null;
-
-	private Text sourceFolderText = null;
 
 	private Text sourceZipText = null;
 
 	private Button overwriteCheckBox = null;
-
-	private Button importViaFolderButton;
 
 	private Button importViaBackupButton;
 
@@ -94,13 +84,9 @@ public class TaskDataImportWizardPage extends WizardPage {
 
 	private final static String CONTEXTS_SETTING = "Import Contexts setting";
 
-	private final static String SOURCE_DIR_SETTING = "Import Source directory setting";
-
 	private final static String SOURCE_ZIP_SETTING = "Import Source zip file setting";
 
 	private final static String OVERWRITE_SETTING = "Import Overwrite setting";
-
-	private final static String IMPORT_FOLDERMETHOD_SETTING = "Import method folder";
 
 	private final static String IMPORT_ZIPMETHOD_SETTING = "Import method zip";
 
@@ -113,6 +99,7 @@ public class TaskDataImportWizardPage extends WizardPage {
 		setDescription(DESCRIPTION);
 	}
 
+	@Override
 	public String getName() {
 		return PAGE_NAME;
 	}
@@ -123,16 +110,11 @@ public class TaskDataImportWizardPage extends WizardPage {
 			GridLayout layout = new GridLayout(3, false);
 			layout.verticalSpacing = 15;
 			container.setLayout(layout);
-
 			createContentSelectionControl(container);
-			createImportDirectoryControl(container);
 			createImportFromZipControl(container);
 			createImportBackupControl(container);
-
 			addRadioListeners();
-
 			initSettings();
-
 			setControl(container);
 			setPageComplete(validate());
 		} catch (RuntimeException e) {
@@ -144,10 +126,8 @@ public class TaskDataImportWizardPage extends WizardPage {
 		SelectionListener radioListener = new SelectionListener() {
 
 			public void widgetSelected(SelectionEvent e) {
-				browseButtonFolder.setEnabled(importViaFolderButton.getSelection());
 				browseButtonZip.setEnabled(importViaZipButton.getSelection());
 				backupFilesTable.setEnabled(importViaBackupButton.getSelection());
-				sourceFolderText.setEnabled(importViaFolderButton.getSelection());
 				sourceZipText.setEnabled(importViaZipButton.getSelection());
 				controlChanged();
 			}
@@ -158,7 +138,7 @@ public class TaskDataImportWizardPage extends WizardPage {
 			}
 		};
 
-		importViaFolderButton.addSelectionListener(radioListener);
+		// importViaFolderButton.addSelectionListener(radioListener);
 		importViaZipButton.addSelectionListener(radioListener);
 		importViaBackupButton.addSelectionListener(radioListener);
 	}
@@ -177,40 +157,6 @@ public class TaskDataImportWizardPage extends WizardPage {
 		taskActivationHistoryCheckBox = createCheckBox(group, "Task Activation History");
 		taskContextsCheckBox = createCheckBox(group, "Task Contexts");
 		overwriteCheckBox = createCheckBox(group, "OVERWRITE existing files without warning");
-	}
-
-	/**
-	 * Create widgets for specifying the source directory
-	 */
-	private void createImportDirectoryControl(Composite parent) {
-
-		importViaFolderButton = new Button(parent, SWT.RADIO);
-		importViaFolderButton.setText(LABEL_IMPORT_FOLDER);
-
-		sourceFolderText = new Text(parent, SWT.BORDER);
-		sourceFolderText.setEditable(true);
-		GridDataFactory.fillDefaults().grab(true, false).hint(250, SWT.DEFAULT).applyTo(sourceFolderText);
-		sourceFolderText.addModifyListener(new ModifyListener() {
-			public void modifyText(ModifyEvent e) {
-				controlChanged();
-			}
-		});
-
-		browseButtonFolder = new Button(parent, SWT.PUSH);
-		browseButtonFolder.setText("Browse...");
-		browseButtonFolder.addSelectionListener(new SelectionAdapter() {
-			public void widgetSelected(SelectionEvent e) {
-				DirectoryDialog dialog = new DirectoryDialog(getShell());
-				dialog.setText("Folder Selection");
-				dialog.setMessage("Specify the source folder for task data");
-				String dir = sourceFolderText.getText();
-				dialog.setFilterPath(dir);
-				dir = dialog.open();
-				if (dir == null || dir.equals(""))
-					return;
-				sourceFolderText.setText(dir);
-			}
-		});
 	}
 
 	/**
@@ -233,6 +179,7 @@ public class TaskDataImportWizardPage extends WizardPage {
 		browseButtonZip = new Button(parent, SWT.PUSH);
 		browseButtonZip.setText("Browse...");
 		browseButtonZip.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				FileDialog dialog = new FileDialog(getShell());
 				dialog.setText("Zip File Selection");
@@ -252,15 +199,13 @@ public class TaskDataImportWizardPage extends WizardPage {
 
 		importViaBackupButton = new Button(container, SWT.RADIO);
 		importViaBackupButton.setText(LABEL_IMPORT_BACKUP);
-		GridDataFactory.fillDefaults().span(3, SWT.DEFAULT).applyTo(importViaBackupButton);
-
 		addBackupFileView(container);
 	}
 
 	private void addBackupFileView(Composite composite) {
-		new Label(composite, SWT.NONE);
 		backupFilesTable = new Table(composite, SWT.BORDER);
-		GridDataFactory.fillDefaults().span(2, SWT.DEFAULT).grab(true, false).applyTo(backupFilesTable);
+		GridDataFactory.fillDefaults().span(2, SWT.DEFAULT).grab(true, true).applyTo(backupFilesTable);
+
 		TableColumn filenameColumn = new TableColumn(backupFilesTable, SWT.LEFT);
 		filenameColumn.setWidth(200);
 
@@ -314,12 +259,9 @@ public class TaskDataImportWizardPage extends WizardPage {
 			taskListCheckBox.setSelection(true);
 			taskActivationHistoryCheckBox.setSelection(true);
 			taskContextsCheckBox.setSelection(true);
-			sourceFolderText.setText("");
 			overwriteCheckBox.setSelection(true);
-			// importFromFolderGroup.setEnabled(true);
-			importViaFolderButton.setSelection(true);
-			sourceFolderText.setEnabled(true);
-			sourceZipText.setEnabled(false);
+			importViaZipButton.setSelection(true);
+			sourceZipText.setEnabled(true);
 			backupFilesTable.setEnabled(false);
 
 		} else {
@@ -327,21 +269,12 @@ public class TaskDataImportWizardPage extends WizardPage {
 			taskListCheckBox.setSelection(settings.getBoolean(TASKLIST_SETTING));
 			taskActivationHistoryCheckBox.setSelection(settings.getBoolean(ACTIVATION_HISTORY_SETTING));
 			taskContextsCheckBox.setSelection(settings.getBoolean(CONTEXTS_SETTING));
-			importViaFolderButton.setSelection(settings.getBoolean(IMPORT_FOLDERMETHOD_SETTING));
 			importViaZipButton.setSelection(settings.getBoolean(IMPORT_ZIPMETHOD_SETTING));
 			importViaBackupButton.setSelection(settings.getBoolean(IMPORT_BACKUPMETHOD_SETTING));
-
-			browseButtonFolder.setEnabled(importViaFolderButton.getSelection());
-			sourceFolderText.setEnabled(importViaFolderButton.getSelection());
 			browseButtonZip.setEnabled(importViaZipButton.getSelection());
 			sourceZipText.setEnabled(importViaZipButton.getSelection());
 
 			backupFilesTable.setEnabled(importViaBackupButton.getSelection());
-
-			String directory = settings.get(SOURCE_DIR_SETTING);
-			if (directory != null) {
-				sourceFolderText.setText(settings.get(SOURCE_DIR_SETTING));
-			}
 			String zipFile = settings.get(SOURCE_ZIP_SETTING);
 			if (zipFile != null) {
 				sourceZipText.setText(settings.get(SOURCE_ZIP_SETTING));
@@ -360,13 +293,10 @@ public class TaskDataImportWizardPage extends WizardPage {
 		settings.put(TASKLIST_SETTING, taskListCheckBox.getSelection());
 		settings.put(ACTIVATION_HISTORY_SETTING, taskActivationHistoryCheckBox.getSelection());
 		settings.put(CONTEXTS_SETTING, taskContextsCheckBox.getSelection());
-		settings.put(SOURCE_DIR_SETTING, sourceFolderText.getText());
 		settings.put(SOURCE_ZIP_SETTING, sourceZipText.getText());
 		settings.put(OVERWRITE_SETTING, overwriteCheckBox.getSelection());
-		settings.put(IMPORT_FOLDERMETHOD_SETTING, importViaFolderButton.getSelection());
 		settings.put(IMPORT_ZIPMETHOD_SETTING, importViaZipButton.getSelection());
 		settings.put(IMPORT_BACKUPMETHOD_SETTING, importViaBackupButton.getSelection());
-
 		settings.put(SETTINGS_SAVED, SETTINGS_SAVED);
 	}
 
@@ -402,9 +332,6 @@ public class TaskDataImportWizardPage extends WizardPage {
 				&& !taskContextsCheckBox.getSelection()) {
 			return false;
 		}
-		if (importViaFolderButton.getSelection() && sourceFolderText.getText().equals("")) {
-			return false;
-		}
 		if (importViaZipButton.getSelection() && sourceZipText.getText().equals("")) {
 			return false;
 		}
@@ -412,11 +339,6 @@ public class TaskDataImportWizardPage extends WizardPage {
 			return false;
 		}
 		return true;
-	}
-
-	/** Returns the directory where data files are to be restored from */
-	public String getSourceDirectory() {
-		return sourceFolderText.getText();
 	}
 
 	public String getSourceZipFile() {
@@ -452,7 +374,8 @@ public class TaskDataImportWizardPage extends WizardPage {
 
 	/** True if the user wants to import from a zip file */
 	public boolean zip() {
-		return importViaZipButton.getSelection() || importViaBackupButton.getSelection();
+		//importViaZipButton.getSelection() || importViaBackupButton.getSelection();
+		return true;
 	}
 
 	/** For testing only. Sets controls to the specified values */
@@ -462,7 +385,6 @@ public class TaskDataImportWizardPage extends WizardPage {
 		taskListCheckBox.setSelection(importTaskList);
 		taskActivationHistoryCheckBox.setSelection(importActivationHistory);
 		taskContextsCheckBox.setSelection(importTaskContexts);
-		sourceFolderText.setText(sourceDir);
 		sourceZipText.setText(sourceZip);
 		importViaZipButton.setSelection(zip);
 	}

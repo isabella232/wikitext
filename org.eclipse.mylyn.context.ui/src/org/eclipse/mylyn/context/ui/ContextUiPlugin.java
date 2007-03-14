@@ -14,10 +14,12 @@ package org.eclipse.mylar.context.ui;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
@@ -25,30 +27,39 @@ import org.eclipse.core.runtime.IExtension;
 import org.eclipse.core.runtime.IExtensionPoint;
 import org.eclipse.core.runtime.IExtensionRegistry;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.jface.viewers.ViewerFilter;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.AbstractRelationProvider;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.core.IMylarElement;
 import org.eclipse.mylar.context.core.IMylarRelation;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.context.ui.AbstractContextLabelProvider;
 import org.eclipse.mylar.internal.context.ui.ActiveSearchViewTracker;
 import org.eclipse.mylar.internal.context.ui.ColorMap;
 import org.eclipse.mylar.internal.context.ui.ContentOutlineManager;
+import org.eclipse.mylar.internal.context.ui.ContextPerspectiveManager;
 import org.eclipse.mylar.internal.context.ui.ContextUiPrefContstants;
+import org.eclipse.mylar.internal.context.ui.FocusedViewerManager;
 import org.eclipse.mylar.internal.context.ui.Highlighter;
 import org.eclipse.mylar.internal.context.ui.HighlighterList;
-import org.eclipse.mylar.internal.context.ui.MylarPerspectiveManager;
-import org.eclipse.mylar.internal.context.ui.ContextViewerManager;
 import org.eclipse.mylar.internal.context.ui.MylarWorkingSetManager;
+import org.eclipse.mylar.internal.context.ui.actions.ContextRetrieveAction;
 import org.eclipse.mylar.internal.tasks.ui.ITaskHighlighter;
-import org.eclipse.mylar.monitor.MylarMonitorPlugin;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
+import org.eclipse.mylar.monitor.ui.MylarMonitorUiPlugin;
+import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
+import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
+import org.eclipse.mylar.tasks.core.DateRangeContainer;
 import org.eclipse.mylar.tasks.core.ITask;
+import org.eclipse.mylar.tasks.core.ITaskActivityListener;
+import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
@@ -68,7 +79,7 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 
 	public static final String PLUGIN_ID = "org.eclipse.mylar.ui";
 
-	private Map<String, IMylarUiBridge> bridges = new HashMap<String, IMylarUiBridge>();
+	private Map<String, AbstractContextUiBridge> bridges = new HashMap<String, AbstractContextUiBridge>();
 
 	private Map<String, ILabelProvider> contextLabelProviders = new HashMap<String, ILabelProvider>();
 
@@ -84,19 +95,23 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 
 	private ColorMap colorMap = new ColorMap();
 
-	private ContextViewerManager viewerManager;
+	private FocusedViewerManager viewerManager;
 
-	private MylarPerspectiveManager perspectiveManager = new MylarPerspectiveManager();
-	
+	private ContextPerspectiveManager perspectiveManager = new ContextPerspectiveManager();
+
 	private ContentOutlineManager contentOutlineManager = new ContentOutlineManager();
-	
-	private List<MylarWorkingSetManager> workingSetUpdaters = null;
-	
-	private ActiveSearchViewTracker activeSearchViewTracker = new ActiveSearchViewTracker();
-	
-	private Map<IMylarUiBridge, ImageDescriptor> activeSearchIcons = new HashMap<IMylarUiBridge, ImageDescriptor>();
 
-	private Map<IMylarUiBridge, String> activeSearchLabels = new HashMap<IMylarUiBridge, String>();
+	private List<MylarWorkingSetManager> workingSetUpdaters = null;
+
+	private ActiveSearchViewTracker activeSearchViewTracker = new ActiveSearchViewTracker();
+
+	private Map<AbstractContextUiBridge, ImageDescriptor> activeSearchIcons = new HashMap<AbstractContextUiBridge, ImageDescriptor>();
+
+	private Map<AbstractContextUiBridge, String> activeSearchLabels = new HashMap<AbstractContextUiBridge, String>();
+
+	private Map<String, Set<Class<?>>> preservedFilterClasses = new HashMap<String, Set<Class<?>>>();
+
+	private Map<String, Set<String>> preservedFilterIds = new HashMap<String, Set<String>>();
 	
 	private final ITaskHighlighter DEFAULT_HIGHLIGHTER = new ITaskHighlighter() {
 		public Color getHighlightColor(ITask task) {
@@ -143,41 +158,96 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 
 	};
 
-	private static final IMylarUiBridge DEFAULT_UI_BRIDGE = new IMylarUiBridge() {
+	private static final AbstractContextUiBridge DEFAULT_UI_BRIDGE = new AbstractContextUiBridge() {
 
+		@Override
 		public void open(IMylarElement node) {
 			// ignore
 		}
 
+		@Override
 		public void close(IMylarElement node) {
 			// ignore
 		}
 
+		@Override
 		public boolean acceptsEditor(IEditorPart editorPart) {
 			return false;
 		}
 
+		@Override
 		public List<TreeViewer> getContentOutlineViewers(IEditorPart editor) {
 			return Collections.emptyList();
 		}
 
+		@Override
 		public Object getObjectForTextSelection(TextSelection selection, IEditorPart editor) {
 			return null;
 		}
 
+		@Override
 		public void restoreEditor(IMylarElement document) {
 			// ignore
 		}
 
+		@Override
 		public IMylarElement getElement(IEditorInput input) {
 			return null;
 		}
 
+		@Override
 		public String getContentType() {
 			return null;
 		}
 	};
 
+	private static final ITaskActivityListener TASK_ACTIVATION_LISTENER = new ITaskActivityListener() {
+
+		public void activityChanged(DateRangeContainer week) {
+			// ignore
+			
+		}
+
+		public void calendarChanged() {
+			// ignore
+			
+		}
+
+		public void taskActivated(ITask task) {
+			boolean hasLocalContext = ContextCorePlugin.getContextManager().hasContext(task.getHandleIdentifier());
+			if (!hasLocalContext && task instanceof AbstractRepositoryTask) {
+				AbstractRepositoryTask repositoryTask = (AbstractRepositoryTask)task;
+				AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager().getRepositoryConnector(repositoryTask);
+				TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(repositoryTask.getRepositoryUrl());
+				
+				if (connector != null && connector.hasRepositoryContext(repository, repositoryTask)) {
+					boolean getRemote = MessageDialog.openQuestion(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), 
+							ITasksUiConstants.TITLE_DIALOG, 
+							"No local task context exists.  Retrieve from repository?");
+					if (getRemote) {
+						new ContextRetrieveAction().run(repositoryTask);
+					}
+				}
+			}
+		}
+
+		public void taskDeactivated(ITask task) {
+			// ignore
+			
+		}
+
+		public void taskListRead() {
+			// ignore
+			
+		}
+
+		public void tasksActivated(List<ITask> tasks) {
+			// ignore
+			
+		}
+		
+	};
+	
 	public ContextUiPlugin() {
 		super();
 		INSTANCE = this;
@@ -197,20 +267,21 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		initializeDefaultPreferences(getPreferenceStore());
 		initializeHighlighters();
 		initializeActions();
-		
-		viewerManager = new ContextViewerManager();
-		
+
+		viewerManager = new FocusedViewerManager();
+
 		final IWorkbench workbench = PlatformUI.getWorkbench();
 		workbench.getDisplay().asyncExec(new Runnable() {
 			public void run() {
 				try {
 					ContextCorePlugin.getContextManager().addListener(viewerManager);
-					MylarMonitorPlugin.getDefault().addWindowPartListener(contentOutlineManager);
-					
+					MylarMonitorUiPlugin.getDefault().addWindowPartListener(contentOutlineManager);
+
 					// NOTE: task list must have finished initializing
 					TasksUiPlugin.getDefault().setHighlighter(DEFAULT_HIGHLIGHTER);
 					TasksUiPlugin.getTaskListManager().addActivityListener(perspectiveManager);
-				
+					TasksUiPlugin.getTaskListManager().addActivityListener(TASK_ACTIVATION_LISTENER);
+					
 					workbench.addWindowListener(activeSearchViewTracker);
 					IWorkbenchWindow[] windows = workbench.getWorkbenchWindows();
 					for (int i = 0; i < windows.length; i++) {
@@ -235,7 +306,10 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		try {
 			super.stop(context);
 			ContextCorePlugin.getContextManager().removeListener(viewerManager);
-			MylarMonitorPlugin.getDefault().removeWindowPartListener(contentOutlineManager);
+			MylarMonitorUiPlugin.getDefault().removeWindowPartListener(contentOutlineManager);
+			
+			TasksUiPlugin.getTaskListManager().removeActivityListener(perspectiveManager);
+			TasksUiPlugin.getTaskListManager().removeActivityListener(TASK_ACTIVATION_LISTENER);
 			
 			IWorkbench workbench = PlatformUI.getWorkbench();
 			if (workbench != null) {
@@ -249,7 +323,7 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 					}
 				}
 			}
-			
+
 			viewerManager.dispose();
 			colorMap.dispose();
 			highlighters.dispose();
@@ -267,18 +341,17 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		if (hlist != null && hlist.length() != 0) {
 			highlighters = new HighlighterList(hlist);
 		} else {
-			// Only get here if it is the first time running
-			// mylar. load default colors
 			highlighters = new HighlighterList();
 			highlighters.setToDefaultList();
-			getPreferenceStore().setValue(ContextUiPrefContstants.HIGHLIGHTER_PREFIX, this.highlighters.externalizeToString());
+			getPreferenceStore().setValue(ContextUiPrefContstants.HIGHLIGHTER_PREFIX,
+					this.highlighters.externalizeToString());
 		}
 	}
 
 	@Override
 	protected void initializeDefaultPreferences(IPreferenceStore store) {
 		store.setDefault(ContextUiPrefContstants.NAVIGATORS_AUTO_FILTER_ENABLE, true);
-		
+
 		store.setDefault(ContextUiPrefContstants.AUTO_MANAGE_PERSPECTIVES, false);
 		store.setDefault(ContextUiPrefContstants.AUTO_MANAGE_EDITORS, true);
 		store.setDefault(ContextUiPrefContstants.AUTO_MANAGE_EDITORS_OPEN_NUM, 8);
@@ -341,18 +414,18 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		this.decorateInterestMode = decorateInterestLevel;
 	}
 
-	public List<IMylarUiBridge> getUiBridges() {
+	public List<AbstractContextUiBridge> getUiBridges() {
 		UiExtensionPointReader.initExtensions();
-		return new ArrayList<IMylarUiBridge>(bridges.values());
+		return new ArrayList<AbstractContextUiBridge>(bridges.values());
 	}
 
 	/**
 	 * @return the corresponding adapter if found, or an adapter with no
 	 *         behavior otherwise (so null is never returned)
 	 */
-	public IMylarUiBridge getUiBridge(String contentType) {
+	public AbstractContextUiBridge getUiBridge(String contentType) {
 		UiExtensionPointReader.initExtensions();
-		IMylarUiBridge bridge = bridges.get(contentType);
+		AbstractContextUiBridge bridge = bridges.get(contentType);
 		if (bridge != null) {
 			return bridge;
 		} else {
@@ -363,10 +436,10 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 	/**
 	 * TODO: cache this to improve performance?
 	 */
-	public IMylarUiBridge getUiBridgeForEditor(IEditorPart editorPart) {
+	public AbstractContextUiBridge getUiBridgeForEditor(IEditorPart editorPart) {
 		UiExtensionPointReader.initExtensions();
-		IMylarUiBridge foundBridge = null;
-		for (IMylarUiBridge bridge : bridges.values()) {
+		AbstractContextUiBridge foundBridge = null;
+		for (AbstractContextUiBridge bridge : bridges.values()) {
 			if (bridge.acceptsEditor(editorPart)) {
 				foundBridge = bridge;
 				break;
@@ -379,13 +452,13 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		}
 	}
 
-	private void internalAddBridge(String extension, IMylarUiBridge bridge) {
+	private void internalAddBridge(String extension, AbstractContextUiBridge bridge) {
 		this.bridges.put(extension, bridge);
 	}
 
 	public ILabelProvider getContextLabelProvider(String extension) {
-//		if (!UiExtensionPointReader.extensionsRead)
-//			UiExtensionPointReader.initExtensions();
+		// if (!UiExtensionPointReader.extensionsRead)
+		// UiExtensionPointReader.initExtensions();
 		ILabelProvider provider = contextLabelProviders.get(extension);
 		if (provider != null) {
 			return provider;
@@ -463,7 +536,7 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		getPreferenceStore().setValue(ContextUiPrefContstants.INTERSECTION_MODE, isIntersectionMode);
 	}
 
-	public ContextViewerManager getViewerManager() {
+	public FocusedViewerManager getViewerManager() {
 		return viewerManager;
 	}
 
@@ -477,17 +550,24 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 
 		public static final String ELEMENT_UI_BRIDGE = "uiBridge";
 
-		public static final String ELEMENT_UI_CLASS = "class";
+		public static final String ELEMENT_PRESERVED_FILTERS = "preservedFilters";
+
+		public static final String ELEMENT_VIEW_ID = "viewId";
+
+		public static final String ELEMENT_ID = "id";		
+		
+		public static final String ELEMENT_FILTER = "filter";
+
+		public static final String ELEMENT_CLASS = "class";
 
 		public static final String ELEMENT_UI_CONTEXT_LABEL_PROVIDER = "labelProvider";
 
 		public static final String ELEMENT_UI_BRIDGE_CONTENT_TYPE = "contentType";
-		
+
 		public static final String ELEMENT_STRUCTURE_BRIDGE_SEARCH_ICON = "activeSearchIcon";
 
 		public static final String ELEMENT_STRUCTURE_BRIDGE_SEARCH_LABEL = "activeSearchLabel";
-		
-		// read the extensions and load the required plugins
+
 		public static void initExtensions() {
 			if (!extensionsRead) {
 				IExtensionRegistry registry = Platform.getExtensionRegistry();
@@ -497,11 +577,13 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 				for (int i = 0; i < extensions.length; i++) {
 					IConfigurationElement[] elements = extensions[i].getConfigurationElements();
 					for (int j = 0; j < elements.length; j++) {
-						if (elements[j].getName().compareTo(UiExtensionPointReader.ELEMENT_UI_BRIDGE) == 0) {
+						if (elements[j].getName().equals(UiExtensionPointReader.ELEMENT_UI_BRIDGE)) {
 							readBridge(elements[j]);
-						} else if (elements[j].getName().compareTo(
-								UiExtensionPointReader.ELEMENT_UI_CONTEXT_LABEL_PROVIDER) == 0) {
+						} else if (elements[j].getName().equals(
+								UiExtensionPointReader.ELEMENT_UI_CONTEXT_LABEL_PROVIDER)) {
 							readLabelProvider(elements[j]);
+						} else if (elements[j].getName().equals(UiExtensionPointReader.ELEMENT_PRESERVED_FILTERS)) {
+							readPreservedFilters(elements[j]);
 						}
 					}
 				}
@@ -511,7 +593,7 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 
 		private static void readLabelProvider(IConfigurationElement element) {
 			try {
-				Object provider = element.createExecutableExtension(UiExtensionPointReader.ELEMENT_UI_CLASS);
+				Object provider = element.createExecutableExtension(UiExtensionPointReader.ELEMENT_CLASS);
 				Object contentType = element.getAttribute(UiExtensionPointReader.ELEMENT_UI_BRIDGE_CONTENT_TYPE);
 				if (provider instanceof ILabelProvider && contentType != null) {
 					ContextUiPlugin.getDefault().internalAddContextLabelProvider((String) contentType,
@@ -525,45 +607,81 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 			}
 		}
 
+		private static void readPreservedFilters(IConfigurationElement element) {
+			String viewId = element.getAttribute(UiExtensionPointReader.ELEMENT_VIEW_ID);
+			IConfigurationElement[] children = element.getChildren();
+			for (IConfigurationElement child : children) {
+				if (child.getName().equals(UiExtensionPointReader.ELEMENT_FILTER)) {
+					try {
+						Object filterClass = child.createExecutableExtension(UiExtensionPointReader.ELEMENT_CLASS);
+						ContextUiPlugin.getDefault().addPreservedFilterClass(viewId, (ViewerFilter) filterClass);
+					} catch (Exception e) {
+						String filterId = child.getAttribute(ELEMENT_ID);
+						ContextUiPlugin.getDefault().addPreservedFilterId(viewId, filterId);
+					}
+				}
+			}
+		}
+
 		@SuppressWarnings("deprecation")
 		private static void readBridge(IConfigurationElement element) {
 			try {
-				Object bridge = element.createExecutableExtension(UiExtensionPointReader.ELEMENT_UI_CLASS);
+				Object bridge = element.createExecutableExtension(UiExtensionPointReader.ELEMENT_CLASS);
 				Object contentType = element.getAttribute(UiExtensionPointReader.ELEMENT_UI_BRIDGE_CONTENT_TYPE);
-				if (bridge instanceof IMylarUiBridge && contentType != null) {
-					ContextUiPlugin.getDefault().internalAddBridge((String) contentType, (IMylarUiBridge) bridge);
-				
+				if (bridge instanceof AbstractContextUiBridge && contentType != null) {
+					ContextUiPlugin.getDefault().internalAddBridge((String) contentType,
+							(AbstractContextUiBridge) bridge);
+
 					String iconPath = element.getAttribute(ELEMENT_STRUCTURE_BRIDGE_SEARCH_ICON);
 					if (iconPath != null) {
-						ImageDescriptor descriptor = AbstractUIPlugin.imageDescriptorFromPlugin(element.getDeclaringExtension().getNamespace(), iconPath);
+						ImageDescriptor descriptor = AbstractUIPlugin.imageDescriptorFromPlugin(element
+								.getDeclaringExtension().getNamespace(), iconPath);
 						if (descriptor != null) {
-							ContextUiPlugin.getDefault().setActiveSearchIcon((IMylarUiBridge)bridge, descriptor);
+							ContextUiPlugin.getDefault().setActiveSearchIcon((AbstractContextUiBridge) bridge,
+									descriptor);
 						}
 					}
 					String label = element.getAttribute(ELEMENT_STRUCTURE_BRIDGE_SEARCH_LABEL);
 					if (label != null) {
-						ContextUiPlugin.getDefault().setActiveSearchLabel((IMylarUiBridge)bridge, label);
+						ContextUiPlugin.getDefault().setActiveSearchLabel((AbstractContextUiBridge) bridge, label);
 					}
-				
+
 				} else {
 					MylarStatusHandler.log("Could not load bridge: " + bridge.getClass().getCanonicalName()
-							+ " must implement " + IMylarUiBridge.class.getCanonicalName(), thisReader);
+							+ " must implement " + AbstractContextUiBridge.class.getCanonicalName(), thisReader);
 				}
 			} catch (CoreException e) {
 				MylarStatusHandler.log(e, "Could not load bridge extension");
 			}
 		}
 	}
-	
 
+	/**
+	 * @param task	can be null to indicate no task
+	 */
 	public String getPerspectiveIdFor(ITask task) {
-		return getPreferenceStore().getString(ContextUiPrefContstants.PREFIX_TASK_TO_PERSPECTIVE + task.getHandleIdentifier());
+		if (task != null) {
+			return getPreferenceStore().getString(
+				ContextUiPrefContstants.PREFIX_TASK_TO_PERSPECTIVE + task.getHandleIdentifier());
+		} else {
+			return getPreferenceStore().getString(
+					ContextUiPrefContstants.PERSPECTIVE_NO_ACTIVE_TASK);	
+		}
 	}
 
+	/**
+	 * @param task
+	 *            can be null to indicate no task
+	 */
 	public void setPerspectiveIdFor(ITask task, String perspectiveId) {
-		getPreferenceStore().setValue(ContextUiPrefContstants.PREFIX_TASK_TO_PERSPECTIVE + task.getHandleIdentifier(), perspectiveId);
+		if (task != null) {
+			getPreferenceStore().setValue(
+					ContextUiPrefContstants.PREFIX_TASK_TO_PERSPECTIVE + task.getHandleIdentifier(), perspectiveId);
+		} else {
+			getPreferenceStore().setValue(ContextUiPrefContstants.PERSPECTIVE_NO_ACTIVE_TASK, perspectiveId);
+		}
 	}
-	
+
 	public void addWorkingSetManager(MylarWorkingSetManager updater) {
 		if (workingSetUpdaters == null) {
 			workingSetUpdaters = new ArrayList<MylarWorkingSetManager>();
@@ -579,20 +697,20 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 			return workingSetUpdaters.get(0);
 	}
 
-	private void setActiveSearchIcon(IMylarUiBridge bridge, ImageDescriptor descriptor) {
+	private void setActiveSearchIcon(AbstractContextUiBridge bridge, ImageDescriptor descriptor) {
 		activeSearchIcons.put(bridge, descriptor);
 	}
 
-	public ImageDescriptor getActiveSearchIcon(IMylarUiBridge bridge) {
+	public ImageDescriptor getActiveSearchIcon(AbstractContextUiBridge bridge) {
 		UiExtensionPointReader.initExtensions();
 		return activeSearchIcons.get(bridge);
 	}
 
-	private void setActiveSearchLabel(IMylarUiBridge bridge, String label) {
+	private void setActiveSearchLabel(AbstractContextUiBridge bridge, String label) {
 		activeSearchLabels.put(bridge, label);
 	}
 
-	public String getActiveSearchLabel(IMylarUiBridge bridge) {
+	public String getActiveSearchLabel(AbstractContextUiBridge bridge) {
 		UiExtensionPointReader.initExtensions();
 		return activeSearchLabels.get(bridge);
 	}
@@ -602,7 +720,7 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 			updateDegreeOfSeparation(provider, degreeOfSeparation);
 		}
 	}
-	
+
 	public void updateDegreeOfSeparation(AbstractRelationProvider provider, int degreeOfSeparation) {
 		ContextCorePlugin.getContextManager().resetLandmarkRelationshipsOfKind(provider.getId());
 		ContextUiPlugin.getDefault().getPreferenceStore().setValue(provider.getGenericId(), degreeOfSeparation);
@@ -611,12 +729,12 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 			if (element.getInterest().isLandmark()) {
 				provider.landmarkAdded(element);
 			}
- 		}
+		}
 	}
-	
+
 	public void refreshRelatedElements() {
 		try {
-			for (IMylarStructureBridge bridge : ContextCorePlugin.getDefault().getStructureBridges().values()) {
+			for (AbstractContextStructureBridge bridge : ContextCorePlugin.getDefault().getStructureBridges().values()) {
 				if (bridge.getRelationshipProviders() != null) {
 					for (AbstractRelationProvider provider : bridge.getRelationshipProviders()) {
 						List<AbstractRelationProvider> providerList = new ArrayList<AbstractRelationProvider>();
@@ -630,4 +748,39 @@ public class ContextUiPlugin extends AbstractUIPlugin {
 		}
 	}
 	
+	public void addPreservedFilterClass(String viewId, ViewerFilter filter) {
+		Set<Class<?>> preservedList = preservedFilterClasses.get(viewId);
+		if (preservedList == null) {
+			preservedList = new HashSet<Class<?>>();
+			preservedFilterClasses.put(viewId, preservedList);
+		}
+		preservedList.add(filter.getClass());
+	}
+
+	public Set<Class<?>> getPreservedFilterClasses(String viewId) {
+		UiExtensionPointReader.initExtensions();
+		if (preservedFilterClasses.containsKey(viewId)) {
+			return preservedFilterClasses.get(viewId);
+		} else {
+			return Collections.emptySet();
+		}
+	}
+
+	public void addPreservedFilterId(String viewId, String filterId) {
+		Set<String> preservedList = preservedFilterIds.get(viewId);
+		if (preservedList == null) {
+			preservedList = new HashSet<String>();
+			preservedFilterIds.put(viewId, preservedList);
+		}
+		preservedList.add(filterId);
+	}
+	
+	public Set<String> getPreservedFilterIds(String viewId) {
+		UiExtensionPointReader.initExtensions();
+		if (preservedFilterIds.containsKey(viewId)) {
+			return preservedFilterIds.get(viewId);
+		} else {
+			return Collections.emptySet();
+		}
+	}
 }

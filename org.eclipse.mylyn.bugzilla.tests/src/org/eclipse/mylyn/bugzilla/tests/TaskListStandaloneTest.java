@@ -19,7 +19,9 @@ import java.util.Set;
 
 import junit.framework.TestCase;
 
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryQuery;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaTask;
+import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
 import org.eclipse.mylar.internal.bugzilla.ui.tasklist.BugzillaTaskExternalizer;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListExternalizer;
@@ -55,17 +57,34 @@ public class TaskListStandaloneTest extends TestCase {
 		manager.saveTaskList();
 		super.tearDown();
 	}
+	
+	public void testDueDateExternalization() {
+		ITask task = new Task("1", "task 1", true);
+		Date dueDate = new Date();
+		task.setDueDate(dueDate);
+		manager.getTaskList().moveToRoot(task);
+		assertEquals(1, manager.getTaskList().getAllTasks().size());
+		
+		manager.saveTaskList();
+		manager.resetTaskList();
+		manager.readExistingOrCreateNewList();
+		assertEquals(1, manager.getTaskList().getAllTasks().size());
+		Set<ITask> readList = manager.getTaskList().getRootTasks();
+		ITask readTask = readList.iterator().next();
+		assertTrue(readTask.getSummary().equals("task 1"));
+		assertTrue(readTask.getDueDate().compareTo(dueDate) == 0);
+	}
 
 	public void testPastReminder() {
 		ITask task = new Task("1", "1", true);
 		long now = new Date().getTime();
-		task.setReminderDate(new Date(now - 1000));
+		task.setScheduledForDate(new Date(now - 1000));
 		assertTrue(task.isPastReminder());
 
-		task.setReminderDate(new Date(now + 1000));
+		task.setScheduledForDate(new Date(now + 1000));
 		assertFalse(task.isPastReminder());
 
-		task.setReminderDate(new Date(now - 1000));
+		task.setScheduledForDate(new Date(now - 1000));
 		task.setCompleted(true);
 		assertTrue(task.isPastReminder());
 	}
@@ -81,8 +100,8 @@ public class TaskListStandaloneTest extends TestCase {
 		task.setCompleted(true);
 		assertDatesCloseEnough(task.getCompletionDate(), start);
 
-		task.setReminderDate(start);
-		assertDatesCloseEnough(task.getReminderDate(), start);
+		task.setScheduledForDate(start);
+		assertDatesCloseEnough(task.getScheduledForDate(), start);
 
 		assertEquals(2, manager.getTaskList().getRootElements().size());
 		manager.saveTaskList();
@@ -97,21 +116,22 @@ public class TaskListStandaloneTest extends TestCase {
 
 		Set<ITask> readList = manager.getTaskList().getRootTasks();
 		ITask readTask = readList.iterator().next();
-		assertTrue(readTask.getDescription().equals("task 1"));
+		assertTrue(readTask.getSummary().equals("task 1"));
 
 		assertEquals("should be: " + creation, task.getCreationDate(), readTask.getCreationDate());
 		assertEquals(task.getCompletionDate(), readTask.getCompletionDate());
-		assertEquals(task.getReminderDate(), readTask.getReminderDate());
+		assertEquals(task.getScheduledForDate(), readTask.getScheduledForDate());
 	}
 
-	public void testTaskRetentionWhenConnectorMissing() {
+	// Task retention when connector missing upon startup
+	public void testOrphanedTasks() {
 		List<ITaskListExternalizer> originalExternalizers = manager.getTaskListWriter().getExternalizers();
 		List<ITaskListExternalizer> externalizers;
 		externalizers = new ArrayList<ITaskListExternalizer>();
 		externalizers.add(new BugzillaTaskExternalizer());
 		// make some tasks
 		// save them
-		BugzillaTask task = new BugzillaTask("http://bugs-1", "1", true);
+		BugzillaTask task = new BugzillaTask("http://bugs", "1", "1", true);
 		manager.getTaskList().addTask(task);
 		manager.saveTaskList();
 
@@ -142,6 +162,49 @@ public class TaskListStandaloneTest extends TestCase {
 
 		// ensure that task now gets loaded
 		assertEquals(1, manager.getTaskList().getAllTasks().size());
+		manager.getTaskListWriter().setDelegateExternalizers(originalExternalizers);
+	}
+
+	// Query retention when connector missing/fails to load
+	public void testOrphanedQueries() {
+		List<ITaskListExternalizer> originalExternalizers = manager.getTaskListWriter().getExternalizers();
+		List<ITaskListExternalizer> externalizers;
+		externalizers = new ArrayList<ITaskListExternalizer>();
+		externalizers.add(new BugzillaTaskExternalizer());
+		// make a query
+		BugzillaRepositoryQuery query = new BugzillaRepositoryQuery(IBugzillaConstants.TEST_BUGZILLA_222_URL,
+				"http://queryurl", "summary", "-1", TasksUiPlugin.getTaskListManager().getTaskList());
+
+		manager.getTaskList().addQuery(query);
+		manager.saveTaskList();
+
+		// reload tasklist and check that they persist
+		manager.resetTaskList();
+		manager.readExistingOrCreateNewList();
+		assertEquals(1, manager.getTaskList().getQueries().size());
+
+		// removed/disable externalizers
+		externalizers.clear();
+		manager.getTaskListWriter().setDelegateExternalizers(externalizers);
+
+		// reload tasklist ensure query didn't load
+		manager.resetTaskList();
+		manager.readExistingOrCreateNewList();
+		assertEquals(0, manager.getTaskList().getQueries().size());
+		// Save the task list (queries with missing connectors should get
+		// persisted)
+		manager.saveTaskList();
+
+		// re-enable connector
+		externalizers.add(new BugzillaTaskExternalizer());
+		manager.getTaskListWriter().setDelegateExternalizers(externalizers);
+
+		// re-load tasklist
+		manager.resetTaskList();
+		manager.readExistingOrCreateNewList();
+
+		// ensure that task now gets loaded
+		assertEquals(1, manager.getTaskList().getQueries().size());		
 		manager.getTaskListWriter().setDelegateExternalizers(originalExternalizers);
 	}
 

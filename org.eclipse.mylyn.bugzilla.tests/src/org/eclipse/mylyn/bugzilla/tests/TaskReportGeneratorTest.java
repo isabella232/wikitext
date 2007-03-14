@@ -50,7 +50,8 @@ public class TaskReportGeneratorTest extends TestCase {
 	protected void tearDown() throws Exception {
 		super.tearDown();
 		manager.resetTaskList();
-		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
+		TasksUiPlugin.getTaskListManager().saveTaskList(); 
+//		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
 		assertEquals(0, manager.getTaskList().getAllTasks().size());
 	}
 
@@ -92,7 +93,7 @@ public class TaskReportGeneratorTest extends TestCase {
 	}
 	
 	public void testCompletedBugzillaTasksRetrieved() throws InvocationTargetException, InterruptedException {
-		BugzillaTask task1 = new BugzillaTask(TasksUiPlugin.getTaskListManager().genUniqueTaskHandle(),
+		BugzillaTask task1 = new BugzillaTask("repo", "1",
 				"bugzillatask 1", true);
 		manager.getTaskList().moveToRoot(task1);
 
@@ -132,7 +133,7 @@ public class TaskReportGeneratorTest extends TestCase {
 	}
 
 	public void testCompletedBugzillaTasksInCategoryRetrieved() throws InvocationTargetException, InterruptedException {
-		BugzillaTask task1 = new BugzillaTask(TasksUiPlugin.getTaskListManager().genUniqueTaskHandle(), "task 1",
+		BugzillaTask task1 = new BugzillaTask("repo", "1", "task 1",
 				true);
 		manager.getTaskList().moveToRoot(task1);
 		BugzillaTestUtil.setBugTaskCompleted(task1, true);
@@ -156,7 +157,7 @@ public class TaskReportGeneratorTest extends TestCase {
 	}
 
 	public void testCompletedBugzillaTasksInQueryRetrieved() throws InvocationTargetException, InterruptedException {
-		BugzillaTask task1 = new BugzillaTask(TasksUiPlugin.getTaskListManager().genUniqueTaskHandle(), "task 1",
+		BugzillaTask task1 = new BugzillaTask("repo", "1", "task 1",
 				true);
 		manager.getTaskList().moveToRoot(task1);
 		BugzillaTestUtil.setBugTaskCompleted(task1, false);
@@ -175,7 +176,7 @@ public class TaskReportGeneratorTest extends TestCase {
 		generator.run(new NullProgressMonitor());
 		assertEquals(0, generator.getAllCollectedTasks().size());
 
-		bugQuery.addHit(new BugzillaQueryHit(null, "task1description", "low", "repositoryURL", "1", task1, "FIXED"), manager.getTaskList());
+		bugQuery.addHit(new BugzillaQueryHit(null, "task1description", "low", "repositoryURL", "1", task1, "FIXED"));
 
 		generator.run(new NullProgressMonitor());
 		assertEquals(0, generator.getAllCollectedTasks().size());

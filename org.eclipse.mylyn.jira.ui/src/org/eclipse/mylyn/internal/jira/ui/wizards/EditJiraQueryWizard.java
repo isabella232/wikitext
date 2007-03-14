@@ -11,9 +11,12 @@
 
 package org.eclipse.mylar.internal.jira.ui.wizards;
 
-import org.eclipse.mylar.internal.tasks.ui.wizards.AbstractEditQueryWizard;
+import org.eclipse.mylar.internal.jira.core.service.JiraServer;
+import org.eclipse.mylar.internal.jira.ui.JiraCustomQuery;
+import org.eclipse.mylar.internal.jira.ui.JiraServerFacade;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.TaskRepository;
+import org.eclipse.mylar.tasks.ui.wizards.AbstractEditQueryWizard;
 
 /**
  * @author Rob Elves
@@ -22,7 +25,7 @@ import org.eclipse.mylar.tasks.core.TaskRepository;
 public class EditJiraQueryWizard extends AbstractEditQueryWizard {
 
 //	private JiraQueryWizardPage queryPage;
-	
+
 	public EditJiraQueryWizard(TaskRepository repository, AbstractRepositoryQuery query) {
 		super(repository, query);
 		setForcePreviousAndNextButtons(true);
@@ -34,7 +37,14 @@ public class EditJiraQueryWizard extends AbstractEditQueryWizard {
 
 	@Override
 	public void addPages() {
-		page = new JiraQueryWizardPage(repository, query);
+		if(query instanceof JiraCustomQuery) {
+			JiraServer jiraServer = JiraServerFacade.getDefault().getJiraServer(repository);;
+			JiraCustomQuery customQuery = (JiraCustomQuery) query;
+			page = new JiraQueryPage(repository, customQuery.getFilterDefinition(jiraServer));
+		} else {
+			page = new JiraQueryWizardPage(repository, query);
+		}
+
 		page.setWizard(this);
 		addPage(page);
 	}

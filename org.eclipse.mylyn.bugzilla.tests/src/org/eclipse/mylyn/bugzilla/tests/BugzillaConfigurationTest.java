@@ -20,13 +20,12 @@ import java.net.URL;
 import junit.framework.TestCase;
 
 import org.eclipse.core.runtime.FileLocator;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaClient;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylar.internal.bugzilla.core.IBugzillaConstants;
 import org.eclipse.mylar.internal.bugzilla.core.RepositoryConfiguration;
-import org.eclipse.mylar.internal.bugzilla.core.RepositoryConfigurationFactory;
 import org.eclipse.mylar.internal.bugzilla.core.SaxConfigurationContentHandler;
 import org.eclipse.mylar.internal.bugzilla.core.XmlCleaner;
-import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -36,22 +35,21 @@ import org.xml.sax.helpers.XMLReaderFactory;
 
 public class BugzillaConfigurationTest extends TestCase {
 
+	@Override
 	protected void setUp() throws Exception {
 		super.setUp();
 	}
 
+	@Override
 	protected void tearDown() throws Exception {
 		super.tearDown();
 	}
 
 	public void test222RDFProductConfig() throws Exception {
-		RepositoryConfigurationFactory factory = new RepositoryConfigurationFactory();
-		TaskRepository repository = new TaskRepository(BugzillaCorePlugin.REPOSITORY_KIND,
-				IBugzillaConstants.TEST_BUGZILLA_222_URL);
-		RepositoryConfiguration config = factory.getConfiguration(repository.getUrl(), null, repository.getUserName(),
-				repository.getPassword(), null);
+		BugzillaClient client = new BugzillaClient(new URL(IBugzillaConstants.TEST_BUGZILLA_222_URL), "","","","", "UTF-8");
+		RepositoryConfiguration config = client.getRepositoryConfiguration();
 		assertNotNull(config);
-		assertEquals("2.22", config.getInstallVersion());
+		assertEquals("2.22.1", config.getInstallVersion());
 		assertEquals(7, config.getStatusValues().size());
 		assertEquals(8, config.getResolutions().size());
 		assertEquals(4, config.getPlatforms().size());
@@ -66,11 +64,8 @@ public class BugzillaConfigurationTest extends TestCase {
 	}
 
 	public void test2201RDFProductConfig() throws Exception {
-		RepositoryConfigurationFactory factory = new RepositoryConfigurationFactory();
-		TaskRepository repository = new TaskRepository(BugzillaCorePlugin.REPOSITORY_KIND,
-				IBugzillaConstants.TEST_BUGZILLA_2201_URL);
-		RepositoryConfiguration config = factory.getConfiguration(repository.getUrl(), null, repository.getUserName(),
-				repository.getPassword(), null);
+		BugzillaClient client = new BugzillaClient(new URL(IBugzillaConstants.TEST_BUGZILLA_2201_URL), "","","","", "UTF-8");
+		RepositoryConfiguration config = client.getRepositoryConfiguration();
 		assertNotNull(config);
 		assertEquals("2.20.1", config.getInstallVersion());
 		assertEquals(7, config.getStatusValues().size());
@@ -87,13 +82,10 @@ public class BugzillaConfigurationTest extends TestCase {
 	}
 
 	public void test220RDFProductConfig() throws Exception {
-		RepositoryConfigurationFactory factory = new RepositoryConfigurationFactory();
-		TaskRepository repository = new TaskRepository(BugzillaCorePlugin.REPOSITORY_KIND,
-				IBugzillaConstants.TEST_BUGZILLA_220_URL);
-		RepositoryConfiguration config = factory.getConfiguration(repository.getUrl(), null, repository.getUserName(),
-				repository.getPassword(), null);
+		BugzillaClient client = new BugzillaClient(new URL(IBugzillaConstants.TEST_BUGZILLA_220_URL), "","","","", "UTF-8");
+		RepositoryConfiguration config = client.getRepositoryConfiguration();
 		assertNotNull(config);
-		assertEquals("2.20", config.getInstallVersion());
+		assertEquals("2.20.3", config.getInstallVersion());
 		assertEquals(7, config.getStatusValues().size());
 		assertEquals(8, config.getResolutions().size());
 		assertEquals(4, config.getPlatforms().size());
@@ -108,13 +100,10 @@ public class BugzillaConfigurationTest extends TestCase {
 	}
 
 	public void test218RDFProductConfig() throws Exception {
-		RepositoryConfigurationFactory factory = new RepositoryConfigurationFactory();
-		TaskRepository repository = new TaskRepository(BugzillaCorePlugin.REPOSITORY_KIND,
-				IBugzillaConstants.TEST_BUGZILLA_218_URL);
-		RepositoryConfiguration config = factory.getConfiguration(repository.getUrl(), null, repository.getUserName(),
-				repository.getPassword(), null);
+		BugzillaClient client = new BugzillaClient(new URL(IBugzillaConstants.TEST_BUGZILLA_218_URL), "","","","", "UTF-8");
+		RepositoryConfiguration config = client.getRepositoryConfiguration();
 		assertNotNull(config);
-		assertEquals("2.18.5", config.getInstallVersion());
+		assertEquals("2.18.6", config.getInstallVersion());
 		assertEquals(7, config.getStatusValues().size());
 		assertEquals(8, config.getResolutions().size());
 		assertEquals(8, config.getPlatforms().size());
@@ -129,22 +118,19 @@ public class BugzillaConfigurationTest extends TestCase {
 	}
 
 	public void testEclipseRDFProductConfig() throws Exception {
-		RepositoryConfigurationFactory factory = new RepositoryConfigurationFactory();
-		TaskRepository repository = new TaskRepository(BugzillaCorePlugin.REPOSITORY_KIND,
-				IBugzillaConstants.ECLIPSE_BUGZILLA_URL);
-		RepositoryConfiguration config = factory.getConfiguration(repository.getUrl(), null, repository.getUserName(),
-				repository.getPassword(), null);
+		BugzillaClient client = new BugzillaClient(new URL(IBugzillaConstants.ECLIPSE_BUGZILLA_URL), "","","","", "UTF-8");
+		RepositoryConfiguration config = client.getRepositoryConfiguration();
 		assertNotNull(config);
-		assertEquals("2.20.1", config.getInstallVersion());
+		assertEquals("2.22.1", config.getInstallVersion());
 		assertEquals(7, config.getStatusValues().size());
 		assertEquals(8, config.getResolutions().size());
 		assertEquals(6, config.getPlatforms().size());
-		assertEquals(28, config.getOSs().size());
+		assertEquals(29, config.getOSs().size());
 		assertEquals(5, config.getPriorities().size());
 		assertEquals(7, config.getSeverities().size());
 		assertTrue(config.getProducts().size() > 50);
 		assertEquals(4, config.getOpenStatusValues().size());
-		assertEquals(11, config.getComponents("Mylar").size());
+		assertEquals(12, config.getComponents("Mylar").size());
 		assertEquals(22, config.getKeywords().size());
 		// assertEquals(10, config.getComponents("Hyades").size());
 		// assertEquals(1, config.getTargetMilestones("TestProduct").size());
@@ -164,8 +150,8 @@ public class BugzillaConfigurationTest extends TestCase {
 		BugzillaCorePlugin.addRepositoryConfiguration(configuration1);
 		BugzillaCorePlugin.addRepositoryConfiguration(configuration2);
 		BugzillaCorePlugin.writeRepositoryConfigFile();
-		BugzillaCorePlugin.getDefault().removeConfiguration(configuration1);
-		BugzillaCorePlugin.getDefault().removeConfiguration(configuration2);
+		BugzillaCorePlugin.removeConfiguration(configuration1);
+		BugzillaCorePlugin.removeConfiguration(configuration2);
 		assertNull(BugzillaCorePlugin.getRepositoryConfiguration(configuration1.getRepositoryUrl()));
 		assertNull(BugzillaCorePlugin.getRepositoryConfiguration(configuration2.getRepositoryUrl()));
 		BugzillaCorePlugin.readRepositoryConfigurationFile();
@@ -177,6 +163,23 @@ public class BugzillaConfigurationTest extends TestCase {
 		assertEquals(configuration1.getProducts().get(0), testLoadedConfig.getProducts().get(0));
 	}
 
+	
+//	@SuppressWarnings("deprecation")
+//	public void testHtmlCleaner() throws IOException, BugzillaException, GeneralSecurityException {
+//		StringBuffer incoming = new StringBuffer();
+//		incoming.append("<RDF xmlns=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+//		incoming.append("xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+//		incoming.append("xmlns:bz=\"http://www.bugzilla.org/rdf#\">");
+//		incoming.append("<li>");
+//        incoming.append("<bz:product 
+//        incoming.append("</bz:product>");
+//        incoming.append("</li>");
+//        incoming.append("</RDF>");
+//        
+//        StringBuffer result = XmlCleaner.clean(new StringReader(incoming.toString()));
+//        System.err.println(result);      
+//	}
+	
 	/**
 	 * Can use this to test config data submitted by users. Be sure not to commit user's config file though.
 	 * The file included (rdfconfig218.txt) is from mylar.eclipse.org/bugs218
@@ -217,8 +220,11 @@ public class BugzillaConfigurationTest extends TestCase {
 		
 		RepositoryConfiguration config = contentHandler.getConfiguration();
 		assertNotNull(config);
-		
+
+		assertTrue(config.getProducts().contains("Test-Long-Named-Product-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+
 		// Add your additional checking for valid data here if necessary
+
 	}
 
 }
