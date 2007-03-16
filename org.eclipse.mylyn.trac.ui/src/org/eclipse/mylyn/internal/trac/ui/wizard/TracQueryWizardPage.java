@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jface.wizard.WizardPage;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.trac.core.ITracClient;
 import org.eclipse.mylar.internal.trac.core.TracRepositoryQuery;
 import org.eclipse.mylar.internal.trac.core.model.TracSearch;
@@ -99,7 +99,7 @@ public class TracQueryWizardPage extends WizardPage {
 		createAddFilterGroup(composite);
 
 		if (query != null) {
-			titleText.setText(query.getDescription());
+			titleText.setText(query.getSummary());
 			restoreSearchFilterFromQuery(query);
 		}
 
@@ -282,6 +282,7 @@ public class TracQueryWizardPage extends WizardPage {
 			super(fieldName, displayName);
 		}
 
+		@Override
 		public void createControls(Composite parent, TracSearchFilter filter) {
 			if (filter != null) {
 				TextCriterion first = addCriterion(parent);
@@ -300,6 +301,7 @@ public class TracQueryWizardPage extends WizardPage {
 
 		}
 
+		@Override
 		public void addControl(Composite parent) {
 			addCriterion(parent);
 		}
@@ -401,6 +403,7 @@ public class TracQueryWizardPage extends WizardPage {
 				removeButton = new Button(parent, SWT.PUSH);
 				removeButton.setText("-");
 				removeButton.addSelectionListener(new SelectionAdapter() {
+					@Override
 					public void widgetSelected(org.eclipse.swt.events.SelectionEvent e) {
 						TextSearchField.this.removeCriterion(TextCriterion.this);
 					}

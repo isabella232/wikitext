@@ -8,21 +8,25 @@
 
 package org.eclipse.mylar.internal.trac.ui;
 
+import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.IWizard;
 import org.eclipse.jface.wizard.WizardPage;
-import org.eclipse.mylar.internal.tasks.ui.wizards.AbstractRepositorySettingsPage;
-import org.eclipse.mylar.internal.tasks.ui.wizards.NewWebTaskWizard;
 import org.eclipse.mylar.internal.trac.core.ITracClient;
 import org.eclipse.mylar.internal.trac.core.TracCorePlugin;
+import org.eclipse.mylar.internal.trac.core.TracRepositoryConnector;
 import org.eclipse.mylar.internal.trac.core.TracRepositoryQuery;
 import org.eclipse.mylar.internal.trac.ui.wizard.EditTracQueryWizard;
 import org.eclipse.mylar.internal.trac.ui.wizard.NewTracQueryWizard;
 import org.eclipse.mylar.internal.trac.ui.wizard.TracCustomQueryPage;
 import org.eclipse.mylar.internal.trac.ui.wizard.TracRepositorySettingsPage;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
+import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.AbstractRepositoryConnectorUi;
+import org.eclipse.mylar.tasks.ui.wizards.AbstractRepositorySettingsPage;
+import org.eclipse.mylar.tasks.ui.wizards.NewTaskWizard;
+import org.eclipse.mylar.tasks.ui.wizards.NewWebTaskWizard;
 
 /**
  * @author Mik Kersten
@@ -30,6 +34,15 @@ import org.eclipse.mylar.tasks.ui.AbstractRepositoryConnectorUi;
  */
 public class TracRepositoryUi extends AbstractRepositoryConnectorUi {
 
+	@Override
+	public IHyperlink[] findHyperlinks(TaskRepository repository, String text, int lineOffset, int regionOffset) {
+		return TracHyperlinkUtil.findHyperlinks(repository, text, lineOffset, regionOffset);
+	}
+
+	public String getTaskKindLabel(AbstractRepositoryTask repositoryTask) {
+		return "Ticket";
+	}
+	
 	@Override
 	public AbstractRepositorySettingsPage getSettingsPage() {
 		return new TracRepositorySettingsPage(this);
@@ -51,10 +64,15 @@ public class TracRepositoryUi extends AbstractRepositoryConnectorUi {
 	}
 	
 	@Override
-	public IWizard getNewTaskWizard(TaskRepository taskRepository, IStructuredSelection selection) {
-		return new NewWebTaskWizard(taskRepository, taskRepository.getUrl() + ITracClient.NEW_TICKET_URL);
+	public IWizard getNewTaskWizard(TaskRepository repository) {
+		if (TracRepositoryConnector.hasRichEditor(repository)) {
+			return new NewTaskWizard(repository);
+		} else {
+			return new NewWebTaskWizard(repository, repository.getUrl() + ITracClient.NEW_TICKET_URL);
+		}
 	}
 	
+	@Override
 	public IWizard getQueryWizard(TaskRepository repository, AbstractRepositoryQuery query) {
 		if (query instanceof TracRepositoryQuery) {
 			return new EditTracQueryWizard(repository, query);
@@ -67,4 +85,5 @@ public class TracRepositoryUi extends AbstractRepositoryConnectorUi {
 	public String getRepositoryType() {
 		return TracCorePlugin.REPOSITORY_KIND;
 	}
+
 }

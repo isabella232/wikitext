@@ -11,29 +11,25 @@
 
 package org.eclipse.mylar.internal.trac.ui;
 
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.OfflineTaskManager;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.trac.core.TracQueryHit;
 import org.eclipse.mylar.internal.trac.core.TracRepositoryQuery;
 import org.eclipse.mylar.internal.trac.core.TracTask;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
-import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.AbstractTaskContainer;
 import org.eclipse.mylar.tasks.core.DelegatingTaskExternalizer;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListExternalizer;
-import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskExternalizationException;
 import org.eclipse.mylar.tasks.core.TaskList;
-import org.eclipse.mylar.tasks.core.AbstractRepositoryTask.RepositoryTaskSyncState;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 /**
  * @author Steffen Pingel
+ * @author Mik Kersten
  */
 public class TracTaskExternalizer extends DelegatingTaskExternalizer {
 
@@ -72,38 +68,10 @@ public class TracTaskExternalizer extends DelegatingTaskExternalizer {
 	}
 
 	@Override
-	public ITask readTask(Node node, TaskList taskList, AbstractTaskContainer category, ITask parent)
+	public ITask createTask(String repositoryUrl, String taskId, String summary, Element element, TaskList taskList, AbstractTaskContainer category, ITask parent)
 			throws TaskExternalizationException {
-
-		Element element = (Element) node;
-		String handle;
-		String label;
-		if (element.hasAttribute(KEY_HANDLE)) {
-			handle = element.getAttribute(KEY_HANDLE);
-		} else {
-			throw new TaskExternalizationException("Handle not stored for task");
-		}
-		if (element.hasAttribute(KEY_LABEL)) {
-			label = element.getAttribute(KEY_LABEL);
-		} else {
-			throw new TaskExternalizationException("Description not stored for task");
-		}
-
-		TracTask task = new TracTask(handle, label, false);
-		readTaskInfo(task, taskList, element, parent, category);
+		TracTask task = new TracTask(repositoryUrl, taskId, summary, false);
 		return task;
-	}
-
-	// TODO move to DelegatingTaskExternalizer
-	@Override
-	public void readTaskData(AbstractRepositoryTask task) {
-		RepositoryTaskData data = OfflineTaskManager.findBug(task.getRepositoryUrl(), AbstractRepositoryTask
-				.getTaskId(task.getHandleIdentifier()));
-		task.setTaskData((RepositoryTaskData) data);
-
-		if (data != null && data.hasLocalChanges()) {
-			task.setSyncState(RepositoryTaskSyncState.OUTGOING);
-		}
 	}
 
 	// query related methods
@@ -133,7 +101,7 @@ public class TracTaskExternalizer extends DelegatingTaskExternalizer {
 		String queryTagName = getQueryTagNameForElement(query);
 		Element node = doc.createElement(queryTagName);
 
-		node.setAttribute(KEY_LABEL, query.getDescription());
+		node.setAttribute(KEY_LABEL, query.getSummary());
 		node.setAttribute(KEY_REPOSITORY_URL, query.getRepositoryUrl());
 		node.setAttribute(KEY_QUERY, query.getUrl());
 
@@ -141,11 +109,13 @@ public class TracTaskExternalizer extends DelegatingTaskExternalizer {
 			try {
 				Element element = null;
 				for (ITaskListExternalizer externalizer : super.getDelegateExternalizers()) {
-					if (externalizer.canCreateElementFor(hit))
+					if (externalizer.canCreateElementFor(hit)) {
 						element = externalizer.createQueryHitElement(hit, doc, node);
+					}
 				}
-				if (element == null)
+				if (element == null) {
 					createQueryHitElement(hit, doc, node);
+				}
 			} catch (Exception e) {
 				MylarStatusHandler.log(e, e.getMessage());
 			}
@@ -189,41 +159,13 @@ public class TracTaskExternalizer extends DelegatingTaskExternalizer {
 			throw new TaskExternalizationException("Description not stored for task");
 		}
 
-		TracRepositoryQuery query = new TracRepositoryQuery(repositoryUrl, queryUrl, label, taskList);
-
-		NodeList list = node.getChildNodes();
-		for (int i = 0; i < list.getLength(); i++) {
-			Node child = list.item(i);
-			try {
-				readQueryHit(child, taskList, query);
-			} catch (TaskExternalizationException e) {
-				MylarStatusHandler.log(e, e.getMessage());
-			}
-		}
-		return query;
+		return new TracRepositoryQuery(repositoryUrl, queryUrl, label, taskList);
 	}
 
 	@Override
-	public void readQueryHit(Node node, TaskList taskList, AbstractRepositoryQuery query)
+	public AbstractQueryHit createQueryHit(String repositoryUrl, String taskId, String summary, Element element, TaskList taskList, AbstractRepositoryQuery query)
 			throws TaskExternalizationException {
-		Element element = (Element) node;
-
-		String handle;
-		if (element.hasAttribute(KEY_HANDLE)) {
-			handle = element.getAttribute(KEY_HANDLE);
-		} else {
-			throw new TaskExternalizationException("Handle not stored for bug report");
-		}
-
-		TracQueryHit hit = new TracQueryHit(taskList, handle);
-		// TODO move to DelegationTaskExternalizer
-		if (element.hasAttribute(KEY_COMPLETE)
-				&& element.getAttribute(KEY_COMPLETE).compareTo(VAL_TRUE) == 0) {
-			hit.setCompleted(true);
-		} else {
-			hit.setCompleted(false);
-		}
-		readQueryHitInfo(hit, taskList, query, element);
+		return new TracQueryHit(taskList, repositoryUrl, summary, taskId);
 	}
 
 }

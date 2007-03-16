@@ -13,7 +13,7 @@ package org.eclipse.mylar.internal.trac.ui;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.dialogs.ErrorDialog;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.trac.core.TracCorePlugin;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
@@ -29,18 +29,22 @@ public class TracUiPlugin extends AbstractUIPlugin {
 
 	public final static String TITLE_MESSAGE_DIALOG = "Mylar Trac Client";
 
+	public static final String NEW_BUG_EDITOR_ID = PLUGIN_ID + ".newBugEditor";
+
 	private static TracUiPlugin plugin;
 
 	public TracUiPlugin() {
 		plugin = this;
 	}
 
+	@Override
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		
 		TasksUiPlugin.getRepositoryManager().addListener(TracCorePlugin.getDefault().getConnector().getClientManager());
 	}
 
+	@Override
 	public void stop(BundleContext context) throws Exception {
 		TasksUiPlugin.getRepositoryManager().removeListener(TracCorePlugin.getDefault().getConnector().getClientManager());
 		

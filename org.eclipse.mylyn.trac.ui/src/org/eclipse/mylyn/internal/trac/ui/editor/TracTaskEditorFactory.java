@@ -7,15 +7,17 @@
  *******************************************************************************/
 package org.eclipse.mylar.internal.trac.ui.editor;
 
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.ITaskEditorFactory;
-import org.eclipse.mylar.internal.tasks.ui.editors.MylarTaskEditor;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.trac.core.TracCorePlugin;
 import org.eclipse.mylar.internal.trac.core.TracRepositoryConnector;
 import org.eclipse.mylar.internal.trac.core.TracTask;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.editors.ITaskEditorFactory;
+import org.eclipse.mylar.tasks.ui.editors.RepositoryTaskEditorInput;
+import org.eclipse.mylar.tasks.ui.editors.TaskEditor;
+import org.eclipse.mylar.tasks.ui.editors.TaskEditorInput;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 
@@ -26,32 +28,48 @@ public class TracTaskEditorFactory implements ITaskEditorFactory {
 
 	public boolean canCreateEditorFor(ITask task) {
 		if (task instanceof TracTask) {
-			TracRepositoryConnector connector = (TracRepositoryConnector) TasksUiPlugin.getRepositoryManager().getRepositoryConnector(
-					TracCorePlugin.REPOSITORY_KIND);
-			TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(TracCorePlugin.REPOSITORY_KIND,
-					((TracTask)task).getRepositoryUrl());
-			return connector.hasRichEditor(repository, (TracTask) task);
+			TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(
+					TracCorePlugin.REPOSITORY_KIND, ((TracTask) task).getRepositoryUrl());
+			return TracRepositoryConnector.hasRichEditor(repository);
 		}
 		return task instanceof TracTask;
 	}
 
 	public boolean canCreateEditorFor(IEditorInput input) {
-		if (input instanceof TracTaskEditorInput) {
-			return ((TracTaskEditorInput) input).getRepositoryTaskData() != null;
-		}
+		if (input instanceof RepositoryTaskEditorInput) {
+			RepositoryTaskEditorInput existingInput = (RepositoryTaskEditorInput) input;
+			return existingInput.getTaskData() != null
+					&& TracCorePlugin.REPOSITORY_KIND.equals(existingInput.getRepository().getKind());
+		} 
+//		else if (input instanceof NewTaskEditorInput) {
+//			NewTaskEditorInput newInput = (NewTaskEditorInput) input;
+//			return newInput.getTaskData() != null
+//					&& TracCorePlugin.REPOSITORY_KIND.equals(newInput.getRepository().getKind());
+//		}
 		return false;
 	}
 
-	public IEditorPart createEditor(MylarTaskEditor parentEditor) {
-		return new TracTaskEditor(parentEditor);
+	public IEditorPart createEditor(TaskEditor parentEditor, IEditorInput editorInput) {
+
+		if (editorInput instanceof RepositoryTaskEditorInput) {
+			RepositoryTaskEditorInput taskInput = (RepositoryTaskEditorInput) editorInput;
+			if (taskInput.getTaskData().isNew()) {
+				return new NewTracTaskEditor(parentEditor);
+			} else {
+				return new TracTaskEditor(parentEditor);
+			}
+		} else if (editorInput instanceof TaskEditorInput) {
+			return new TracTaskEditor(parentEditor);
+		}
+		return null;
 	}
 
 	public IEditorInput createEditorInput(ITask task) {
 		TracTask tracTask = (TracTask) task;
-		TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(
-				TracCorePlugin.REPOSITORY_KIND, tracTask.getRepositoryUrl());
+		TaskRepository repository = TasksUiPlugin.getRepositoryManager().getRepository(TracCorePlugin.REPOSITORY_KIND,
+				tracTask.getRepositoryUrl());
 		try {
-			return new TracTaskEditorInput(repository, tracTask);
+			return new RepositoryTaskEditorInput(repository, tracTask.getHandleIdentifier(), tracTask.getTaskUrl(), tracTask.getTaskId());
 		} catch (Exception e) {
 			MylarStatusHandler.fail(e, "Could not create Trac editor input", true);
 		}
@@ -62,13 +80,7 @@ public class TracTaskEditorFactory implements ITaskEditorFactory {
 		return "Trac";
 	}
 
-	public void notifyEditorActivationChange(IEditorPart editor) {
-		// TODO Auto-generated method stub
-
-	}
-
 	public boolean providesOutline() {
 		return true;
 	}
-
 }

@@ -12,16 +12,14 @@ package org.eclipse.mylar.internal.trac.ui.wizard;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
-import java.net.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jface.dialogs.IDialogSettings;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.search.AbstractRepositoryQueryPage;
-import org.eclipse.mylar.internal.tasks.ui.search.SearchHitCollector;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.trac.core.ITracClient;
 import org.eclipse.mylar.internal.trac.core.TracCorePlugin;
 import org.eclipse.mylar.internal.trac.core.TracException;
@@ -35,7 +33,7 @@ import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.core.TaskRepositoryManager;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
-import org.eclipse.search.ui.NewSearchUI;
+import org.eclipse.mylar.tasks.ui.search.AbstractRepositoryQueryPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.KeyListener;
@@ -63,13 +61,13 @@ import org.eclipse.ui.progress.IProgressService;
  */
 public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 
-	private static final String TITLE = "New Trac Query";
+	private static final String TITLE = "Enter query parameters";
 
-	private static final String DESCRIPTION = "Add search filters to define query.";
+	private static final String DESCRIPTION = "If attributes are blank or stale press the Update button.";
 
 	private static final String TITLE_QUERY_TITLE = "Query Title:";
 
-	private TaskRepository repository;
+	private static final String[] DEFAULT_STATUS_SELECTION = new String[] { "new", "assigned", "reopened", };
 
 	private TracRepositoryQuery query;
 
@@ -78,6 +76,10 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 	private static final int PRODUCT_HEIGHT = 60;
 
 	private static final int STATUS_HEIGHT = 40;
+
+	protected final static String PAGE_NAME = "TracSearchPage"; //$NON-NLS-1$
+
+	private static final String SEARCH_URL_ID = PAGE_NAME + ".SEARCHURL";
 
 	protected Combo summaryText = null;
 
@@ -105,11 +107,15 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 
 	private TextSearchField keywordsField;
 
-	private TextSearchField ownerField;
-
 	private Map<String, SearchField> searchFieldByName = new HashMap<String, SearchField>();
 
 	private boolean firstTime = true;
+
+	// private UserSearchField ownerField;
+	//
+	// private UserSearchField reporterField;
+	//
+	// private UserSearchField ccField;
 
 	public TracCustomQueryPage(TaskRepository repository, AbstractRepositoryQuery query) {
 		super(TITLE);
@@ -125,12 +131,16 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		this(repository, null);
 	}
 
+	@Override
 	public void createControl(Composite parent) {
-
 		Composite control = new Composite(parent, SWT.NONE);
 		GridData gd = new GridData(GridData.FILL_BOTH);
 		control.setLayoutData(gd);
-		GridLayout layout = new GridLayout(3, false);
+		GridLayout layout = new GridLayout(4, false);
+		if (inSearchContainer()) {
+			layout.marginWidth = 0;
+			layout.marginHeight = 0;
+		}
 		control.setLayout(layout);
 
 		createTitleGroup(control);
@@ -141,28 +151,27 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		descriptionField = new TextSearchField("description");
 		descriptionField.createControls(control, "Description");
 
-		ownerField = new TextSearchField("owner");
-		ownerField.createControls(control, "Owner");
-
 		keywordsField = new TextSearchField("keywords");
 		keywordsField.createControls(control, "Keywords");
 
 		createOptionsGroup(control);
 
+		createUserGroup(control);
+
 		if (query != null) {
-			titleText.setText(query.getDescription());
-			restoreSearchFilterFromQuery(query);
+			titleText.setText(query.getSummary());
+			restoreWidgetValues(query.getTracSearch());
 		}
 
 		setControl(control);
 	}
 
+	@Override
 	public boolean canFlipToNextPage() {
 		return false;
 	}
 
-	private void restoreSearchFilterFromQuery(TracRepositoryQuery query) {
-		TracSearch search = query.getTracSearch();
+	private void restoreWidgetValues(TracSearch search) {
 		java.util.List<TracSearchFilter> filters = search.getFilters();
 		for (TracSearchFilter filter : filters) {
 			SearchField field = searchFieldByName.get(filter.getFieldName());
@@ -184,7 +193,7 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 
 		titleText = new Text(control, SWT.BORDER);
 		GridData gd = new GridData(GridData.FILL_HORIZONTAL | GridData.GRAB_HORIZONTAL);
-		gd.horizontalSpan = 2;
+		gd.horizontalSpan = 3;
 		titleText.setLayoutData(gd);
 		titleText.addKeyListener(new KeyListener() {
 			public void keyPressed(KeyEvent e) {
@@ -204,7 +213,7 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		layout.numColumns = 1;
 		group.setLayout(layout);
 		GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd.horizontalSpan = 3;
+		gd.horizontalSpan = 4;
 		group.setLayoutData(gd);
 
 		createProductAttributes(group);
@@ -212,6 +221,11 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		createUpdateButton(group);
 
 		return group;
+	}
+
+	protected void createUserGroup(Composite control) {
+		UserSearchField userField = new UserSearchField();
+		userField.createControls(control);
 	}
 
 	/**
@@ -298,6 +312,7 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		updateButton.setText("Update Attributes from Repository");
 		updateButton.setLayoutData(new GridData());
 		updateButton.addSelectionListener(new SelectionAdapter() {
+			@Override
 			public void widgetSelected(SelectionEvent e) {
 				if (repository != null) {
 					updateAttributesFromRepository(true);
@@ -314,25 +329,55 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 	@Override
 	public void setVisible(boolean visible) {
 		super.setVisible(visible);
-		
+
 		if (scontainer != null) {
 			scontainer.setPerformActionEnabled(true);
 		}
-		
+
 		if (visible && firstTime) {
 			firstTime = false;
-			// delay the execution so the dialog's progress bar is visible when
-			// the attributes are updated
-			Display.getDefault().asyncExec(new Runnable() {
-				public void run() {
-					if (getControl() != null && !getControl().isDisposed()) {
-						updateAttributesFromRepository(false);
+			if (!hasAttributes()) {
+				// delay the execution so the dialog's progress bar is visible
+				// when the attributes are updated
+				Display.getDefault().asyncExec(new Runnable() {
+					public void run() {
+						if (getControl() != null && !getControl().isDisposed()) {
+							initializePage();
+						}
 					}
-				}
-			});
+
+				});
+			} else {
+				// no remote connection is needed to get attributes therefore do
+				// not use delayed execution to avoid flickering
+				initializePage();
+			}
 		}
 	}
-	
+
+	private void initializePage() {
+		updateAttributesFromRepository(false);
+		boolean restored = (query != null);
+		if (inSearchContainer()) {
+			restored |= restoreWidgetValues();
+		}
+		// initialize with default values
+		if (!restored) {
+			statusField.selectItems(DEFAULT_STATUS_SELECTION);
+		}
+	}
+
+	private boolean hasAttributes() {
+		TracRepositoryConnector connector = (TracRepositoryConnector) TasksUiPlugin.getRepositoryManager()
+				.getRepositoryConnector(TracCorePlugin.REPOSITORY_KIND);
+		try {
+			ITracClient client = connector.getClientManager().getRepository(repository);
+			return client.hasAttributes();
+		} catch (MalformedURLException e) {
+			return false;
+		}
+	}
+
 	private void updateAttributesFromRepository(final boolean force) {
 		TracRepositoryConnector connector = (TracRepositoryConnector) TasksUiPlugin.getRepositoryManager()
 				.getRepositoryConnector(TracCorePlugin.REPOSITORY_KIND);
@@ -344,27 +389,32 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 			return;
 		}
 
-		try {
-			IRunnableWithProgress runnable = new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					try {
-						client.updateAttributes(monitor, force);
-					} catch (TracException e) {
-						throw new InvocationTargetException(e);
+		if (!client.hasAttributes() || force) {
+			try {
+				IRunnableWithProgress runnable = new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						try {
+							client.updateAttributes(monitor, force);
+						} catch (TracException e) {
+							throw new InvocationTargetException(e);
+						}
 					}
-				}
-			};
+				};
 
-			if (getContainer() != null) {
-				getContainer().run(true, true, runnable);
-			} else {
-				IProgressService service = PlatformUI.getWorkbench().getProgressService();
-				service.run(true, true, runnable);
+				if (getContainer() != null) {
+					getContainer().run(true, true, runnable);
+				} else if (scontainer != null) {
+					scontainer.getRunnableContext().run(true, true, runnable);
+				} else {
+					IProgressService service = PlatformUI.getWorkbench().getProgressService();
+					service.run(true, true, runnable);
+				}
+			} catch (InvocationTargetException e) {
+				TracUiPlugin.handleTracException(e.getCause());
+				return;
+			} catch (InterruptedException e) {
+				return;
 			}
-		} catch (InvocationTargetException e) {
-			TracUiPlugin.handleTracException(e.getCause());
-		} catch (InterruptedException e) {
-			return;
 		}
 
 		statusField.setValues(client.getTicketStatus());
@@ -394,13 +444,7 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 	}
 
 	public String getQueryUrl(String repsitoryUrl) {
-		TracSearch search = new TracSearch();
-		for (SearchField field : searchFieldByName.values()) {
-			TracSearchFilter filter = field.getFilter();
-			if (filter != null) {
-				search.addFilter(filter);
-			}
-		}
+		TracSearch search = getTracSearch();
 
 		StringBuilder sb = new StringBuilder();
 		sb.append(repsitoryUrl);
@@ -409,6 +453,18 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		return sb.toString();
 	}
 
+	private TracSearch getTracSearch() {
+		TracSearch search = new TracSearch();
+		for (SearchField field : searchFieldByName.values()) {
+			TracSearchFilter filter = field.getFilter();
+			if (filter != null) {
+				search.addFilter(filter);
+			}
+		}
+		return search;
+	}
+
+	@Override
 	public TracRepositoryQuery getQuery() {
 		return new TracRepositoryQuery(repository.getUrl(), getQueryUrl(repository.getUrl()), getTitleText(),
 				TasksUiPlugin.getTaskListManager().getTaskList());
@@ -418,19 +474,52 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		return (titleText != null) ? titleText.getText() : "<search>";
 	}
 
+	// public boolean performAction() {
+	//
+	// Proxy proxySettings = TasksUiPlugin.getDefault().getProxySettings();
+	// SearchHitCollector collector = new
+	// SearchHitCollector(TasksUiPlugin.getTaskListManager().getTaskList(),
+	// repository, getQuery(), proxySettings);
+	// NewSearchUI.runQueryInBackground(collector);
+	//
+	// return true;
+	// }
+
+	@Override
 	public boolean performAction() {
-		if (repository == null) {
-			MessageDialog.openInformation(Display.getCurrent().getActiveShell(), TracUiPlugin.TITLE_MESSAGE_DIALOG,
-					TaskRepositoryManager.MESSAGE_NO_REPOSITORY);
+		if (inSearchContainer()) {
+			saveWidgetValues();
+		}
+
+		return super.performAction();
+	}
+
+	public IDialogSettings getDialogSettings() {
+		IDialogSettings settings = TracUiPlugin.getDefault().getDialogSettings();
+		IDialogSettings dialogSettings = settings.getSection(PAGE_NAME);
+		if (dialogSettings == null) {
+			dialogSettings = settings.addNewSection(PAGE_NAME);
+		}
+		return dialogSettings;
+	}
+
+	private boolean restoreWidgetValues() {
+		IDialogSettings settings = getDialogSettings();
+		String repoId = "." + repository.getUrl();
+
+		String searchUrl = settings.get(SEARCH_URL_ID + repoId);
+		if (searchUrl == null) {
 			return false;
 		}
-	
-		Proxy proxySettings = TasksUiPlugin.getDefault().getProxySettings();
-		SearchHitCollector collector = new SearchHitCollector(TasksUiPlugin.getTaskListManager()
-				.getTaskList(), repository, getQuery(), proxySettings);
-		NewSearchUI.runQueryInBackground(collector);
 
+		restoreWidgetValues(new TracSearch(searchUrl));
 		return true;
+	}
+
+	public void saveWidgetValues() {
+		String repoId = "." + repository.getUrl();
+		IDialogSettings settings = getDialogSettings();
+		settings.put(SEARCH_URL_ID + repoId, getTracSearch().toUrl());
 	}
 
 	private abstract class SearchField {
@@ -440,11 +529,13 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		public SearchField(String fieldName) {
 			this.fieldName = fieldName;
 
-			assert !searchFieldByName.containsKey(fieldName);
-			searchFieldByName.put(fieldName, this);
+			if (fieldName != null) {
+				assert !searchFieldByName.containsKey(fieldName);
+				searchFieldByName.put(fieldName, this);
+			}
 		}
 
-		public String getFieldName() {
+		 public String getFieldName() {
 			return fieldName;
 		}
 
@@ -458,7 +549,7 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 
 		private Combo conditionCombo;
 
-		private Text searchText;
+		protected Text searchText;
 
 		private Label label;
 
@@ -470,8 +561,10 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 		}
 
 		public void createControls(Composite parent, String labelText) {
-			label = new Label(parent, SWT.LEFT);
-			label.setText(labelText);
+			if (labelText != null) {
+				label = new Label(parent, SWT.LEFT);
+				label.setText(labelText);
+			}
 
 			conditionCombo = new Combo(parent, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY);
 			for (CompareOperator op : compareOperators) {
@@ -480,7 +573,11 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 			conditionCombo.setText(compareOperators[0].toString());
 
 			searchText = new Text(parent, SWT.BORDER);
-			GridData gd = new GridData(GridData.GRAB_HORIZONTAL | GridData.FILL_HORIZONTAL);
+			GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+			// the user search field has additional controls and no fieldName
+			if (fieldName != null) {
+				gd.horizontalSpan = 2;
+			}
 			searchText.setLayoutData(gd);
 		}
 
@@ -525,6 +622,10 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 			setCondition(filter.getOperator());
 			java.util.List<String> values = filter.getValues();
 			setSearchText(values.get(0));
+		}
+
+		public void setFieldName(String fieldName) {
+			this.fieldName = fieldName;
 		}
 
 	}
@@ -592,6 +693,91 @@ public class TracCustomQueryPage extends AbstractRepositoryQueryPage {
 					list.select(0);
 				}
 			}
+		}
+
+		public void selectItems(String[] items) {
+			list.deselectAll();
+			for (String item : items) {
+				int i = list.indexOf(item);
+				if (i != -1) {
+					list.select(i);
+				}
+			}
+		}
+
+	}
+
+	private class UserSearchField extends SearchField {
+
+		private TextSearchField textField;
+
+		private Combo userCombo;
+
+		public UserSearchField() {
+			super(null);
+
+			textField = new TextSearchField(null);
+
+			new UserSelectionSearchField("owner", 0);
+
+			new UserSelectionSearchField("reporter", 1);
+
+			new UserSelectionSearchField("cc", 2);
+		}
+
+		public void createControls(Composite parent) {
+			userCombo = new Combo(parent, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY);
+			userCombo.add("Owner");
+			userCombo.add("Reporter");
+			userCombo.add("CC");
+			userCombo.select(0);
+
+			textField.createControls(parent, null);
+		}
+
+		@Override
+		public TracSearchFilter getFilter() {
+			return null;
+		}
+
+		@Override
+		public void setFilter(TracSearchFilter filter) {
+		}
+
+		private void setSelection(int index) {
+			userCombo.select(index);
+		}
+
+		private int getSelection() {
+			return userCombo.getSelectionIndex();
+		}
+
+		class UserSelectionSearchField extends SearchField {
+
+			private int index;
+
+			public UserSelectionSearchField(String fieldName, int index) {
+				super(fieldName);
+
+				this.index = index;
+			}
+
+			@Override
+			public TracSearchFilter getFilter() {
+				if (index == getSelection()) {
+					textField.setFieldName(fieldName);
+					return textField.getFilter();
+				}
+				return null;
+			}
+
+			@Override
+			public void setFilter(TracSearchFilter filter) {
+				textField.setFieldName(fieldName);
+				textField.setFilter(filter);
+				setSelection(index);
+			}
+
 		}
 
 	}
