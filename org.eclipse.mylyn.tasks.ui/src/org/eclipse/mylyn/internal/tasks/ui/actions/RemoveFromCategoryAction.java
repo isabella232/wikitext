@@ -15,8 +15,9 @@ import org.eclipse.jface.action.Action;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.TaskCategory;
@@ -36,7 +37,7 @@ public class RemoveFromCategoryAction extends Action {
 		this.view = view;
 		setText("Remove From Category");
 		setId(ID);
-		setImageDescriptor(TaskListImages.REMOVE);
+		setImageDescriptor(TasksUiImages.REMOVE);
 	}
 
 	@Override
@@ -48,7 +49,7 @@ public class RemoveFromCategoryAction extends Action {
 					ITask task = (ITask) selectedObject;
 					if (task.isActive()) {
 						MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
-								TasksUiPlugin.TITLE_DIALOG,
+								ITasksUiConstants.TITLE_DIALOG,
 								"Task must be deactivated in order to remove from category.");
 						return;
 					}

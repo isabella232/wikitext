@@ -15,11 +15,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.jface.wizard.WizardPage;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.tasks.core.LocalAttachment;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
@@ -86,7 +87,7 @@ public class NewAttachmentPage extends WizardPage {
 	protected NewAttachmentPage(LocalAttachment att) {
 		super("AttachmentDetails");
 		setTitle("Attachment Details");
-		setMessage("Provide a description and verify the content type of the attachment.");
+		setMessage("Provide a summary and verify the content type of the attachment.");
 		attachment = att;
 	}
 
@@ -171,7 +172,7 @@ public class NewAttachmentPage extends WizardPage {
 		attachContextButton = new Button(composite, SWT.CHECK);
 		attachContextButton.setLayoutData(new GridData(SWT.DEFAULT, SWT.DEFAULT, false, false, 2, 1));
 		attachContextButton.setText("Attach Context");
-		attachContextButton.setImage(TaskListImages.getImage(TaskListImages.CONTEXT_ATTACH));
+		attachContextButton.setImage(TasksUiImages.getImage(TasksUiImages.CONTEXT_ATTACH));
 		attachContextButton.setEnabled((((NewAttachmentWizard) getWizard()).hasContext()));
 
 		/*
@@ -184,7 +185,7 @@ public class NewAttachmentPage extends WizardPage {
 				int index = filePath.getText().lastIndexOf(".");
 				if (index > 0 && index < filePath.getText().length()) {
 					String ext = filePath.getText().substring(index + 1);
-					String type = extensions2Types.get(ext.toLowerCase());
+					String type = extensions2Types.get(ext.toLowerCase(Locale.ENGLISH));
 					if (type != null) {
 						contentTypeList.select(contentTypeIndices.get(type));
 						attachment.setContentType(type);
@@ -230,6 +231,7 @@ public class NewAttachmentPage extends WizardPage {
 		});
 	}
 
+	@Override
 	public boolean isPageComplete() {
 		return !"".equals(filePath.getText().trim()) && !"".equals(attachmentDesc.getText().trim());
 	}
@@ -243,6 +245,7 @@ public class NewAttachmentPage extends WizardPage {
 		return attachment;
 	}
 
+	@Override
 	public boolean canFlipToNextPage() {
 		return isPageComplete();
 	}
@@ -257,6 +260,7 @@ public class NewAttachmentPage extends WizardPage {
 		}
 	}
 
+	@Override
 	public IWizardPage getNextPage() {
 		populateAttachment();
 		PreviewAttachmentPage page = new PreviewAttachmentPage(getAttachment());

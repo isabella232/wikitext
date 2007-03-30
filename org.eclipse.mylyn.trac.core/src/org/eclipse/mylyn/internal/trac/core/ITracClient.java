@@ -18,6 +18,7 @@ import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.mylar.internal.trac.core.model.TracComponent;
+import org.eclipse.mylar.internal.trac.core.model.TracTicketField;
 import org.eclipse.mylar.internal.trac.core.model.TracMilestone;
 import org.eclipse.mylar.internal.trac.core.model.TracPriority;
 import org.eclipse.mylar.internal.trac.core.model.TracSearch;
@@ -37,7 +38,7 @@ import org.eclipse.mylar.internal.trac.core.model.TracVersion;
 public interface ITracClient {
 
 	public enum Version {
-		TRAC_0_9, XML_RPC;
+		XML_RPC, TRAC_0_9;
 
 		public static Version fromVersion(String version) {
 			try {
@@ -51,7 +52,7 @@ public interface ITracClient {
 		public String toString() {
 			switch (this) {
 			case TRAC_0_9:
-				return "Trac 0.9 and later";
+				return "Web (Trac 0.9 or 0.10)";
 			case XML_RPC:
 				return "XML-RPC Plugin (Rev. " + TracXmlRpcClient.REQUIRED_REVISION + ")";
 			default:
@@ -72,10 +73,24 @@ public interface ITracClient {
 	public static final String TICKET_URL = "/ticket/";
 
 	public static final String NEW_TICKET_URL = "/newticket";
+	
+	public static final String CUSTOM_QUERY_URL = "/query";
 
 	public static final String TICKET_ATTACHMENT_URL = "/attachment/ticket/";
 
 	public static final String DEFAULT_USERNAME = "anonymous";
+
+	public static final String WIKI_URL = "/wiki/";
+
+	public static final String REPORT_URL = "/report/";
+
+	public static final String CHANGESET_URL = "/changeset/";
+
+	public static final String REVISION_LOG_URL = "/log/";
+
+	public static final String MILESTONE_URL = "/milestone/";
+
+	public static final String BROWSER_URL = "/browser/";
 
 	/**
 	 * Gets ticket with <code>id</code> from repository.
@@ -115,6 +130,15 @@ public interface ITracClient {
 	void validate() throws TracException;
 
 	/**
+	 * Returns true, if the repository details are cached. If this method
+	 * returns true, invoking <tt>updateAttributes(monitor, false)</tt> will
+	 * return without opening a connection.
+	 * 
+	 * @see #updateAttributes(IProgressMonitor, boolean) 
+	 */
+	boolean hasAttributes();
+
+	/**
 	 * Updates cached repository details: milestones, versions etc.
 	 * 
 	 * @throws TracException
@@ -124,6 +148,8 @@ public interface ITracClient {
 
 	TracComponent[] getComponents();
 
+	TracTicketField[] getTicketFields();
+	
 	TracMilestone[] getMilestones();
 
 	TracPriority[] getPriorities();
@@ -138,11 +164,16 @@ public interface ITracClient {
 
 	TracVersion[] getVersions();
 
-	byte[] getAttachmentData(int id, String filename) throws TracException;
+	byte[] getAttachmentData(int ticketId, String filename) throws TracException;
 
-	void putAttachmentData(int id, String name, String description, byte[] data) throws TracException;
+	void putAttachmentData(int ticketId, String name, String description, byte[] data) throws TracException;
 
-	void createTicket(TracTicket ticket) throws TracException;
+	void deleteAttachment(int ticketId, String filename) throws TracException;
+
+	/**
+	 * @return the id of the created ticket
+	 */
+	int createTicket(TracTicket ticket) throws TracException;
 
 	void updateTicket(TracTicket ticket, String comment) throws TracException;
 

@@ -20,6 +20,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.IJobChangeEvent;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.core.runtime.jobs.JobChangeAdapter;
@@ -34,6 +35,8 @@ import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
  * @author Rob Elves
  */
 public class ScheduledTaskListSynchJob extends Job {
+
+	private static final int UPDATE_ATTRIBUTES_FREQUENCY = 10;
 
 	private static final String LABEL_TASK = "Task Repository Synchronization";
 
@@ -64,6 +67,7 @@ public class ScheduledTaskListSynchJob extends Job {
 		this.scheduleDelay = -1;
 	}
 
+	@Override
 	public IStatus run(IProgressMonitor monitor) {
 		try {
 			if (monitor == null) {
@@ -88,6 +92,27 @@ public class ScheduledTaskListSynchJob extends Job {
 					continue;
 				}
 
+				// Occasionally update repository attributes
+				if (count >= UPDATE_ATTRIBUTES_FREQUENCY) {
+					Job updateJob = new Job("Updating attributes for "+repository.getUrl()) {
+
+						@Override
+						protected IStatus run(IProgressMonitor monitor) {
+							try {
+								connector.updateAttributes(repository, new SubProgressMonitor(monitor, 1));
+							} catch (Throwable t) {
+								// ignore, since we might not be connector
+//								MylarStatusHandler.log(t, "Unable to update attributes for " + repository.getUrl()
+//										+ "  " + t.getMessage());
+							}
+							return Status.OK_STATUS;
+						}
+					};
+					//updateJob.setSystem(true);
+					updateJob.setPriority(Job.LONG);
+					updateJob.schedule();
+				}
+
 				Set<AbstractRepositoryQuery> queries = Collections.unmodifiableSet(taskList
 						.getRepositoryQueries(repository.getUrl()));
 				if (queries.size() > 0) {
@@ -98,7 +123,8 @@ public class ScheduledTaskListSynchJob extends Job {
 								TasksUiPlugin.getSynchronizationManager().synchronizeChanged(connector, repository);
 							}
 						};
-						TasksUiPlugin.getSynchronizationManager().synchronize(connector, queries, jobAdapter, Job.DECORATE, 0, false);
+						TasksUiPlugin.getSynchronizationManager().synchronize(connector, queries, jobAdapter,
+								Job.DECORATE, 0, false);
 					}
 				} else {
 					TasksUiPlugin.getSynchronizationManager().synchronizeChanged(connector, repository);
@@ -106,9 +132,7 @@ public class ScheduledTaskListSynchJob extends Job {
 				monitor.worked(1);
 			}
 		} finally {
-			count++;
-			if (count == Long.MAX_VALUE)
-				count = 0;
+			count = count >= UPDATE_ATTRIBUTES_FREQUENCY ? 0 : count + 1;
 			if (monitor != null) {
 				monitor.done();
 			}
@@ -130,7 +154,7 @@ public class ScheduledTaskListSynchJob extends Job {
 	public static long getCount() {
 		return count;
 	}
-	
+
 	/** for testing */
 	public static void resetCount() {
 		count = 0;

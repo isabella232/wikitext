@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
-<?eclipse version="3.0"?>
 <plugin>
    <extension-point id="study" name="Mylar Monitor" schema="schema/study.exsd"/>
 
@@ -8,34 +7,42 @@
          name="Mylar user monitoring startup"
          point="org.eclipse.ui.startup">
    </extension>   
-   
-   <extension point="org.eclipse.ui.newWizards">
-      <wizard
-            category="org.eclipse.mylar.wizards"
-            class="org.eclipse.mylar.internal.monitor.usage.ui.wizards.UsageSubmissionWizard"
-            icon="icons/etool16/wizard-study.gif"
-            id="org.eclipse.mylar.monitor.ui.uploadStatistics.StatisticsUploadWizard"
-            name="Usage Feedback">
-      </wizard>
-   </extension>
     
    <extension point="org.eclipse.ui.preferencePages">
       <page 
-         name="Monitor"
-         class="org.eclipse.mylar.internal.monitor.usage.ui.preferences.MylarMonitorPreferencePage"
-         id="org.eclipse.mylar.monitor.ui.preferences"
+         name="Usage Data"
+         class="org.eclipse.mylar.internal.monitor.usage.preferences.UsageDataPreferencePage"
+         id="org.eclipse.mylar.monitor.ui.ui.preferences"
 		 category="org.eclipse.mylar.ui.preferences">
-         <keywordReference id="org.eclipse.mylar.monitor.keywords"/>
+         <keywordReference id="org.eclipse.mylar.monitor.ui.keywords"/>
       </page> 
    </extension>
    
    <extension
    		point="org.eclipse.ui.keywords">
       <keyword
-            label="Mylar Monitor"
-            id="org.eclipse.mylar.monitor.keywords"/>
+            label="Mylar Monitor Usage Data"
+            id="org.eclipse.mylar.monitor.ui.keywords"/>
    </extension>
  
+	<extension point="org.eclipse.ui.newWizards">
+    	<wizard
+            canFinishEarly="false" 
+            category="org.eclipse.mylar.wizards"
+            class="org.eclipse.mylar.internal.monitor.usage.wizards.NewUsageSummaryEditorWizard"
+            hasPages="true"
+            icon="icons/eview16/editor-usage.gif"
+            id="org.eclipse.mylar.sandbox.wizard.usageSummary"
+            name="Usage Summary and Submission"/>
+   	</extension>
+   
+   	<extension point="org.eclipse.ui.editors">
+        <editor
+           icon="icons/eview16/editor-usage.gif"
+           class="org.eclipse.mylar.internal.monitor.usage.editors.UsageSummaryReportEditorPart"
+           name="Usage Summary"
+           id="org.eclipse.mylar.monitor.usage.summary.editor"/>
+  	</extension>
    
    <!--
    	<extension

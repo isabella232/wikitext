@@ -14,16 +14,16 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.context.core.util.ITimerThreadListener;
-import org.eclipse.mylar.internal.context.core.util.TimerThread;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.monitor.core.IActivityTimerListener;
+import org.eclipse.mylar.monitor.core.ActivityTimerThread;
 
 /**
  * Timer that periodically runs saveRequested() on its client as a job
  * 
  * @author Wesley Coelho
  */
-public class BackgroundSaveTimer implements ITimerThreadListener {
+public class BackgroundSaveTimer implements IActivityTimerListener {
 
 	private final static int DEFAULT_SAVE_INTERVAL = 60 * 1000;
 
@@ -31,13 +31,13 @@ public class BackgroundSaveTimer implements ITimerThreadListener {
 
 	private IBackgroundSaveListener listener = null;
 
-	private TimerThread timer = null;
+	private ActivityTimerThread timer = null;
 
 	private boolean forceSyncExec = false;
 
 	public BackgroundSaveTimer(IBackgroundSaveListener listener) {
 		this.listener = listener;
-		timer = new TimerThread(saveInterval); 
+		timer = new ActivityTimerThread(saveInterval); 
 		timer.addListener(this);
 	}
 
@@ -68,7 +68,7 @@ public class BackgroundSaveTimer implements ITimerThreadListener {
 	/**
 	 * Called by the ActivityTimerThread Calls save in a new job
 	 */
-	public void fireTimedOut() {
+	public void fireInactive() {
 		try {
 			if (!forceSyncExec) {
 				final SaveJob job = new SaveJob("Saving Task Data", listener);
@@ -90,13 +90,14 @@ public class BackgroundSaveTimer implements ITimerThreadListener {
 			this.listener = listener;
 		}
 
+		@Override
 		protected IStatus run(IProgressMonitor monitor) {
 			listener.saveRequested();
 			return Status.OK_STATUS;
 		}
 	}
 
-	public void intervalElapsed() {
+	public void fireActive(long start, long end) {
 		// ignore
 	}
 

@@ -12,10 +12,10 @@
 package org.eclipse.mylar.internal.bugzilla.ui.tasklist;
 
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaRepositoryQuery;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
-import org.eclipse.mylar.internal.tasks.ui.search.AbstractRepositoryQueryPage;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.search.AbstractRepositoryQueryPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.KeyListener;
@@ -43,15 +43,13 @@ public class BugzillaCustomQueryWizardPage extends AbstractRepositoryQueryPage {
 
 	private BugzillaRepositoryQuery query;
 
-	private TaskRepository repository;
-
 	public BugzillaCustomQueryWizardPage(TaskRepository repository, BugzillaRepositoryQuery query) {
-		super(TITLE, query.getDescription());
+		super(TITLE, query.getSummary());
 		this.query = query;
 		this.repository = repository;
 		setTitle(LABEL_CUSTOM_QUERY);
 //		setDescription(DESCRIPTION);
-		setImageDescriptor(TaskListImages.BANNER_REPOSITORY);
+		setImageDescriptor(TasksUiImages.BANNER_REPOSITORY);
 	}
 
 	public BugzillaCustomQueryWizardPage(TaskRepository repository) {
@@ -59,9 +57,10 @@ public class BugzillaCustomQueryWizardPage extends AbstractRepositoryQueryPage {
 		this.repository = repository;
 		setTitle(LABEL_CUSTOM_QUERY);
 //		setDescription(DESCRIPTION);
-		setImageDescriptor(TaskListImages.BANNER_REPOSITORY);
+		setImageDescriptor(TasksUiImages.BANNER_REPOSITORY);
 	}
 
+	@Override
 	public void createControl(Composite parent) {
 		composite = new Composite(parent, SWT.NONE);
 		composite.setLayout(new GridLayout());
@@ -106,6 +105,7 @@ public class BugzillaCustomQueryWizardPage extends AbstractRepositoryQueryPage {
 
 	}
 
+	@Override
 	public boolean canFlipToNextPage() {
 		return false;
 	}
@@ -123,10 +123,11 @@ public class BugzillaCustomQueryWizardPage extends AbstractRepositoryQueryPage {
 	@Override
 	public BugzillaRepositoryQuery getQuery() {
 		if (query == null) {
-			query = new BugzillaRepositoryQuery(repository.getUrl(), queryText.getText(), this.getQueryTitle(), "-1",
+			query = new BugzillaRepositoryQuery(repository.getUrl(), queryText.getText(), this.getQueryTitle(),
 					TasksUiPlugin.getTaskListManager().getTaskList());
 			query.setCustomQuery(true);
 		} else {
+			query.setDescription(this.getQueryTitle());
 			query.setUrl(queryText.getText());
 		}
 		return query;

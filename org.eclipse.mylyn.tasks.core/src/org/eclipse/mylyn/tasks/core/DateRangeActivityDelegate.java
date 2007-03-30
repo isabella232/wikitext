@@ -15,12 +15,13 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Set;
 
+import org.eclipse.core.runtime.PlatformObject;
 
 /**
  * @author Rob Elves
  * @author Mik Kersten
  */
-public class DateRangeActivityDelegate implements ITask {
+public class DateRangeActivityDelegate extends PlatformObject implements ITask {
 
 	private ITask task = null;
 
@@ -30,14 +31,13 @@ public class DateRangeActivityDelegate implements ITask {
 
 	private long endMili = 0;
 
-	private long inactivity = 0;
+	private long activity = 0;
 
 	public DateRangeActivityDelegate(DateRangeContainer parent, ITask task, Calendar start, Calendar end) {
 		this(parent, task, start, end, 0);
 	}
 
-	public DateRangeActivityDelegate(DateRangeContainer parent, ITask task, Calendar start, Calendar end,
-			long inactivity) {
+	public DateRangeActivityDelegate(DateRangeContainer parent, ITask task, Calendar start, Calendar end, long activity) {
 		if (task == null) {
 			throw new RuntimeException("attempted to instantiated with null task: " + parent);
 		}
@@ -48,10 +48,8 @@ public class DateRangeActivityDelegate implements ITask {
 		if (end != null) {
 			this.endMili = end.getTimeInMillis();
 		}
-		// this.start = start;
-		// this.end = end;
 		this.parent = parent;
-		this.inactivity = inactivity;
+		this.activity = activity;
 	}
 
 	public long getEnd() {
@@ -62,12 +60,8 @@ public class DateRangeActivityDelegate implements ITask {
 		return startMili;
 	}
 
-	public long getInactivity() {
-		return inactivity;
-	}
-
 	public long getActivity() {
-		return (endMili - startMili) - inactivity;
+		return activity;
 	}
 
 	public ITask getCorrespondingTask() {
@@ -129,8 +123,8 @@ public class DateRangeActivityDelegate implements ITask {
 		return task.getCreationDate();
 	}
 
-	public String getDescription() {
-		return task.getDescription();
+	public String getSummary() {
+		return task.getSummary();
 	}
 
 	public int getEstimateTimeHours() {
@@ -141,8 +135,8 @@ public class DateRangeActivityDelegate implements ITask {
 		return task.getHandleIdentifier();
 	}
 
-	public String getTaskType() {
-		return task.getTaskType();
+	public String getTaskKind() {
+		return task.getTaskKind();
 	}
 
 	public String getNotes() {
@@ -157,12 +151,12 @@ public class DateRangeActivityDelegate implements ITask {
 		return task.getPriority();
 	}
 
-	public Date getReminderDate() {
-		return task.getReminderDate();
+	public Date getScheduledForDate() {
+		return task.getScheduledForDate();
 	}
 
-	public String getUrl() {
-		return task.getUrl();
+	public String getTaskUrl() {
+		return task.getTaskUrl();
 	}
 
 	public boolean hasBeenReminded() {
@@ -213,9 +207,9 @@ public class DateRangeActivityDelegate implements ITask {
 		task.setEstimatedTimeHours(estimated);
 	}
 
-	public void setHandleIdentifier(String id) {
-		task.setHandleIdentifier(id);
-	}
+	// public void setHandleIdentifier(String taskId) {
+	// task.setHandleIdentifier(taskId);
+	// }
 
 	public void setKind(String kind) {
 		task.setKind(kind);
@@ -237,11 +231,27 @@ public class DateRangeActivityDelegate implements ITask {
 		task.setReminded(reminded);
 	}
 
-	public void setReminderDate(Date date) {
-		task.setReminderDate(date);
+	public void setScheduledForDate(Date date) {
+		task.setScheduledForDate(date);
 	}
 
-	public void setUrl(String url) {
-		task.setUrl(url);
+	public void setTaskUrl(String url) {
+		task.setTaskUrl(url);
+	}
+
+	public int compareTo(ITaskListElement taskListElement) {
+		return task.toString().compareTo(((Task) taskListElement).toString());
+	}
+
+	public void setDescription(String description) {
+		task.setDescription(description);
+	}
+
+	public Date getDueDate() {
+		return task.getDueDate();
+	}
+
+	public void setDueDate(Date date) {
+		task.setDueDate(date);
 	}
 }

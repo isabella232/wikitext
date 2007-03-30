@@ -2,20 +2,23 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mylar Resources Plugin
 Bundle-SymbolicName: org.eclipse.mylar.resources;singleton:=true
-Bundle-Version: 0.7.0.1
+Bundle-Version: 2.0.0.v20070328-2130
 Bundle-Activator: org.eclipse.mylar.resources.MylarResourcesPlugin
-Bundle-Localization: plugin
-Require-Bundle: org.eclipse.ui,
- org.eclipse.ui.ide,
+Require-Bundle: org.eclipse.ui.ide,
  org.eclipse.core.runtime,
+ org.eclipse.ui,
  org.eclipse.core.resources,
+ org.eclipse.ui.navigator,
+ org.eclipse.ui.forms,
  org.eclipse.jface.text,
  org.eclipse.compare,
  org.eclipse.mylar.context.core,
  org.eclipse.mylar.context.ui,
- org.eclipse.mylar.monitor,
+ org.eclipse.mylar.monitor.ui,
  org.eclipse.mylar.tasks.core,
- org.eclipse.mylar.tasks.ui
+ org.eclipse.mylar.tasks.ui,
+ org.eclipse.mylar.monitor.core,
+ org.eclipse.mylar
 Eclipse-AutoStart: true
 Bundle-Vendor: Eclipse.org
 Export-Package: org.eclipse.mylar.internal.resources,

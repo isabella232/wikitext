@@ -17,7 +17,8 @@ import org.eclipse.mylar.tasks.core.TaskArchive;
  */
 public class TaskArchiveFilter extends AbstractTaskListFilter {
 
-	public boolean select(Object element) {
+	@Override
+	public boolean select(Object parent, Object element) {
 		if (element instanceof TaskArchive) {
 			return false;
 		} 

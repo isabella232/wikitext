@@ -3,51 +3,58 @@
 <?eclipse version="3.0"?>
 <plugin>
     <extension-point id="bridges" name="bridges" schema="schema/bridges.exsd"/>
- 
+
     <extension
          point="org.eclipse.mylar.context.core.bridges">
       <structureBridge 
       		class="org.eclipse.mylar.internal.context.ui.TaskStructureBridge"/> 
    </extension>
-   <extension
+   <extension 
          point="org.eclipse.mylar.context.ui.bridges">
       <uiBridge
             class="org.eclipse.mylar.internal.context.ui.TaskUiBridge"
             contentType="meta/task"/>
    </extension>   
  
-    <extension point="org.eclipse.ui.views"> 
-   	  <view
-          allowMultiple="false"
-          category="org.eclipse.mylar"
-          class="org.eclipse.mylar.internal.context.ui.views.ActiveSearchView"
-          icon="icons/eview16/active-search.gif"
-          id="org.eclipse.mylar.ui.views.active.search"
-          name="Context Search (Experimental)"/>
-   </extension>
- 
+ 	<extension
+         point="org.eclipse.mylar.tasks.ui.editors">
+      	<editorFactory class="org.eclipse.mylar.internal.context.ui.editors.ContextEditorFactory"/>
+   	</extension>
  
   	<extension point = "org.eclipse.ui.popupMenus">
      <objectContribution
         id="org.eclipse.mylar.ui.interest"
         objectClass="org.eclipse.mylar.context.core.IMylarElement">
      	<action  
-  		  	label="Mylar: Mark as Less Interesting" 
+  		  	label="Mark Less Interesting" 
 	  		tooltip="Mark selected element as uninteresting"
-	  		menubarPath="mylar" 
-	  		id="org.eclipse.mylar.ui.actions.InterestDecrementAction" 
+	  		menubarPath="additions" 
+	  		id="org.eclipse.mylar.context.ui.actions.InterestDecrementAction" 
 	  		class="org.eclipse.mylar.internal.context.ui.actions.InterestDecrementAction"
 	  		icon="icons/elcl16/interest-decrease.gif"
 	  		enablesFor="*"/>
 	    <action  
-  		  	label="Mylar: Mark as Landmark" 
+  		  	label="Mark as Landmark" 
 	  		tooltip="Make selected element a landmark"
-	  		menubarPath="mylar" 
-	  		id="org.eclipse.mylar.ui.actions.InterestIncrementAction" 
+	  		menubarPath="additions" 
+	  		id="org.eclipse.mylar.context.ui.actions.InterestIncrementAction" 
 	  		class="org.eclipse.mylar.internal.context.ui.actions.InterestIncrementAction"
 	  		icon="icons/elcl16/interest-increase.gif"
 	  		enablesFor="*"/>
 	 </objectContribution> 
+	 
+	 <objectContribution
+            adaptable="false"
+            id="org.eclipse.mylar.ide.team.ui.contribution.attachment.patch"
+            objectClass="org.eclipse.mylar.tasks.core.RepositoryAttachment">
+         <action
+               class="org.eclipse.mylar.internal.context.ui.actions.ContextRetrieveAction"
+               icon="icons/etool16/context-retrieve.gif"
+               id="org.eclipse.mylar.ui.context.repository.retrieve"
+               label="Retrieve Context..."
+               menubarPath="actions">
+         </action>
+      </objectContribution>
 	 
 	 <!--
      <viewerContribution 
@@ -112,6 +119,14 @@
               menubarPath="context"
               tooltip="Clear Context">
         </action>
+  		<action
+        	class="org.eclipse.mylar.internal.context.ui.actions.ContextCopyAction"
+        	icon="icons/elcl16/context-transfer.gif"
+        	id="org.eclipse.mylar.context.ui.action.copy.context.to"
+        	label="Copy Context to..."
+        	menubarPath="context"
+        	tooltip="Copy Context to...">
+  		</action>
 	 </objectContribution>
      <objectContribution
            adaptable="false"
@@ -164,6 +179,14 @@
               menubarPath="context"
               tooltip="Clear Context">
         </action>
+          <action
+        class="org.eclipse.mylar.internal.context.ui.actions.ContextCopyAction"
+        icon="icons/elcl16/context-transfer.gif"
+        id="org.eclipse.mylar.context.ui.action.copy.context.to"
+        label="Copy Context to..."
+        menubarPath="context"
+        tooltip="Copy Context to...">
+  </action>
 	 </objectContribution>
    </extension>
     
@@ -185,8 +208,26 @@
             id="org.eclipse.mylar.context.keywords"/>
    </extension>
  
-  <!--  MARKER STUFF -->
-  
+	<!-- ==================== Common Navigator ==================== -->
+	
+    <extension
+         point="org.eclipse.ui.navigator.viewer">
+       <viewerContentBinding 
+             viewerId="org.eclipse.mylar.context.ui.navigator.context">
+          <includes>
+       	      <contentExtension pattern="org.eclipse.ui.navigator.resourceContent"/>		       	      
+          </includes>
+       </viewerContentBinding>
+       <viewerContentBinding 
+             viewerId="org.eclipse.mylar.context.ui.navigator.context.quick">
+          <includes>
+       	      <contentExtension pattern="org.eclipse.ui.navigator.resourceContent"/>		       	      
+          </includes>
+       </viewerContentBinding>
+   </extension>	
+ 
+	<!-- ==================== Markers ==================== -->
+	
     <extension point="org.eclipse.ui.ide.markerImageProviders">
     <imageprovider 
   		markertype="org.eclipse.mylar.ui.landmark" 
@@ -231,18 +272,28 @@
             visible="true"
             id="org.eclipse.mylar.ui.mylar.actionSet">
          <action
-               definitionId="org.eclipse.mylar.ui.interest.increment"
-               label="Mark as Landmark"
-               class="org.eclipse.mylar.internal.context.ui.actions.InterestIncrementAction"
-               menubarPath="navigate/open.ext2"
-               id="org.eclipse.mylar.ui.actions.InterestIncrementAction">
+               class="org.eclipse.mylar.internal.context.ui.actions.InterestDecrementAction"
+               definitionId="org.eclipse.mylar.ui.interest.decrement"
+               icon="icons/elcl16/interest-decrease.gif"
+               id="org.eclipse.mylar.ui.actions.InterestDecrementAction"
+               label="Mark Less Interesting"
+               menubarPath="navigate/open.ext2">
          </action>
          <action
-               definitionId="org.eclipse.mylar.ui.interest.decrement"
-               label="Mark Less Interesting"
-               class="org.eclipse.mylar.internal.context.ui.actions.InterestDecrementAction"
+               class="org.eclipse.mylar.internal.context.ui.actions.InterestIncrementAction"
+               definitionId="org.eclipse.mylar.ui.interest.increment"
+               icon="icons/elcl16/interest-increase.gif"
+               id="org.eclipse.mylar.ui.actions.InterestIncrementAction"
+               label="Mark as Landmark"
+               menubarPath="navigate/open.ext2">
+         </action>
+	
+	     <action
+               definitionId="org.eclipse.mylar.ui.context.dialog.show"
+               label="Quick Context View"
+               class="org.eclipse.mylar.internal.context.ui.actions.OpenQuickContextPopupDialog"
                menubarPath="navigate/open.ext2"
-               id="org.eclipse.mylar.ui.actions.InterestDecrementAction">
+               id="org.eclipse.mylar.context.ui.actions.open.context.dialog">
          </action>
          <!--
          <action
@@ -267,30 +318,30 @@
       <category
             name="Mylar"
             description="Mylar commands"
-            id="org.eclipse.mylar.ui">
+            id="org.eclipse.mylar.ui.commands">
       </category>
       <command
             name="Global Filtering"
             id="org.eclipse.mylar.ui.interest.filter.global"
-            categoryId="org.eclipse.mylar.ui">
+            categoryId="org.eclipse.mylar.ui.commands">
       </command>
       <command
             name="Show Related Elements"
             description="Show Related Elements"
-            id="org.eclipse.mylar.ui.related.show"
-            categoryId="org.eclipse.mylar.ui">
+            id="org.eclipse.mylar.ui.context.dialog.show"
+            categoryId="org.eclipse.mylar.ui.commands">
       </command>
       <command
             name="Make Landmark"
             description="Make Landmark"
             id="org.eclipse.mylar.ui.interest.increment"
-            categoryId="org.eclipse.mylar.ui">
+            categoryId="org.eclipse.mylar.ui.commands">
       </command>
       <command
             name="Make Less Interesting"
             description="Make Less Interesting"
             id="org.eclipse.mylar.ui.interest.decrement"
-            categoryId="org.eclipse.mylar.ui">
+            categoryId="org.eclipse.mylar.ui.commands">
       </command>
       <!--
       <command
@@ -316,9 +367,9 @@
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key>
       <key
-            sequence="M1+M2+M3+ARROW_LEFT"
+            sequence="M1+M2+M3+ARROW_RIGHT"
             contextId="org.eclipse.ui.globalScope"
-            commandId="org.eclipse.mylar.ui.related.show"
+            commandId="org.eclipse.mylar.ui.context.dialog.show"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key> 
 	  <!--
@@ -352,11 +403,12 @@
 		id="org.eclipse.mylar.ui.tasklist.apply" 
    		targetID="org.eclipse.mylar.tasks.ui.views.TaskListView">
     	<action
-           class="org.eclipse.mylar.internal.context.ui.actions.ApplyMylarToTaskListAction"
+           class="org.eclipse.mylar.internal.context.ui.actions.FocusTaskListAction"
            enablesFor="*"
            icon="icons/eview16/mylar-apply-activity.gif"
            id="org.eclipse.mylar.ui.actions.ApplyMylarToOutlineAction"
            label="Focus on Workweek"
+           menubarPath="additions"
            style="toggle"
            toolbarPath="context"
            tooltip="Focus on Workweek"> 
@@ -366,7 +418,7 @@
 		id="org.eclipse.mylar.outline.contribution.filter" 
    		targetID="org.eclipse.ui.views.ContentOutline">
     	<action
-           class="org.eclipse.mylar.internal.context.ui.actions.ApplyMylarToOutlineAction"
+           class="org.eclipse.mylar.internal.context.ui.actions.FocusOutlineAction"
            enablesFor="*"
            icon="icons/elcl16/interest-filtering.gif"
            id="org.eclipse.mylar.ui.actions.ApplyMylarToOutlineAction"
@@ -385,8 +437,8 @@
             icon="icons/elcl16/capture-pause.gif"
             id="org.eclipse.mylar.ui.context.capture.pause"
             label="Pause Capturing Context"
+            menubarPath="additions"
             style="toggle"
-            toolbarPath="context"
             tooltip="Pause Capturing Context"/>
    </viewContribution>
    </extension>

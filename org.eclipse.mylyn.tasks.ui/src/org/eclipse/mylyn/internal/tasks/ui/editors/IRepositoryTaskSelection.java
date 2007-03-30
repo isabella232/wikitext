@@ -51,15 +51,15 @@ public interface IRepositoryTaskSelection extends ISelection {
 	public void setContents(String contents);
 
 	/**
-	 * @return The id of the Bugzilla object that the selection was on.
+	 * @return The taskId of the Bugzilla object that the selection was on.
 	 */
 	public String getId();
 
 	/**
-	 * Sets the id of the Bugzilla object that the selection was on.
+	 * Sets the taskId of the Bugzilla object that the selection was on.
 	 * 
-	 * @param id
-	 *            The id of the bug.
+	 * @param taskId
+	 *            The taskId of the bug.
 	 */
 	public void setId(String id);
 
@@ -67,7 +67,7 @@ public interface IRepositoryTaskSelection extends ISelection {
 	 * @return The server of the Bugzilla object that the selection was on, or
 	 *         <code>null</code> if no server is supplied.
 	 */
-	public String getServer();
+	public String getRepositoryUrl();
 
 	/**
 	 * Sets the server of the Bugzilla object that the selection was on.

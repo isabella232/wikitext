@@ -16,6 +16,7 @@ import java.util.Date;
 import org.eclipse.jface.viewers.DecoratingLabelProvider;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskElementLabelProvider;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.PlatformUI;
 
@@ -36,7 +37,7 @@ public class TaskListNotificationQueryIncoming implements ITaskListNotification 
 	}
 
 	public String getDescription() {
-		return hit.getDescription();
+		return hit.getSummary();
 	}
 
 	public String getLabel() {
@@ -51,7 +52,7 @@ public class TaskListNotificationQueryIncoming implements ITaskListNotification 
 
 		PlatformUI.getWorkbench().getDisplay().syncExec(new Runnable() {
 			public void run() {
-				TaskUiUtil.refreshAndOpenTaskListElement(hit);
+				TasksUiUtil.refreshAndOpenTaskListElement(hit);
 			}
 		});
 
@@ -61,20 +62,22 @@ public class TaskListNotificationQueryIncoming implements ITaskListNotification 
 		return labelProvider.getImage(hit);
 	}
 
+	@Override
 	public boolean equals(Object o) {
 		if (!(o instanceof TaskListNotificationQueryIncoming)) {
 			return false;
 		}
 		TaskListNotificationQueryIncoming notification = (TaskListNotificationQueryIncoming) o;
-		return notification.getDescription().equals(hit.getDescription());
+		return notification.getDescription().equals(hit.getSummary());
 	}
 
+	@Override
 	public int hashCode() {
-		return hit.getDescription().hashCode();
+		return hit.getSummary().hashCode();
 	}
 
 	public Image getOverlayIcon() {
-		return TaskListImages.getImage(TaskListImages.OVERLAY_INCOMMING);
+		return TasksUiImages.getImage(TasksUiImages.OVERLAY_INCOMMING);
 	}
 
 	public Date getDate() {
@@ -85,10 +88,10 @@ public class TaskListNotificationQueryIncoming implements ITaskListNotification 
 		this.date = date;
 	}
 	
-	public int compareTo(Object anotherNotification) throws ClassCastException {
+	public int compareTo(ITaskListNotification anotherNotification) throws ClassCastException {
 	    if (!(anotherNotification instanceof ITaskListNotification))
 	      throw new ClassCastException("A ITaskListNotification object expected.");
-	    Date anotherDate = ((ITaskListNotification) anotherNotification).getDate();
+	    Date anotherDate = (anotherNotification).getDate();
 	    if(date != null && anotherDate != null) {
 	    	return date.compareTo(anotherDate);
 	    } else if(date == null) {

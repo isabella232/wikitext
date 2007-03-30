@@ -11,10 +11,12 @@
 
 package org.eclipse.mylar.internal.trac.core;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.mylar.internal.trac.core.model.TracTicket.Key;
+import org.eclipse.mylar.internal.trac.core.util.TracUtils;
 import org.eclipse.mylar.tasks.core.AbstractAttributeFactory;
 import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
 
@@ -32,16 +34,17 @@ public class TracAttributeFactory extends AbstractAttributeFactory {
 	private static Map<String, String> tracKeyByTaskKey = new HashMap<String, String>();
 	
 	public enum Attribute {
-		CC(Key.CC, "CC:", RepositoryTaskAttribute.USER_CC), 
+		CC(Key.CC, "CC:", RepositoryTaskAttribute.USER_CC, true, false), 
 		CHANGE_TIME(Key.CHANGE_TIME, "Last Modification:", RepositoryTaskAttribute.DATE_MODIFIED, true, true),
 		COMPONENT(Key.COMPONENT, "Component:", null),
 		DESCRIPTION(Key.DESCRIPTION, "Description:", RepositoryTaskAttribute.DESCRIPTION, true, false),
 		ID(Key.ID, "<used by search engine>", null, true),
 		KEYWORDS(Key.KEYWORDS, "Keywords:", RepositoryTaskAttribute.KEYWORDS),
 		MILESTONE(Key.MILESTONE, "Milestone:", null),
-		OWNER(Key.OWNER, "Owner:", RepositoryTaskAttribute.USER_OWNER, false, true),
+		NEW_CC(RepositoryTaskAttribute.NEW_CC, "Add CC:"),
+		OWNER(Key.OWNER, "Assigned to:", RepositoryTaskAttribute.USER_ASSIGNED, true, true),
 		PRIORITY(Key.PRIORITY, "Priority:", null),
-		REPORTER(Key.REPORTER, "Reporter:", RepositoryTaskAttribute.USER_REPORTER, false, true),
+		REPORTER(Key.REPORTER, "Reporter:", RepositoryTaskAttribute.USER_REPORTER, true, true),
 		RESOLUTION(Key.RESOLUTION, "Resolution:", RepositoryTaskAttribute.RESOLUTION, false, true),
 		SEVERITY(Key.SEVERITY, "Severity:", null),
 		STATUS(Key.STATUS, "Status:", RepositoryTaskAttribute.STATUS, false, true),
@@ -60,8 +63,8 @@ public class TracAttributeFactory extends AbstractAttributeFactory {
 
 		private final String taskKey;
 
-		Attribute(Key key, String prettyName, String taskKey, boolean hidden, boolean readonly) {		
-			this.tracKey = key.getKey();
+		Attribute(String tracKey, String prettyName, String taskKey, boolean hidden, boolean readonly) {		
+			this.tracKey = tracKey;
 			this.taskKey = taskKey;
 			this.prettyName = prettyName;
 			this.isHidden = hidden;
@@ -73,14 +76,25 @@ public class TracAttributeFactory extends AbstractAttributeFactory {
 			}
 		}
 
+		Attribute(Key key, String prettyName, String taskKey, boolean hidden, boolean readonly) {		
+			this(key.getKey(), prettyName, taskKey, hidden, readonly);
+		}
+
 		Attribute(Key key, String prettyName, String taskKey, boolean hidden) {		
-			this(key, prettyName, taskKey, hidden, false);
+			this(key.getKey(), prettyName, taskKey, hidden, false);
 		}
 		
 		Attribute(Key key, String prettyName, String taskKey) {		
-			this(key, prettyName, taskKey, false, false);
+			this(key.getKey(), prettyName, taskKey, false, false);
 		}
 
+		/**
+		 * This is for Mylar attributes that do not map to Trac attributes.
+		 */
+		Attribute(String taskKey, String prettyName) {
+			this(taskKey, prettyName, taskKey, true, false);
+		}
+		
 		public String getTaskKey() {
 			return taskKey;
 		}
@@ -97,6 +111,7 @@ public class TracAttributeFactory extends AbstractAttributeFactory {
 			return isReadOnly;
 		}
 		
+		@Override
 		public String toString() {
 			return prettyName;
 		}
@@ -109,6 +124,10 @@ public class TracAttributeFactory extends AbstractAttributeFactory {
 
 	@Override
 	public boolean getIsHidden(String key) {
+		if (isInternalAttribute(key)) {
+			return true;
+		}
+		
 		Attribute attribute = attributeByTracKey.get(key);
 		return (attribute != null) ? attribute.isHidden() : false;
 	}
@@ -131,6 +150,25 @@ public class TracAttributeFactory extends AbstractAttributeFactory {
 	public String mapCommonAttributeKey(String key) {
 		String tracKey = tracKeyByTaskKey.get(key);
 		return (tracKey != null) ? tracKey : key;
+	}
+
+	static boolean isInternalAttribute(String id) {
+		return RepositoryTaskAttribute.COMMENT_NEW.equals(id) || RepositoryTaskAttribute.REMOVE_CC.equals(id) || RepositoryTaskAttribute.NEW_CC.equals(id) || RepositoryTaskAttribute.ADD_SELF_CC.equals(id);
+	}
+	
+	public Date getDateForAttributeType(String attributeKey, String dateString) {
+		if (dateString == null || dateString.length() == 0) {
+			return null;
+		}
+
+		try {
+			String mappedKey = mapCommonAttributeKey(attributeKey);
+			if (mappedKey.equals(Attribute.TIME.getTracKey()) || mappedKey.equals(Attribute.CHANGE_TIME.getTracKey())) {
+				return TracUtils.parseDate(Integer.valueOf(dateString));
+			}
+		} catch (Exception e) {
+		}
+		return null;
 	}
 
 }

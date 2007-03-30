@@ -49,7 +49,7 @@ public class DateSelectionDialog extends Dialog {
 			this.title = title;
 		}
 		if(initialDate != null) {
-			this.initialCalendar.setTime(initialDate.getTime());
+			this.initialCalendar.setTime(initialDate.getTime());			
 		}
 		reminderDate = initialCalendar.getTime();
 	}
@@ -78,6 +78,7 @@ public class DateSelectionDialog extends Dialog {
 		super.createButtonsForButtonBar(parent);
 	}
 	
+	@Override
 	protected void buttonPressed(int buttonId) {
 		super.buttonPressed(buttonId);
 		if(buttonId == IDialogConstants.CLIENT_ID + 1) {

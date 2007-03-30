@@ -15,17 +15,17 @@ import junit.framework.Test;
 import junit.framework.TestSuite;
 
 import org.eclipse.mylar.bugzilla.tests.AllBugzillaTests;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
 import org.eclipse.mylar.context.tests.AllCoreTests;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.ide.tests.AllIdeTests;
 import org.eclipse.mylar.java.tests.AllJavaTests;
 import org.eclipse.mylar.jira.tests.AllJiraTests;
-import org.eclipse.mylar.monitor.reports.tests.AllMonitorReportTests;
 import org.eclipse.mylar.monitor.tests.AllMonitorTests;
 import org.eclipse.mylar.resources.MylarResourcesPlugin;
 import org.eclipse.mylar.resources.tests.AllResourcesTests;
 import org.eclipse.mylar.tasks.tests.AllTasksTests;
 import org.eclipse.mylar.tests.integration.AllIntegrationTests;
+import org.eclipse.mylar.tests.integration.TestingStatusNotifier;
 import org.eclipse.mylar.tests.misc.AllMiscTests;
 import org.eclipse.mylar.trac.tests.AllTracTests;
 
@@ -41,8 +41,8 @@ public class AllTests {
 		MylarResourcesPlugin.getDefault().setResourceMonitoringEnabled(false);
 
 		// TODO: the order of these tests might still matter, but shouldn't
+		
 		// $JUnit-BEGIN$
-		suite.addTest(AllMonitorReportTests.suite());
 		suite.addTest(AllMonitorTests.suite());
 		suite.addTest(AllIntegrationTests.suite());
 		suite.addTest(AllCoreTests.suite());
@@ -54,6 +54,8 @@ public class AllTests {
 		suite.addTest(AllMiscTests.suite());
 		suite.addTest(AllJiraTests.suite());
 		suite.addTest(AllTracTests.suite());
+		suite.addTestSuite(WebClientUtilTest.class);
+		suite.addTestSuite(SslProtocolSocketFactoryTest.class);
 		// $JUnit-END$
 		return suite;
 	}

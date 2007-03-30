@@ -20,18 +20,18 @@
         id="org.eclipse.mylar.ui.interest"
         objectClass="org.eclipse.mylar.internal.web.WebResource">
      	<action  
-  		  	label="Mylar: Make Less Interesting" 
+  		  	label="Make Less Interesting" 
 	  		tooltip="Mark selected element as uninteresting"
 	  		menubarPath="mylar" 
-	  		id="org.eclipse.mylar.ui.actions.InterestDecrementAction" 
+	  		id="org.eclipse.mylar.web.ui.actions.InterestDecrementAction" 
 	  		class="org.eclipse.mylar.internal.context.ui.actions.InterestDecrementAction"
 	  		icon="icons/elcl16/interest-decrease.gif"
 	  		enablesFor="*"/>
 	    <action  
-  		  	label="Mylar: Mark as Landmark" 
+  		  	label="Mark as Landmark" 
 	  		tooltip="Make selected element a landmark"
 	  		menubarPath="mylar" 
-	  		id="org.eclipse.mylar.ui.actions.InterestIncrementAction" 
+	  		id="org.eclipse.mylar.web.ui.actions.InterestIncrementAction" 
 	  		class="org.eclipse.mylar.internal.context.ui.actions.InterestIncrementAction"
 	  		icon="icons/elcl16/interest-increase.gif"
 	  		enablesFor="*"/>
@@ -43,6 +43,7 @@
             id="org.eclipse.mylar.web.actionSet"
             label="Mylar Web"
             visible="true"> 
+        <!--
   		<action
           class="org.eclipse.mylar.internal.web.ui.NewWebBrowserAction"
           definitionId="org.eclipse.mylar.web.browser.new"
@@ -52,17 +53,22 @@
           style="push"
           toolbarPath="org.eclipse.ui.edit.text.actionSet.presentation/Presentation"
           tooltip="New Browser"> 
-      	</action> 
+      	</action>
+      	--> 
     </actionSet>
    </extension>
 
    <extension point="org.eclipse.ui.commands">
 	  <command
-         categoryId="org.eclipse.mylar.ui"
+         categoryId="org.eclipse.mylar.web.commands"
          description="Toggle Automatic Folding"
          id="org.eclipse.mylar.web.browser.new"
          name="New Browser">
       </command>
+   <category
+         id="org.eclipse.mylar.web.commands"
+         name="Mylar Web">
+   </category>
    </extension>
 
    <extension point="org.eclipse.ui.bindings">   
@@ -85,7 +91,8 @@
             icon="icons/obj16/web-root.gif"
             id="org.eclipse.mylar.web.navigator"
             labelProvider="org.eclipse.mylar.internal.web.ui.WebSiteNavigatorLabelProvider"
-            name="Mylar Web Context (Experimental)">
+            name="Mylar Web Context (Experimental)"
+            priority="lowest">
          <triggerPoints>
             <or> 
             	<instanceof value="org.eclipse.core.resources.IWorkspaceRoot"/>
@@ -134,6 +141,11 @@
                   pattern="org.eclipse.mylar.web.navigator"/>
          </includes>
       </viewerContentBinding>
+      <!--
+	  <dragAssistant
+          class="org.eclipse.ui.navigator.resources.ResourceDragAdapterAssistant"
+          viewerId="org.eclipse.mylar.web.navigator.dragAssistant"/>
+      -->
    </extension>
    <!--
    <extension
@@ -199,7 +211,8 @@
 		</triggerPoints>              
       </navigatorContent>
   </extension>
-
+-->
+   
    <extension
          point="org.eclipse.ui.navigator.viewer">
 		<viewerContentBinding 
@@ -209,6 +222,24 @@
           </includes>
        </viewerContentBinding>
   </extension>
--->
+  
+  	<!-- ==================== Context Editing ==================== -->
+	
+    <extension
+         point="org.eclipse.ui.navigator.viewer">
+       <viewerContentBinding 
+             viewerId="org.eclipse.mylar.context.ui.navigator.context">
+          <includes>		       	      
+          	  <contentExtension pattern="org.eclipse.mylar.web.navigator"/>
+          </includes>
+       </viewerContentBinding>
+       <viewerContentBinding 
+             viewerId="org.eclipse.mylar.context.ui.navigator.context.quick">
+          <includes>		       	      
+          	  <contentExtension pattern="org.eclipse.mylar.web.navigator"/>
+          </includes>
+       </viewerContentBinding>
+   </extension>	
+ 
   
 </plugin>

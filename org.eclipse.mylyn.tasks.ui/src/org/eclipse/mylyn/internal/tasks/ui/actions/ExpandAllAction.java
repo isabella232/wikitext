@@ -12,7 +12,7 @@
 package org.eclipse.mylar.internal.tasks.ui.actions;
 
 import org.eclipse.jface.action.Action;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 
 /**
@@ -32,9 +32,10 @@ public class ExpandAllAction extends Action {
 		setId(ID);
 		setText(LABEL);
 		setToolTipText(LABEL);
-		setImageDescriptor(TaskListImages.EXPAND_ALL);
+		setImageDescriptor(TasksUiImages.EXPAND_ALL);
 	}
 
+	@Override
 	public void run() {
 		if (taskListView.getViewer() != null)
 			taskListView.getViewer().expandAll();

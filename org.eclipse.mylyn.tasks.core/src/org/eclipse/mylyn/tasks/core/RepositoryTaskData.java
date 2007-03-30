@@ -13,90 +13,59 @@ package org.eclipse.mylar.tasks.core;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.StringTokenizer;
 
 /**
+ * This data structure is not to be subclassed but rather used directly to hold
+ * repository task data (attribute key, value pairs along with valid options for
+ * each attribute).
+ * 
  * @author Mik Kersten
  * @author Rob Elves
  */
-public class RepositoryTaskData extends AttributeContainer implements Serializable {
+public final class RepositoryTaskData extends AttributeContainer implements Serializable {
 
-	private static final long serialVersionUID = 2746931358107812373L;
+	private static final long serialVersionUID = 2304501248225237699L;
 
-	public static final String VAL_STATUS_NEW = "NEW";
-	
+	private boolean hasLocalChanges = false;
+
+	private boolean isNew = false;
+
 	private String reportID;
 
-	private boolean hasChanges = false;
-	
 	private String repositoryURL;
 
-	protected String newComment = "";
-		
+	private String repositoryKind;
+
+	private String taskKind;
+
 	private List<TaskComment> taskComments = new ArrayList<TaskComment>();
 
 	private List<RepositoryAttachment> attachments = new ArrayList<RepositoryAttachment>();
 
-
 	/** The operation that was selected to do to the bug */
-	protected RepositoryOperation selectedOperation = null;
-
-	/** Whether or not this bug report is saved offline. */
-	protected boolean savedOffline = false;
-
-	protected String charset = null;
+	private RepositoryOperation selectedOperation = null;
 
 	/** The repositoryOperations that can be done on the report */
-	protected List<RepositoryOperation> repositoryOperations = new ArrayList<RepositoryOperation>();
+	private List<RepositoryOperation> repositoryOperations = new ArrayList<RepositoryOperation>();
 
-	// private static final RepositoryTaskAttributeFactory attributeFactory =
-	// new BugzillaAttributeFactory();
-
-	// /** Parser for dates in the report */
-	// private static SimpleDateFormat delta_ts_format = new
-	// SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	//
-	// private static SimpleDateFormat creation_ts_format = new
-	// SimpleDateFormat("yyyy-MM-dd HH:mm");
-
-	/** The bugs valid keywords */
-	protected List<String> validKeywords;
-
-	/** Description of the bug */
-	protected String description;
-
-	/** Creation timestamp */
-	protected Date created;
-
-	/** Modification timestamp */
-	protected Date lastModified = null;
-
-	protected String repositoryKind;
-
-	public RepositoryTaskData(AbstractAttributeFactory factory, String repositoryKind, String repositoryURL, String id) {
+	public RepositoryTaskData(AbstractAttributeFactory factory, String repositoryKind, String repositoryURL, String id,
+			String taskKind) {
 		super(factory);
 		this.reportID = id;
 		this.repositoryKind = repositoryKind;
 		this.repositoryURL = repositoryURL;
+		this.taskKind = taskKind;
 	}
 
-//	/**
-//	 * TODO: move?
-//	 */
-//	public static boolean isResolvedStatus(String status) {
-//		if (status != null) {
-//			return status.equals(VAL_STATUS_RESOLVED) || status.equals(VAL_STATUS_CLOSED)
-//					|| status.equals(VAL_STATUS_VERIFIED);
-//		} else {
-//			return false;
-//		}
-//	}
-
 	public String getLabel() {
-		return getSummary();
+		if (isNew()) {
+			return "<unsubmitted> " + this.getRepositoryUrl();
+		} else {
+			return getSummary();
+		}
 	}
 
 	/**
@@ -145,8 +114,6 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 	 */
 	public String getReporter() {
 		return getAttributeValue(RepositoryTaskAttribute.USER_REPORTER);
-		// return
-		// getAttributeValue(BugzillaReportElement.REPORTER.getKeyString());
 	}
 
 	/**
@@ -176,30 +143,26 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 	 */
 	public String getSummary() {
 		return getAttributeValue(RepositoryTaskAttribute.SUMMARY);
-		// return
-		// getAttributeValue(BugzillaReportElement.SHORT_DESC.getKeyString());
 	}
 
 	public void setSummary(String summary) {
-		throw new NullPointerException("not impelmented");
-		// setAttributeValue(RepositoryTaskAttribute.SHORT_DESC, summary);
-		// setAttributeValue(BugzillaReportElement.SHORT_DESC.getKeyString(),
-		// summary);
+		setAttributeValue(RepositoryTaskAttribute.SUMMARY, summary);
 	}
 
 	public String getProduct() {
 		return getAttributeValue(RepositoryTaskAttribute.PRODUCT);
-		// return
-		// getAttributeValue(BugzillaReportElement.PRODUCT.getKeyString());
 	}
 
-	public boolean isLocallyCreated() {
-		return false;
+	/**
+	 * true if this is a new, unsubmitted task false otherwise
+	 */
+	public boolean isNew() {
+		return isNew;
 	}
 
-//	public boolean isResolved() {
-//		return isResolvedStatus(getStatus());
-//	}
+	public void setNew(boolean isNew) {
+		this.isNew = isNew;
+	}
 
 	/**
 	 * Get the date that the bug was created
@@ -207,7 +170,7 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 	 * @return The bugs creation date
 	 */
 	public String getCreated() {
-		return getAttributeValue(RepositoryTaskAttribute.DATE_CREATION);		
+		return getAttributeValue(RepositoryTaskAttribute.DATE_CREATION);
 	}
 
 	/**
@@ -240,54 +203,41 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 
 	public List<String> getCC() {
 		return getAttributeValues(RepositoryTaskAttribute.USER_CC);
-		// return getAttributeValues(BugzillaReportElement.CC.getKeyString());
 	}
 
 	public void removeCC(String email) {
 		removeAttributeValue(RepositoryTaskAttribute.USER_CC, email);
-		// removeAttributeValue(BugzillaReportElement.CC.getKeyString(), email);
 	}
 
 	public String getAssignedTo() {
 		return getAttributeValue(RepositoryTaskAttribute.USER_ASSIGNED);
-		// return getAttributeValue(BugzillaReportElement.ASSIGNED_TO);
 	}
 
 	/**
 	 * Get the new comment that is to be added to the bug
 	 */
 	public String getNewComment() {
-		return newComment;
+		RepositoryTaskAttribute attribute = getAttribute(RepositoryTaskAttribute.COMMENT_NEW);
+		return (attribute != null) ? attribute.getValue() : "";
 	}
 
 	/**
 	 * Set the new comment that will be added to the bug
 	 */
 	public void setNewComment(String newComment) {
-		this.newComment = newComment;
+		setAttributeValue(RepositoryTaskAttribute.COMMENT_NEW, newComment);
 	}
 
 	public void addComment(TaskComment taskComment) {
-		TaskComment preceding = null;
-		if (taskComments.size() > 0) {
-			// if there are some comments, get the last comment and set the next
-			// value to be the new comment
-			preceding = taskComments.get(taskComments.size() - 1);
-			preceding.setNext(taskComment);
-		}
-		taskComment.setPrevious(preceding);
 		taskComments.add(taskComment);
 	}
 
 	public List<TaskComment> getComments() {
 		return taskComments;
 	}
-	
+
 	public void setDescription(String description) {
-		RepositoryTaskAttribute attribute = getDescriptionAttribute();
-		if(attribute != null) {
-			attribute.setValue(description);
-		}
+		setAttributeValue(RepositoryTaskAttribute.DESCRIPTION, description);
 	}
 
 	public String getDescription() {
@@ -297,17 +247,17 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 
 	public RepositoryTaskAttribute getDescriptionAttribute() {
 		RepositoryTaskAttribute attribute = getAttribute(RepositoryTaskAttribute.DESCRIPTION);
-		if (attribute != null) {
-			return attribute;
-		} else {
+		// TODO: Remove the following after 1.0 release as we now just have a
+		// summary attribute
+		if (attribute == null) {
 			List<TaskComment> coms = this.getComments();
 			if (coms != null && coms.size() > 0) {
 				return coms.get(0).getAttribute(RepositoryTaskAttribute.COMMENT_TEXT);
 			}
 		}
-		return null;
+		return attribute;
 	}
-	
+
 	public void addAttachment(RepositoryAttachment attachment) {
 		attachments.add(attachment);
 	}
@@ -328,13 +278,14 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 	}
 
 	public boolean hasLocalChanges() {
-		return hasChanges;
+		return hasLocalChanges;
 	}
 
 	public void setHasLocalChanges(boolean b) {
-		hasChanges = b;
+		hasLocalChanges = b;
 	}
 
+	@Override
 	public List<String> getAttributeValues(String key) {
 		RepositoryTaskAttribute attribute = getAttribute(key);
 		if (attribute != null) {
@@ -365,4 +316,7 @@ public class RepositoryTaskData extends AttributeContainer implements Serializab
 		}
 	}
 
+	public String getTaskKind() {
+		return taskKind;
+	}
 }

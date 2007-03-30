@@ -16,6 +16,7 @@ import java.net.URL;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.mylar.internal.trac.core.model.TracComponent;
+import org.eclipse.mylar.internal.trac.core.model.TracTicketField;
 import org.eclipse.mylar.internal.trac.core.model.TracMilestone;
 import org.eclipse.mylar.internal.trac.core.model.TracPriority;
 import org.eclipse.mylar.internal.trac.core.model.TracSeverity;
@@ -41,11 +42,12 @@ public abstract class AbstractTracClient implements ITracClient {
 
 	protected Proxy proxy;
 	
-	public AbstractTracClient(URL repositoryUrl, Version version, String username, String password) {
+	public AbstractTracClient(URL repositoryUrl, Version version, String username, String password, Proxy proxy) {
 		this.repositoryUrl = repositoryUrl;
 		this.version = version;
 		this.username = username;
 		this.password = password;
+		this.proxy = proxy;
 		
 		this.data = new TracClientData();
 	}
@@ -57,7 +59,6 @@ public abstract class AbstractTracClient implements ITracClient {
 	protected boolean hasAuthenticationCredentials() {
 		return username != null && username.length() > 0;
 	}
-
 
 	public TracComponent[] getComponents() {
 		return (data.components != null) ? data.components.toArray(new TracComponent[0]) : null;
@@ -73,6 +74,10 @@ public abstract class AbstractTracClient implements ITracClient {
 
 	public TracSeverity[] getSeverities() {
 		return (data.severities != null) ? data.severities.toArray(new TracSeverity[0]) : null;
+	}
+
+	public TracTicketField[] getTicketFields() {
+		return (data.ticketFields != null) ? data.ticketFields.toArray(new TracTicketField[0]) : null;
 	}
 	
 	public TracTicketResolution[] getTicketResolutions() {
@@ -91,8 +96,12 @@ public abstract class AbstractTracClient implements ITracClient {
 		return (data.versions != null) ? data.versions.toArray(new TracVersion[0]) : null;
 	}
 
+	public boolean hasAttributes() {
+		return (data.lastUpdate != 0);
+	}
+	
 	public void updateAttributes(IProgressMonitor monitor, boolean force) throws TracException {
-		if (data.lastUpdate == 0 || force) {
+		if (!hasAttributes() || force) {
 			updateAttributes(monitor);
 			data.lastUpdate = System.currentTimeMillis();
 		}

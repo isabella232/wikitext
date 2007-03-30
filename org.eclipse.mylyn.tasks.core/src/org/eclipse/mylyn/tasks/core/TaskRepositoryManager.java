@@ -11,7 +11,10 @@
 
 package org.eclipse.mylar.tasks.core;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -21,8 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.Platform;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.tasks.core.TaskRepositoriesExternalizer;
 
 /**
@@ -34,7 +38,7 @@ public class TaskRepositoryManager {
 	public static final String OLD_REPOSITORIES_FILE = "repositories.xml";
 
 	public static final String DEFAULT_REPOSITORIES_FILE = "repositories.xml.zip";
-	
+
 	public static final String PREF_REPOSITORIES = "org.eclipse.mylar.tasklist.repositories.";
 
 	private Map<String, AbstractRepositoryConnector> repositoryConnectors = new HashMap<String, AbstractRepositoryConnector>();
@@ -52,7 +56,7 @@ public class TaskRepositoryManager {
 	private TaskRepositoriesExternalizer externalizer = new TaskRepositoriesExternalizer();
 
 	private TaskList taskList;
-	
+
 	public TaskRepositoryManager(TaskList taskList) {
 		this.taskList = taskList;
 	}
@@ -65,11 +69,24 @@ public class TaskRepositoryManager {
 		return repositoryConnectors.get(kind);
 	}
 
+	public AbstractRepositoryConnector getRepositoryConnector(AbstractRepositoryTask task) {
+		return getRepositoryConnector(task.getRepositoryKind());
+	}
+
 	public void addRepositoryConnector(AbstractRepositoryConnector repositoryConnector) {
 		if (!repositoryConnectors.values().contains(repositoryConnector)) {
 			repositoryConnector.init(taskList);
 			repositoryConnectors.put(repositoryConnector.getRepositoryType(), repositoryConnector);
 		}
+	}
+
+	public boolean hasUserManagedRepositoryConnectors() {
+		for (AbstractRepositoryConnector connector : repositoryConnectors.values()) {
+			if (connector.isUserManaged()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void addRepository(TaskRepository repository, String repositoryFilePath) {
@@ -107,7 +124,17 @@ public class TaskRepositoryManager {
 		listeners.remove(listener);
 	}
 
+	/* Public for testing. */
+	public static String stripSlashes(String url) {
+		StringBuilder sb = new StringBuilder(url.trim());
+		while (sb.length() > 0 && sb.charAt(sb.length() - 1) == '/') {
+			sb.deleteCharAt(sb.length() - 1);
+		}
+		return sb.toString();
+	}
+	
 	public TaskRepository getRepository(String kind, String urlString) {
+		urlString = stripSlashes(urlString);
 		if (repositoryMap.containsKey(kind)) {
 			for (TaskRepository repository : repositoryMap.get(kind)) {
 				if (repository.getUrl().equals(urlString)) {
@@ -117,25 +144,26 @@ public class TaskRepositoryManager {
 		}
 		return null;
 	}
-	
+
 	/**
 	 * @return first repository that matches the given url
 	 */
 	public TaskRepository getRepository(String urlString) {
-		for (String kind: repositoryMap.keySet()) {
+		urlString = stripSlashes(urlString);
+		for (String kind : repositoryMap.keySet()) {
 			for (TaskRepository repository : repositoryMap.get(kind)) {
 				if (repository.getUrl().equals(urlString)) {
 					return repository;
 				}
 			}
-		}		
+		}
 		return null;
 	}
 
 	/**
 	 * @return the first connector to accept the URL
 	 */
-	public AbstractRepositoryConnector getRepositoryForTaskUrl(String url) {
+	public AbstractRepositoryConnector getConnectorForRepositoryTaskUrl(String url) {
 		for (AbstractRepositoryConnector connector : getRepositoryConnectors()) {
 			if (connector.getRepositoryUrlFromTaskUrl(url) != null) {
 				return connector;
@@ -167,7 +195,7 @@ public class TaskRepositoryManager {
 		if (activeTasks.size() == 1) {
 			ITask activeTask = activeTasks.get(0);
 			if (activeTask instanceof AbstractRepositoryTask) {
-				String repositoryUrl = AbstractRepositoryTask.getRepositoryUrl(activeTask.getHandleIdentifier());
+				String repositoryUrl = ((AbstractRepositoryTask) activeTask).getRepositoryUrl();
 				for (TaskRepository repository : getRepositories(repositoryKind)) {
 					if (repository.getUrl().equals(repositoryUrl)) {
 						return repository;
@@ -188,10 +216,10 @@ public class TaskRepositoryManager {
 				return repository;
 			}
 		} else {
-			Collection values = repositoryMap.values();
+			Collection<Set<TaskRepository>> values = repositoryMap.values();
 			if (!values.isEmpty()) {
-				HashSet repoistorySet = (HashSet) values.iterator().next();
-				return (TaskRepository) repoistorySet.iterator().next();
+				Set<TaskRepository> repoistorySet = values.iterator().next();
+				return repoistorySet.iterator().next();
 			}
 		}
 		return null;
@@ -211,7 +239,9 @@ public class TaskRepositoryManager {
 
 	private void loadRepositories(String repositoriesFilePath) {
 		try {
-//			String dataDirectory = TasksUiPlugin.getDefault().getDataDirectory();
+			boolean migration = false;
+			// String dataDirectory =
+			// TasksUiPlugin.getDefault().getDataDirectory();
 			File repositoriesFile = new File(repositoriesFilePath);
 
 			// Will only load repositories for which a connector exists
@@ -222,6 +252,15 @@ public class TaskRepositoryManager {
 				Set<TaskRepository> repositories = externalizer.readRepositoriesFromXML(repositoriesFile);
 				if (repositories != null && repositories.size() > 0) {
 					for (TaskRepository repository : repositories) {
+
+						if (removeHttpAuthMigration(repository)) {
+							migration = true;
+						}
+
+						if (migrateAnonymousRepository(repository)) {
+							migration = true;
+						}
+
 						if (repositoryMap.containsKey(repository.getKind())) {
 							repositoryMap.get(repository.getKind()).add(repository);
 						} else {
@@ -229,10 +268,40 @@ public class TaskRepositoryManager {
 						}
 					}
 				}
+				if (migration) {
+					saveRepositories(repositoriesFilePath);
+				}
 			}
 		} catch (Throwable t) {
 			MylarStatusHandler.fail(t, "could not load repositories", false);
 		}
+	}
+
+	private boolean removeHttpAuthMigration(TaskRepository repository) {
+		String httpusername = repository.getProperty(TaskRepository.AUTH_HTTP_USERNAME);
+		String httppassword = repository.getProperty(TaskRepository.AUTH_HTTP_PASSWORD);
+		if (httpusername != null && httppassword != null) {
+			repository.removeProperty(TaskRepository.AUTH_HTTP_USERNAME);
+			repository.removeProperty(TaskRepository.AUTH_HTTP_PASSWORD);
+			if (httpusername.length() > 0 && httppassword.length() > 0) {
+				repository.setHttpAuthenticationCredentials(httpusername, httppassword);
+			}
+			return true;
+		}
+		return false;
+	}
+
+	// Migration 2.0M1 - 2.0M2
+	private boolean migrateAnonymousRepository(TaskRepository repository) {
+		if (repository.getProperty(TaskRepository.ANONYMOUS_LOGIN) == null) {			
+			if ((repository.getUserName() == null || repository.getPassword() == null) || ("".equals(repository.getUserName()) && "".equals(repository.getPassword()))) {
+				repository.setAnonymous(true);
+			} else {
+				repository.setAnonymous(false);
+			}
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -271,7 +340,7 @@ public class TaskRepositoryManager {
 		// }
 	}
 
-	public boolean saveRepositories(String destinationPath) {
+	public synchronized boolean saveRepositories(String destinationPath) {
 		if (!Platform.isRunning()) {// || TasksUiPlugin.getDefault() == null) {
 			return false;
 		}
@@ -285,8 +354,10 @@ public class TaskRepositoryManager {
 		}
 
 		try {
-//			String dataDirectory = TasksUiPlugin.getDefault().getDataDirectory();
-//			File repositoriesFile = new File(dataDirectory + File.separator + TasksUiPlugin.DEFAULT_REPOSITORIES_FILE);
+			// String dataDirectory =
+			// TasksUiPlugin.getDefault().getDataDirectory();
+			// File repositoriesFile = new File(dataDirectory + File.separator +
+			// TasksUiPlugin.DEFAULT_REPOSITORIES_FILE);
 			File repositoriesFile = new File(destinationPath);
 			externalizer.writeRepositoriesToXML(repositoriesToWrite, repositoriesFile);
 		} catch (Throwable t) {
@@ -315,5 +386,33 @@ public class TaskRepositoryManager {
 		for (ITaskRepositoryListener listener : listeners) {
 			listener.repositorySettingsChanged(repository);
 		}
+	}
+
+	// TODO: run with progress
+	public String getAttachmentContents(RepositoryAttachment attachment) {
+		StringBuffer contents = new StringBuffer();
+		try {
+			TaskRepository repository = getRepository(attachment.getRepositoryKind(), attachment.getRepositoryUrl());
+			AbstractRepositoryConnector connector = getRepositoryConnector(attachment.getRepositoryKind());
+			if (repository == null || connector == null) {
+				return "";
+			}
+			IAttachmentHandler handler = connector.getAttachmentHandler();
+			InputStream stream = new ByteArrayInputStream(handler.getAttachmentData(repository, attachment));
+
+			int c;
+			while ((c = stream.read()) != -1) {
+				/* TODO jpound - handle non-text */
+				contents.append((char) c);
+			}
+			stream.close();
+		} catch (CoreException e) {
+			MylarStatusHandler.fail(e.getStatus().getException(), "Retrieval of attachment data failed.", false);
+			return null;
+		} catch (IOException e) {
+			MylarStatusHandler.fail(e, "Retrieval of attachment data failed.", false);
+			return null;
+		}
+		return contents.toString();
 	}
 }

@@ -19,7 +19,6 @@ import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -64,11 +63,13 @@ public class TaskListNotificationPopup extends PopupDialog {
 		this.notifications = notifications;
 	}
 
+	@Override
 	protected Control createContents(Composite parent) {
 		getShell().setBackground(getShell().getDisplay().getSystemColor(SWT.COLOR_GRAY));
 		return createDialogArea(parent);
 	}
 
+	@Override
 	protected final Control createDialogArea(final Composite parent) {
 
 		getShell().setText(MYLAR_NOTIFICATION_LABEL);
@@ -89,10 +90,11 @@ public class TaskListNotificationPopup extends PopupDialog {
 			if (count < NUM_NOTIFICATIONS_TO_DISPLAY) {
 				Label notificationLabelIcon = toolkit.createLabel(sectionClient, "");
 				notificationLabelIcon.setImage(notification.getOverlayIcon());
-				ImageHyperlink link = toolkit.createImageHyperlink(sectionClient, SWT.BEGINNING | SWT.WRAP); 
+				ImageHyperlink link = toolkit.createImageHyperlink(sectionClient, SWT.BEGINNING | SWT.WRAP);
 				link.setText(notification.getLabel());
 				link.setImage(notification.getNotificationIcon());
 				link.addHyperlinkListener(new HyperlinkAdapter() {
+					@Override
 					public void linkActivated(HyperlinkEvent e) {
 						notification.openTask();
 						IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
@@ -119,7 +121,8 @@ public class TaskListNotificationPopup extends PopupDialog {
 				}
 			} else {
 				int numNotificationsRemain = notifications.size() - count;
-				Hyperlink remainingHyperlink = toolkit.createHyperlink(sectionClient, numNotificationsRemain+NOTIFICATIONS_HIDDEN, SWT.NONE);
+				Hyperlink remainingHyperlink = toolkit.createHyperlink(sectionClient, numNotificationsRemain
+						+ NOTIFICATIONS_HIDDEN, SWT.NONE);
 				GridDataFactory.fillDefaults().span(2, SWT.DEFAULT).applyTo(remainingHyperlink);
 				remainingHyperlink.addHyperlinkListener(new HyperlinkAdapter() {
 
@@ -134,7 +137,8 @@ public class TaskListNotificationPopup extends PopupDialog {
 								windowShell.open();
 							}
 						}
-					}});
+					}
+				});
 				break;
 			}
 			count++;
@@ -142,19 +146,17 @@ public class TaskListNotificationPopup extends PopupDialog {
 
 		section.setClient(sectionClient);
 
-		Composite buttonsComposite = toolkit.createComposite(section);
-		section.setTextClient(buttonsComposite);
-		buttonsComposite.setLayout(new RowLayout());
-		buttonsComposite.setBackground(section.getTitleBarBackground());
-		final ImageHyperlink closeHyperlink = toolkit.createImageHyperlink(buttonsComposite, SWT.NONE);
-		// closeHyperlink.setBackgroundMode(SWT.INHERIT_FORCE);
-		closeHyperlink.setBackground(section.getTitleBarBackground());
-		closeHyperlink.setImage(TaskListImages.getImage(TaskListImages.NOTIFICATION_CLOSE));
-		closeHyperlink.addHyperlinkListener(new HyperlinkAdapter() {
+		ImageHyperlink hyperlink = new ImageHyperlink(section, SWT.NONE);
+		toolkit.adapt(hyperlink, true, true);
+		hyperlink.setBackground(null);
+		hyperlink.setImage(TasksUiImages.getImage(TasksUiImages.NOTIFICATION_CLOSE));
+		hyperlink.addHyperlinkListener(new HyperlinkAdapter() {
 			public void linkActivated(HyperlinkEvent e) {
 				close();
 			}
 		});
+
+		section.setTextClient(hyperlink);
 
 		form.pack();
 		return parent;
@@ -163,6 +165,7 @@ public class TaskListNotificationPopup extends PopupDialog {
 	/**
 	 * Initialize the shell's bounds.
 	 */
+	@Override
 	public void initializeBounds() {
 		getShell().setBounds(restoreBounds());
 	}
@@ -170,9 +173,13 @@ public class TaskListNotificationPopup extends PopupDialog {
 	private Rectangle restoreBounds() {
 		bounds = form.getBounds();
 		Rectangle maxBounds = null;
-		if (getShell() != null && !getShell().isDisposed())
+		// IWorkbenchWindow window =
+		// PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+		// if (window != null) {
+		// maxBounds = window.getShell().getBounds();
+		if (getShell() != null && !getShell().isDisposed()) {
 			maxBounds = getShell().getDisplay().getClientArea();
-		else {
+		} else {
 			// fallback
 			Display display = Display.getCurrent();
 			if (display == null)

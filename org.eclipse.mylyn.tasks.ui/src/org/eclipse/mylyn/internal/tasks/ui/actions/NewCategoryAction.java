@@ -12,40 +12,54 @@
 package org.eclipse.mylar.internal.tasks.ui.actions;
 
 import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.window.Window;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
-import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.tasks.core.TaskCategory;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.ui.IViewActionDelegate;
+import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.PlatformUI;
 
 /**
- * @author Mik Kersten and Ken Sueda
+ * @author Mik Kersten
  */
-public class NewCategoryAction extends Action {
+public class NewCategoryAction extends Action implements IViewActionDelegate {
 
-	public static final String ID = "org.eclipse.mylar.tasklist.actions.create.category";
+	public static final String ID = "org.eclipse.mylar.tasks.ui.actions.create.category";
 
-	private final TaskListView view;
+//	private final TaskListView view;
 
-	public NewCategoryAction(TaskListView view) {
-		this.view = view;
-		setText("New Category");
-		setToolTipText("New Category");
+	protected TaskCategory cat = null;
+
+	public NewCategoryAction() {
+		setText("New Category...");
+		setToolTipText("New Category...");
 		setId(ID);
-		setImageDescriptor(TaskListImages.CATEGORY_NEW);
+		setImageDescriptor(TasksUiImages.CATEGORY_NEW);
 	}
-
+	
+	public void init(IViewPart view) {
+	}
+	
+	public void run(IAction action) {
+		run();
+	}
+	
 	@Override
 	public void run() {
 		InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
 				"Enter name", "Enter a name for the Category: ", "", null);
 		int dialogResult = dialog.open();
 		if (dialogResult == Window.OK) {
-			TaskCategory cat = new TaskCategory(dialog.getValue(), TasksUiPlugin.getTaskListManager().getTaskList());
+			this.cat = new TaskCategory(dialog.getValue(), TasksUiPlugin.getTaskListManager().getTaskList());
 			TasksUiPlugin.getTaskListManager().getTaskList().addCategory(cat);
-			this.view.getViewer().refresh();
+//			this.view.getViewer().refresh();
 		}
+	}
+
+	public void selectionChanged(IAction action, ISelection selection) {
 	}
 }

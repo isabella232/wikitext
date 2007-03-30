@@ -7,11 +7,18 @@
  *
  * Contributors:
  *     University Of British Columbia - initial API and implementation
+ *     Eike tepper - commit comment template preferences
  *******************************************************************************/
 
 package org.eclipse.mylar.internal.team.ui.preferences;
 
+import org.eclipse.jface.fieldassist.IContentProposalProvider;
+import org.eclipse.jface.fieldassist.IControlContentAdapter;
+import org.eclipse.jface.fieldassist.*;
+import org.eclipse.jface.fieldassist.TextContentAdapter;
 import org.eclipse.jface.preference.PreferencePage;
+import org.eclipse.mylar.internal.team.template.TemplateHandlerContentProposalProvider;
+import org.eclipse.mylar.team.AbstractContextChangeSetManager;
 import org.eclipse.mylar.team.MylarTeamPlugin;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
@@ -20,21 +27,19 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Group;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
+import org.eclipse.ui.fieldassist.*;
 
 /**
  * @author Mik Kersten
  */
 public class MylarTeamPreferencePage extends PreferencePage implements IWorkbenchPreferencePage {
+	
+	private Button manageChangeSets;
 
-	private Button changeSetsManage;
-
-	private Text commitPrefixCompleted = null;
-
-	private Text commitPrefixProgress = null;
+	private Text commitTemplate = null;
 
 	public MylarTeamPreferencePage() {
 		super();
@@ -58,14 +63,19 @@ public class MylarTeamPreferencePage extends PreferencePage implements IWorkbenc
 
 	@Override
 	public boolean performOk() {
-		getPreferenceStore().setValue(MylarTeamPlugin.COMMIT_PREFIX_COMPLETED, commitPrefixCompleted.getText());
-		getPreferenceStore().setValue(MylarTeamPlugin.COMMIT_PREFIX_PROGRESS, commitPrefixProgress.getText());
-		getPreferenceStore().setValue(MylarTeamPlugin.CHANGE_SET_MANAGE, changeSetsManage.getSelection());
+		getPreferenceStore().setValue(MylarTeamPlugin.COMMIT_TEMPLATE, commitTemplate.getText());
+		getPreferenceStore().setValue(MylarTeamPlugin.CHANGE_SET_MANAGE, manageChangeSets.getSelection());
 
-		if (changeSetsManage.getSelection()) {
-			MylarTeamPlugin.getDefault().getChangeSetManager().enable();
+		if (manageChangeSets.getSelection()) {
+			for (AbstractContextChangeSetManager changeSetManager : MylarTeamPlugin.getDefault().getContextChangeSetManagers()) {
+				changeSetManager.enable();
+			}
+//			MylarTeamPlugin.getDefault().getChangeSetManager().enable();
 		} else {
-			MylarTeamPlugin.getDefault().getChangeSetManager().disable();
+			for (AbstractContextChangeSetManager changeSetManager : MylarTeamPlugin.getDefault().getContextChangeSetManagers()) {
+				changeSetManager.disable();
+			}
+//			MylarTeamPlugin.getDefault().getChangeSetManager().disable();
 		}
 		return true;
 	}
@@ -75,54 +85,70 @@ public class MylarTeamPreferencePage extends PreferencePage implements IWorkbenc
 		return true;
 	}
 
+	@Override
 	public void performDefaults() {
 		super.performDefaults();
-		commitPrefixCompleted.setText(getPreferenceStore().getDefaultString(MylarTeamPlugin.COMMIT_PREFIX_COMPLETED));
-		commitPrefixProgress.setText(getPreferenceStore().getDefaultString(MylarTeamPlugin.COMMIT_PREFIX_PROGRESS));
-		changeSetsManage.setSelection(getPreferenceStore().getDefaultBoolean(MylarTeamPlugin.CHANGE_SET_MANAGE));
+		commitTemplate.setText(getPreferenceStore()
+				.getDefaultString(MylarTeamPlugin.COMMIT_TEMPLATE));
+		manageChangeSets.setSelection(getPreferenceStore().getDefaultBoolean(MylarTeamPlugin.CHANGE_SET_MANAGE));
 	}
 
-	private Label createLabel(Composite parent, String text) {
-		Label label = new Label(parent, SWT.LEFT);
-		label.setText(text);
-		GridData data = new GridData();
-		data.horizontalSpan = 2;
-		data.horizontalAlignment = GridData.BEGINNING;
-		label.setLayoutData(data);
-		return label;
-	}
+//	private Label createLabel(Composite parent, String text) {
+//		Label label = new Label(parent, SWT.LEFT);
+//		label.setText(text);
+//		GridData data = new GridData();
+//		data.horizontalSpan = 2;
+//		data.horizontalAlignment = GridData.BEGINNING;
+//		label.setLayoutData(data);
+//		return label;
+//	}
 
 	private void createChangeSetGroup(Composite parent) {
 		Group group = new Group(parent, SWT.SHADOW_ETCHED_IN);
-		group.setText("Change Sets");
+		group.setText("Change Set Management");
 		group.setLayout(new GridLayout(1, false));
 		group.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 
-		changeSetsManage = new Button(group, SWT.CHECK);
-		changeSetsManage.setText("Automatically create and manage with task context");
-		changeSetsManage.setSelection(getPreferenceStore().getBoolean(MylarTeamPlugin.CHANGE_SET_MANAGE));
+		manageChangeSets = new Button(group, SWT.CHECK);
+		manageChangeSets.setText("Automatically create and manage with task context");
+		manageChangeSets.setSelection(getPreferenceStore().getBoolean(MylarTeamPlugin.CHANGE_SET_MANAGE));
 	}
 
 	private void createCommitGroup(Composite parent) {
 		Group group = new Group(parent, SWT.SHADOW_ETCHED_IN);
-		group.setText("Automatic Commit Messages");
+		group.setText("Commit Comment Template");
 		group.setLayout(new GridLayout(2, false));
 		group.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 
-		Label completedLabel = createLabel(group, "Completed task prefix: ");
-		completedLabel.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING));
+//		Label completedLabel = createLabel(group, "Template: ");
+//		completedLabel.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING));
 
-		String completedPrefix = getPreferenceStore().getString(MylarTeamPlugin.COMMIT_PREFIX_COMPLETED);
-		commitPrefixCompleted = new Text(group, SWT.BORDER);
-		commitPrefixCompleted.setText(completedPrefix);
-		commitPrefixCompleted.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		String completedTemplate = getPreferenceStore().getString(MylarTeamPlugin.COMMIT_TEMPLATE);
+		commitTemplate = addTemplateField(group, completedTemplate, new TemplateHandlerContentProposalProvider());
+	}
 
-		Label progressLabel = createLabel(group, "In progress task prefix: ");
-		progressLabel.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING));
+	@SuppressWarnings("deprecation")
+	private Text addTemplateField(final Composite parent, final String text, IContentProposalProvider provider) {
+		IControlContentAdapter adapter = new TextContentAdapter();
+		IControlCreator controlCreator = new IControlCreator() {
+			public Control createControl(Composite parent, int style) {
+				Text control = new Text(parent, style);
+				control.setText(text);
+				return control;
+			}
+		};
 
-		String progressPrefix = getPreferenceStore().getString(MylarTeamPlugin.COMMIT_PREFIX_PROGRESS);
-		commitPrefixProgress = new Text(group, SWT.BORDER);
-		commitPrefixProgress.setText(progressPrefix);
-		commitPrefixProgress.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		ContentAssistField field = new ContentAssistField(parent, SWT.BORDER | SWT.MULTI, controlCreator, adapter, provider, null,
+				new char[] { '$' });
+
+		GridData gd = new GridData();
+		gd.heightHint = 60;
+		gd.horizontalAlignment = GridData.FILL;
+		gd.grabExcessHorizontalSpace = true;
+		gd.verticalAlignment = GridData.CENTER;
+		gd.grabExcessVerticalSpace = false;
+		field.getLayoutControl().setLayoutData(gd);
+
+		return (Text) field.getControl();
 	}
 }

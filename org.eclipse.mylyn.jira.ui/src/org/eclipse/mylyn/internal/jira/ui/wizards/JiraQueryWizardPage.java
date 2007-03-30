@@ -13,13 +13,11 @@ package org.eclipse.mylar.internal.jira.ui.wizards;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.mylar.internal.jira.core.model.NamedFilter;
-import org.eclipse.mylar.internal.jira.core.model.filter.FilterDefinition;
 import org.eclipse.mylar.internal.jira.core.service.JiraServer;
 import org.eclipse.mylar.internal.jira.ui.JiraCustomQuery;
 import org.eclipse.mylar.internal.jira.ui.JiraRepositoryQuery;
@@ -45,6 +43,7 @@ import org.eclipse.swt.widgets.List;
  * @author Mik Kersten
  * @author Wesley Coelho (initial integration patch)
  * @author Eugene Kuleshov (layout and other improvements)
+ * @author Steffen Pingel
  */
 public class JiraQueryWizardPage extends AbstractRepositoryQueryPage {
 
@@ -136,8 +135,10 @@ public class JiraQueryWizardPage extends AbstractRepositoryQueryPage {
 				filterList.removeAll();
 				filterList.add(WAIT_MESSAGE);
 				filterList.deselectAll();
-				// FIXME run in job
-				JiraServerFacade.getDefault().refreshServerSettings(repository, new NullProgressMonitor());
+
+				getContainer().updateButtons();
+				updateButton.setEnabled(false);
+
 				downloadFilters();
 			}
 
@@ -157,16 +158,13 @@ public class JiraQueryWizardPage extends AbstractRepositoryQueryPage {
 		if (!buttonCustom.getSelection()) {
 			return null;
 		}
-		if (filterSummaryPage == null) {
-			FilterDefinition workingCopy;
-			if (query instanceof JiraCustomQuery) {
-				JiraServer jiraServer = JiraServerFacade.getDefault().getJiraServer(repository);
-				workingCopy = ((JiraCustomQuery) query).getFilterDefinition(jiraServer);
-			} else {
-				workingCopy = new FilterDefinition();
-			}
 
-			filterSummaryPage = new JiraQueryPage(repository, workingCopy);
+		if (filterSummaryPage == null) {
+			if (query instanceof JiraCustomQuery) {
+				filterSummaryPage = new JiraQueryPage(repository, (JiraCustomQuery) query);
+			} else {
+				filterSummaryPage = new JiraQueryPage(repository);
+			}
 			filterSummaryPage.setWizard(getWizard());
 		}
 		return filterSummaryPage;
@@ -182,15 +180,18 @@ public class JiraQueryWizardPage extends AbstractRepositoryQueryPage {
 			@Override
 			protected IStatus run(final IProgressMonitor monitor) {
 				try {
+					monitor.beginTask("Downloading list of filters", IProgressMonitor.UNKNOWN);
 					JiraServer jiraServer = JiraServerFacade.getDefault().getJiraServer(repository);
 					filters = jiraServer.getNamedFilters();
-
-					monitor.worked(1);
 					monitor.done();
+
 					Display.getDefault().asyncExec(new Runnable() {
 						public void run() {
 							if (!filterList.isDisposed()) {
 								displayFilters(filters);
+							}
+							if (!updateButton.isDisposed() && !buttonSaved.isDisposed()) {
+								updateButton.setEnabled(buttonSaved.getSelection());
 							}
 						}
 					});

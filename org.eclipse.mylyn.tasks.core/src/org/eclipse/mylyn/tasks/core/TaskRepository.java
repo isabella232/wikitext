@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004 - 2006 University Of British Columbia and others.
+ * Copyright (c) 2004 - 2007 University Of British Columbia and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,19 +7,26 @@
  *
  * Contributors:
  *     University Of British Columbia - initial API and implementation
+ *     IBM Corporation - Bug 177320 Pending changes to internal class UpdateCore will break Tasks/Core
  *******************************************************************************/
 
 package org.eclipse.mylar.tasks.core;
 
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
+import java.net.Proxy.Type;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.Platform;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.core.net.WebClientUtil;
+import org.eclipse.update.internal.core.UpdateCore;
 
 /**
  * Note that task repositories use Strings for storing time stamps because using
@@ -37,6 +44,7 @@ import org.eclipse.mylar.context.core.MylarStatusHandler;
  * 
  * @author Mik Kersten
  * @author Rob Elves
+ * @author Eugene Kuleshov
  */
 public class TaskRepository {
 
@@ -46,6 +54,12 @@ public class TaskRepository {
 
 	public static final String AUTH_USERNAME = "org.eclipse.mylar.tasklist.repositories.username"; //$NON-NLS-1$ 
 
+	public static final String ANONYMOUS_LOGIN = "org.eclipse.mylar.tasklist.repositories.anonymous";
+
+	public static final String AUTH_HTTP_PASSWORD = "org.eclipse.mylar.tasklist.repositories.httpauth.password"; //$NON-NLS-1$ 
+
+	public static final String AUTH_HTTP_USERNAME = "org.eclipse.mylar.tasklist.repositories.httpauth.username"; //$NON-NLS-1$ 
+
 	public static final String NO_VERSION_SPECIFIED = "unknown";
 
 	private static final String AUTH_SCHEME = "Basic";
@@ -54,17 +68,38 @@ public class TaskRepository {
 
 	private static final URL DEFAULT_URL;
 
+	public static final String PROXY_USEDEFAULT = "org.eclipse.mylar.tasklist.repositories.proxy.usedefault";
+
+	public static final String PROXY_HOSTNAME = "org.eclipse.mylar.tasklist.repositories.proxy.hostname";
+
+	public static final String PROXY_PORT = "org.eclipse.mylar.tasklist.repositories.proxy.port";
+
+	public static final String PROXY_USERNAME = "org.eclipse.mylar.tasklist.repositories.proxy.username";
+
+	public static final String PROXY_PASSWORD = "org.eclipse.mylar.tasklist.repositories.proxy.password";
+
+	// HACK: Lock used to work around race condition in
+	// Platform.add/get/flushAuthorizationInfo()
+	private static final Object LOCK = new Object();
+
+	// HACK: private credentials for headless operation
+	private static Map<String, Map<String, String>> credentials = new HashMap<String, Map<String, String>>();
+
+	private boolean isCachedUserName;
+
+	private String cachedUserName;
+
 	static {
-		URL u = null;
+		URL url = null;
 		try {
-			u = new URL("http://eclipse.org/mylar");
+			url = new URL("http://eclipse.org/mylar");
 		} catch (Exception ex) {
 			// TODO ?
 		}
-		DEFAULT_URL = u;
+		DEFAULT_URL = url;
 	}
 
-	private Map<String, String> properties = new HashMap<String, String>();
+	private Map<String, String> properties = new LinkedHashMap<String, String>();
 
 	/**
 	 * for testing purposes
@@ -99,6 +134,10 @@ public class TaskRepository {
 		return properties.get(IRepositoryConstants.PROPERTY_URL);
 	}
 
+	// private String getProxyHostname() {
+	// return properties.get(PROXY_HOSTNAME);
+	// }
+
 	public void setUrl(String newUrl) {
 		properties.put(IRepositoryConstants.PROPERTY_URL, newUrl);
 	}
@@ -109,70 +148,141 @@ public class TaskRepository {
 		return username != null && username.length() > 0 && password != null && password.length() > 0;
 	}
 
-	@SuppressWarnings("unchecked")
+	/**
+	 * The username is cached since it needs to be retrieved frequently (e.g.
+	 * for Task List decoration).
+	 */
 	public String getUserName() {
-		Map<String, String> map = getAuthInfo();
-		if (map != null && map.containsKey(AUTH_USERNAME)) {
-			return map.get(AUTH_USERNAME);
-		} else {
-			return null;
+		// NOTE: if anonymous, user name is "" string so we won't go to keyring
+		if (!isCachedUserName) {
+			cachedUserName = getUserNameFromKeyRing();
 		}
+		return cachedUserName;
 	}
 
-	@SuppressWarnings("unchecked")
+	private String getUserNameFromKeyRing() {
+		return getAuthInfo(AUTH_USERNAME);
+	}
+
 	public String getPassword() {
-		Map<String, String> map = getAuthInfo();
-		if (map != null && map.containsKey(AUTH_PASSWORD)) {
-			return map.get(AUTH_PASSWORD);
-		} else {
-			return null;
-		}
+		return getAuthInfo(AUTH_PASSWORD);
 	}
 
-	@SuppressWarnings("unchecked")
-	public void setAuthenticationCredentials(String username, String password) {
-		Map<String, String> map = getAuthInfo();
+	public String getProxyUsername() {
+		return getAuthInfo(PROXY_USERNAME);
+	}
 
+	public String getProxyPassword() {
+		return getAuthInfo(PROXY_PASSWORD);
+	}
+
+	public String getHttpUser() {
+		return getAuthInfo(AUTH_HTTP_USERNAME);
+	}
+
+	public String getHttpPassword() {
+		return getAuthInfo(AUTH_HTTP_PASSWORD);
+	}
+
+	public void setAuthenticationCredentials(String username, String password) {
+		setCredentials(username, password, AUTH_USERNAME, AUTH_PASSWORD);
+		cachedUserName = username;
+		isCachedUserName = true;
+	}
+
+	public void setProxyAuthenticationCredentials(String username, String password) {
+		setCredentials(username, password, PROXY_USERNAME, PROXY_PASSWORD);
+	}
+
+	public void setHttpAuthenticationCredentials(String username, String password) {
+		setCredentials(username, password, AUTH_HTTP_USERNAME, AUTH_HTTP_PASSWORD);
+	}
+
+	private void setCredentials(String username, String password, String userProperty, String passwordProperty) {
+		Map<String, String> map = getAuthInfo();
 		if (map == null) {
-			map = new java.util.HashMap<String, String>();
+			map = new HashMap<String, String>();
 		}
 
 		if (username != null) {
-			map.put(AUTH_USERNAME, username);
+			map.put(userProperty, username);
 		}
 		if (password != null) {
-			map.put(AUTH_PASSWORD, password);
+			map.put(passwordProperty, password);
 		}
-		try {
-			// write the map to the keyring
-			try {
-				Platform.addAuthorizationInfo(new URL(getUrl()), AUTH_REALM, AUTH_SCHEME, map);
-			} catch (MalformedURLException ex) {
-				Platform.addAuthorizationInfo(DEFAULT_URL, getUrl(), AUTH_SCHEME, map);
-			}
-		} catch (CoreException e) {
-			MylarStatusHandler.fail(e, "could not set authorization", true);
-		}
+		addAuthInfo(map);
 	}
 
 	public void flushAuthenticationCredentials() {
-		try {
+		synchronized (LOCK) {
 			try {
-				Platform.flushAuthorizationInfo(new URL(getUrl()), AUTH_REALM, AUTH_SCHEME);
-			} catch (MalformedURLException ex) {
-				Platform.flushAuthorizationInfo(DEFAULT_URL, getUrl(), AUTH_SCHEME);
+				if (Platform.isRunning()) {
+					try {
+						Platform.flushAuthorizationInfo(new URL(getUrl()), AUTH_REALM, AUTH_SCHEME);
+					} catch (MalformedURLException ex) {
+						Platform.flushAuthorizationInfo(DEFAULT_URL, getUrl(), AUTH_SCHEME);
+					}
+				} else {
+					Map<String, String> headlessCreds = getAuthInfo();
+					headlessCreds.clear();
+				}
+				isCachedUserName = false;
+			} catch (CoreException e) {
+				MylarStatusHandler.fail(e, "could not flush authorization credentials", true);
 			}
-		} catch (CoreException e) {
-			MylarStatusHandler.fail(e, "could not set authorization", true);
 		}
 	}
 
-	private Map getAuthInfo() {
-		try {
-			return Platform.getAuthorizationInfo(new URL(getUrl()), AUTH_REALM, AUTH_SCHEME);
-		} catch (MalformedURLException ex) {
-			return Platform.getAuthorizationInfo(DEFAULT_URL, getUrl(), AUTH_SCHEME);
+	private void addAuthInfo(Map<String, String> map) {
+		synchronized (LOCK) {
+			try {
+				if (Platform.isRunning()) {
+					// write the map to the keyring
+					try {
+						Platform.addAuthorizationInfo(new URL(getUrl()), AUTH_REALM, AUTH_SCHEME, map);
+					} catch (MalformedURLException ex) {
+						Platform.addAuthorizationInfo(DEFAULT_URL, getUrl(), AUTH_SCHEME, map);
+					}
+				} else {
+					Map<String, String> headlessCreds = getAuthInfo();
+					headlessCreds.putAll(map);
+				}
+			} catch (CoreException e) {
+				MylarStatusHandler.fail(e, "Could not set authorization credentials", true);
+			}
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, String> getAuthInfo() {
+		synchronized (LOCK) {
+			if (Platform.isRunning()) {
+				try {
+					return Platform.getAuthorizationInfo(new URL(getUrl()), AUTH_REALM, AUTH_SCHEME);
+				} catch (MalformedURLException ex) {
+					return Platform.getAuthorizationInfo(DEFAULT_URL, getUrl(), AUTH_SCHEME);
+				} catch (Exception e) {
+					MylarStatusHandler.fail(e, "Could not retrieve authentication credentials", false);
+				}
+			} else {
+				Map<String, String> headlessCreds = credentials.get(getUrl());
+				if (headlessCreds == null) {
+					headlessCreds = new HashMap<String, String>();
+					credentials.put(getUrl(), headlessCreds);
+				}
+				return headlessCreds;
+			}
+			return null;
+		}
+	}
+
+	private String getAuthInfo(String property) {
+		Map<String, String> map = getAuthInfo();
+		return map == null ? null : map.get(property);
+	}
+
+	public void clearCredentials() {
+
 	}
 
 	@Override
@@ -193,12 +303,21 @@ public class TaskRepository {
 		}
 	}
 
+	@Override
 	public String toString() {
 		return getUrl();
 	}
 
+	/**
+	 * @return "<unknown>" if kind is unknown
+	 */
 	public String getKind() {
-		return properties.get(IRepositoryConstants.PROPERTY_KIND);
+		String kind = properties.get(IRepositoryConstants.PROPERTY_KIND);
+		if (kind != null) {
+			return kind;
+		} else {
+			return IRepositoryConstants.KIND_UNKNOWN;
+		}
 	}
 
 	public String getVersion() {
@@ -254,7 +373,7 @@ public class TaskRepository {
 	}
 
 	public Map<String, String> getProperties() {
-		return this.properties;
+		return new LinkedHashMap<String, String>(this.properties);
 	}
 
 	public String getProperty(String name) {
@@ -270,4 +389,55 @@ public class TaskRepository {
 		return value != null && value.trim().length() > 0;
 	}
 
+	public void removeProperty(String key) {
+		this.properties.remove(key);
+	}
+
+	public Proxy getProxy() {
+		Proxy proxy = Proxy.NO_PROXY;
+		if (useDefaultProxy()) {
+			proxy = getSystemProxy();
+		} else {
+
+			String proxyHost = getProperty(PROXY_HOSTNAME);
+			String proxyPort = getProperty(PROXY_PORT);
+			String proxyUsername = "";
+			String proxyPassword = "";
+			if (proxyHost != null && proxyHost.length() > 0) {
+				proxyUsername = getProxyUsername();
+				proxyPassword = getProxyPassword();
+			}
+			proxy = WebClientUtil.getProxy(proxyHost, proxyPort, proxyUsername, proxyPassword);
+		}
+		return proxy;
+	}
+
+	public boolean useDefaultProxy() {
+		return "true".equals(getProperty(PROXY_USEDEFAULT)) || (getProperty(PROXY_HOSTNAME) == null);
+	}
+
+	/** 
+	 * TODO: move
+	 * utility method, should use TaskRepository.getProxy() 
+	 */
+	public static Proxy getSystemProxy() {
+		Proxy proxy = Proxy.NO_PROXY;
+		if (UpdateCore.getPlugin() != null
+				&& UpdateCore.getPlugin().getPluginPreferences().getBoolean(UpdateCore.HTTP_PROXY_ENABLE)) {
+			String proxyHost = UpdateCore.getPlugin().getPluginPreferences().getString(UpdateCore.HTTP_PROXY_HOST);
+			int proxyPort = UpdateCore.getPlugin().getPluginPreferences().getInt(UpdateCore.HTTP_PROXY_PORT);
+
+			InetSocketAddress sockAddr = new InetSocketAddress(proxyHost, proxyPort);
+			proxy = new Proxy(Type.HTTP, sockAddr);
+		}
+		return proxy;
+	}
+
+	public void setAnonymous(boolean b) {
+		properties.put(ANONYMOUS_LOGIN, String.valueOf(b));
+	}
+
+	public boolean isAnonymous() {				
+		return getProperty(ANONYMOUS_LOGIN) == null || "true".equals(getProperty(ANONYMOUS_LOGIN));
+	}
 }

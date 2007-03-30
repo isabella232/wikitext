@@ -27,7 +27,8 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.jface.wizard.Wizard;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.internal.tasks.ui.util.WebBrowserDialog;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
@@ -68,7 +69,7 @@ public class NewAttachmentWizard extends Wizard {
 		this.repository = repository;
 		setNeedsProgressMonitor(true);
 		setWindowTitle("Add Attachment");
-		setDefaultPageImageDescriptor(TaskListImages.BANNER_REPOSITORY);
+		setDefaultPageImageDescriptor(TasksUiImages.BANNER_REPOSITORY);
 		attachment = new LocalAttachment();
 		attachment.setFilePath("");
 		inputPage = new InputAttachmentSourcePage(this);
@@ -106,19 +107,27 @@ public class NewAttachmentWizard extends Wizard {
 			if (contents == null) {
 				// TODO Handle error
 			}
-
-			File file = new File(TasksUiPlugin.getDefault().getDefaultDataDirectory()
-					+ System.getProperty("file.separator").charAt(0) + "Clipboard-attachment");
+			// File file = new
+			// File(TasksUiPlugin.getDefault().getDefaultDataDirectory()
+			// + System.getProperty("file.separator").charAt(0) +
+			// "Clipboard-attachment");
+			File file = null;
 			try {
+				file = File.createTempFile("clipboard", ".txt");
 				FileWriter writer = new FileWriter(file);
 				writer.write(contents);
 				writer.flush();
 				writer.close();
 			} catch (IOException e) {
 				// TODO Handle error
+				return false;
 			}
-			path = file.getAbsolutePath();
-			attachment.setDeleteAfterUpload(true);
+			if (file != null) {
+				path = file.getAbsolutePath();
+				attachment.setDeleteAfterUpload(true);
+			} else {
+				return false;
+			}
 		}
 		attachment.setFilePath(path);
 
@@ -142,12 +151,12 @@ public class NewAttachmentWizard extends Wizard {
 		Job submitJob = new Job("Submitting attachment") {
 			@Override
 			protected IStatus run(IProgressMonitor monitor) {
-				AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager()
-						.getRepositoryConnector(repository.getKind());
+				AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager().getRepositoryConnector(
+						repository.getKind());
 				try {
 					attachmentHandler.uploadAttachment(repository, task, attachment.getComment(), attachment
 							.getDescription(), new File(attachment.getFilePath()), attachment.getContentType(),
-							attachment.isPatch(), TasksUiPlugin.getDefault().getProxySettings());
+							attachment.isPatch());
 
 					if (attachment.getDeleteAfterUpload()) {
 						File file = new File(attachment.getFilePath());
@@ -157,9 +166,11 @@ public class NewAttachmentWizard extends Wizard {
 					}
 
 					if (attachContext) {
-						connector.attachContext(repository, (AbstractRepositoryTask) task, "", TasksUiPlugin.getDefault().getProxySettings());
-						// attachContext sets outgoing state but we want to recieve incoming
-						// on synchronization. This could result in lost edits so need to 
+						connector.attachContext(repository, task, "");
+						// attachContext sets outgoing state but we want to
+						// recieve incoming
+						// on synchronization. This could result in lost edits
+						// so need to
 						// review the whole attachment interaction.
 						task.setSyncState(RepositoryTaskSyncState.SYNCHRONIZED);
 					}
@@ -180,14 +191,15 @@ public class NewAttachmentWizard extends Wizard {
 						});
 					}
 				}
-				
+
 				TasksUiPlugin.getSynchronizationManager().synchronize(connector, task, false, new JobChangeAdapter() {
+					@Override
 					public void done(final IJobChangeEvent event) {
 						if (event.getResult().getException() != null) {
 							PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
 								public void run() {
 									MessageDialog.openError(Display.getDefault().getActiveShell(),
-											TasksUiPlugin.TITLE_DIALOG, event.getResult().getMessage());
+											ITasksUiConstants.TITLE_DIALOG, event.getResult().getMessage());
 								}
 							});
 						}
@@ -227,8 +239,11 @@ public class NewAttachmentWizard extends Wizard {
 		return inputPage.getAttachmentName();
 	}
 
+	@Override
 	public IWizardPage getNextPage(IWizardPage page) {
-		attachPage.setFilePath(inputPage.getAttachmentName());
+		if (page == inputPage) {
+			attachPage.setFilePath(inputPage.getAttachmentName());
+		}
 		return super.getNextPage(page);
 	}
 
@@ -244,6 +259,7 @@ public class NewAttachmentWizard extends Wizard {
 		return inputPage.getClipboardContents();
 	}
 
+	@Override
 	public boolean needsPreviousAndNextButtons() {
 		return true;
 	}

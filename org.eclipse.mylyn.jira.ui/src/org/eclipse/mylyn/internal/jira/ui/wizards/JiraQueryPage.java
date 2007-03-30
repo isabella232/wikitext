@@ -82,7 +82,6 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
@@ -100,8 +99,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 
 	private static final String TITLE_PAGE = "JIRA Query";
 
-	protected final static String PAGE_NAME = "Jira" +
-			"SearchPage"; //$NON-NLS-1$
+	protected final static String PAGE_NAME = "Jira" + "SearchPage"; //$NON-NLS-1$
 
 	private static final String SEARCH_URL_ID = PAGE_NAME + ".SEARCHURL";
 
@@ -205,14 +203,22 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 
 	private boolean firstTime = true;
 
-	public JiraQueryPage(TaskRepository repository, FilterDefinition workingCopy) {
+	public JiraQueryPage(TaskRepository repository, JiraCustomQuery query) {
 		super(TITLE_PAGE);
 		this.repository = repository;
 		this.server = JiraServerFacade.getDefault().getJiraServer(repository);
-		this.workingCopy = workingCopy;
+		if (query != null) {
+			this.workingCopy = query.getFilterDefinition(server);
+		} else {
+			this.workingCopy = new FilterDefinition();
+		}
 
 		setDescription("Add search filters to define query.");
 		setPageComplete(false);
+	}
+
+	public JiraQueryPage(TaskRepository repository) {
+		this(repository, null);
 	}
 
 	public void createControl(final Composite parent) {
@@ -222,12 +228,12 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 		c.setLayout(new GridLayout(3, false));
 		c.setLayoutData(new GridData(GridData.FILL_BOTH));
 		setControl(c);
-		
+
 		if (!inSearchContainer()) {
 			Label lblName = new Label(c, SWT.NONE);
 			final GridData gridData = new GridData();
 			lblName.setLayoutData(gridData);
-			lblName.setText("Name:");
+			lblName.setText("Query Title:");
 
 			title = new Text(c, SWT.BORDER);
 			title.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, false, 2, 1));
@@ -302,6 +308,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			{
 				Composite comp = new Composite(cc, SWT.NONE);
 				GridLayout gridLayout = new GridLayout();
+				gridLayout.marginHeight = 0;
 				gridLayout.marginWidth = 0;
 				comp.setLayout(gridLayout);
 
@@ -330,6 +337,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			{
 				Composite comp = new Composite(cc, SWT.NONE);
 				GridLayout gridLayout = new GridLayout();
+				gridLayout.marginHeight = 0;
 				gridLayout.marginWidth = 0;
 				comp.setLayout(gridLayout);
 
@@ -358,6 +366,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			{
 				Composite comp = new Composite(cc, SWT.NONE);
 				GridLayout gridLayout = new GridLayout();
+				gridLayout.marginHeight = 0;
 				gridLayout.marginWidth = 0;
 				comp.setLayout(gridLayout);
 
@@ -386,6 +395,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			{
 				Composite comp = new Composite(cc, SWT.NONE);
 				GridLayout gridLayout = new GridLayout();
+				gridLayout.marginHeight = 0;
 				gridLayout.marginWidth = 0;
 				comp.setLayout(gridLayout);
 
@@ -415,12 +425,16 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 		sashForm.setWeights(new int[] { 1, 1 });
 
 		createUpdateButton(c);
-		
+
 		Label lblQuery = new Label(c, SWT.NONE);
-		lblQuery.setLayoutData(new GridData());
+		final GridData gd_lblQuery = new GridData();
+		gd_lblQuery.verticalIndent = 7;
+		lblQuery.setLayoutData(gd_lblQuery);
 		lblQuery.setText("Query:");
 		queryString = new Text(c, SWT.BORDER);
-		queryString.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, false, 2, 1));
+		final GridData gd_queryString = new GridData(SWT.FILL, SWT.FILL, false, false, 2, 1);
+		gd_queryString.verticalIndent = 7;
+		queryString.setLayoutData(gd_queryString);
 		// TODO put content assist here and a label describing what is
 		// available
 
@@ -612,12 +626,24 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			dueEndDatePicker = new DatePicker(composite, SWT.BORDER, "<end date>");
 		}
 
+		{
+			// Label maxHitsLabel = new Label(c, SWT.NONE);
+			// maxHitsLabel.setText("Maximum Results:");
+			//
+			// Composite composite = new Composite(c, SWT.NONE);
+			// FillLayout fillLayout = new FillLayout();
+			// fillLayout.spacing = 5;
+			// composite.setLayout(fillLayout);
+			// composite.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false,
+			// false, 2, 1));
+		}
+
 		// new FillLayout()f validation here
-//		if (isNew) {
-			loadDefaults();
-//		} else {
-			
-//		}
+		// if (isNew) {
+		loadDefaults();
+		// } else {
+
+		// }
 	}
 
 	private void createReportedInViewer(Composite c) {
@@ -776,15 +802,10 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 		});
 	}
 
-	protected Control createUpdateButton(final Composite control) {
-		Composite group = new Composite(control, SWT.NONE);
-		GridLayout layout = new GridLayout(2, false);
-		group.setLayout(layout);
-		group.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, false, 3, 1));
-
-		Button updateButton = new Button(group, SWT.PUSH);
+	protected void createUpdateButton(final Composite control) {
+		Button updateButton = new Button(control, SWT.PUSH);
 		updateButton.setText("Update Attributes from Repository");
-		updateButton.setLayoutData(new GridData());
+		updateButton.setLayoutData(new GridData(SWT.RIGHT, SWT.FILL, false, false, 3, 1));
 		updateButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
@@ -793,8 +814,6 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 				loadFromWorkingCopy();
 			}
 		});
-
-		return group;
 	}
 
 	void updateCurrentProject(Project project) {
@@ -812,23 +831,29 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 	// }
 	// }
 
+	@Override
+	public boolean isPageComplete() {
+		return super.isPageComplete();
+	}
+
 	void validatePage() {
 		// causes exception in WizardDialog
-		//getContainer().updateButtons();
+		// getContainer().updateButtons();
 		setPageComplete(isPageComplete());
 	}
 
 	private void loadDefaults() {
-//		project.setSelection(new StructuredSelection(new Placeholder("All Projects")));
+		// project.setSelection(new StructuredSelection(new Placeholder("All
+		// Projects")));
 		searchSummary.setSelection(true);
 		searchDescription.setSelection(true);
 
-//		issueType.setSelection(new StructuredSelection(ANY_ISSUE_TYPE));
-//		reporterType.setSelection(new StructuredSelection(ANY_REPORTER));
-//		assigneeType.setSelection(new StructuredSelection(ANY_ASSIGNEE));
-//		status.setSelection(new StructuredSelection(ANY_STATUS));
-//		resolution.setSelection(new StructuredSelection(ANY_RESOLUTION));
-//		priority.setSelection(new StructuredSelection(ANY_PRIORITY));
+		// issueType.setSelection(new StructuredSelection(ANY_ISSUE_TYPE));
+		// reporterType.setSelection(new StructuredSelection(ANY_REPORTER));
+		// assigneeType.setSelection(new StructuredSelection(ANY_ASSIGNEE));
+		// status.setSelection(new StructuredSelection(ANY_STATUS));
+		// resolution.setSelection(new StructuredSelection(ANY_RESOLUTION));
+		// priority.setSelection(new StructuredSelection(ANY_PRIORITY));
 	}
 
 	private void loadFromWorkingCopy() {
@@ -1275,8 +1300,8 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 
 	private void updateAttributesFromRepository(final boolean force) {
 		if (!server.hasDetails() || force) {
-			final AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager()
-			.getRepositoryConnector(repository.getKind());
+			final AbstractRepositoryConnector connector = TasksUiPlugin.getRepositoryManager().getRepositoryConnector(
+					repository.getKind());
 			try {
 				IRunnableWithProgress runnable = new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
@@ -1298,7 +1323,8 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 				}
 			} catch (InvocationTargetException e) {
 				if (e.getCause() instanceof CoreException) {
-					MylarStatusHandler.displayStatus("Error updating attributes", ((CoreException)e.getCause()).getStatus());
+					MylarStatusHandler.displayStatus("Error updating attributes", ((CoreException) e.getCause())
+							.getStatus());
 				} else {
 					MylarStatusHandler.fail(e, "Error updating attributes", true);
 				}
@@ -1330,7 +1356,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 
 		});
 		project.setInput(server);
-		
+
 		issueType.setContentProvider(new IStructuredContentProvider() {
 
 			public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
@@ -1349,7 +1375,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			}
 		});
 		issueType.setInput(server);
-		
+
 		status.setContentProvider(new IStructuredContentProvider() {
 
 			public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
@@ -1388,7 +1414,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			}
 		});
 		resolution.setInput(server);
-		
+
 		priority.setContentProvider(new IStructuredContentProvider() {
 
 			public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
@@ -1408,7 +1434,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 		});
 		priority.setInput(server);
 	}
-	
+
 	@Override
 	public void setVisible(boolean visible) {
 		super.setVisible(visible);
@@ -1417,7 +1443,7 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 			scontainer.setPerformActionEnabled(true);
 		}
 
-		if (visible && firstTime ) {
+		if (visible && firstTime) {
 			firstTime = false;
 			if (!server.hasDetails()) {
 				// delay the execution so the dialog's progress bar is visible
@@ -1457,14 +1483,14 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 
 	private boolean restoreWidgetValues() {
 		IDialogSettings settings = getDialogSettings();
-		
+
 		String searchUrl = settings.get(SEARCH_URL_ID + "." + repository.getUrl());
 		if (searchUrl == null) {
 			return false;
 		}
 
-		JiraCustomQuery query = new JiraCustomQuery("", searchUrl, repository.getUrl(), repository.getCharacterEncoding(), TasksUiPlugin
-				.getTaskListManager().getTaskList());
+		JiraCustomQuery query = new JiraCustomQuery("", searchUrl, repository.getUrl(), repository
+				.getCharacterEncoding(), TasksUiPlugin.getTaskListManager().getTaskList());
 		workingCopy = query.getFilterDefinition(server);
 		return true;
 	}
@@ -1569,7 +1595,8 @@ public class JiraQueryPage extends AbstractRepositoryQueryPage {
 		this.applyChanges();
 
 		String url = repository.getUrl();
-		return new JiraCustomQuery(url, workingCopy, repository.getCharacterEncoding(), TasksUiPlugin
-				.getTaskListManager().getTaskList());
+		JiraCustomQuery query = new JiraCustomQuery(url, workingCopy, repository.getCharacterEncoding(),
+				TasksUiPlugin.getTaskListManager().getTaskList());
+		return query;
 	}
 }

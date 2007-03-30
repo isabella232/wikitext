@@ -16,10 +16,10 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.internal.context.ui.UiUtil;
-import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IViewActionDelegate;
 import org.eclipse.ui.IViewPart;
@@ -52,6 +52,12 @@ public abstract class AbstractInterestManipulationAction implements IViewActionD
 	protected abstract boolean isIncrement();
 
 	public void run(IAction action) {
+		if (!ContextCorePlugin.getContextManager().isContextActive()) {
+			MessageDialog.openInformation(Display.getCurrent().getActiveShell(), ITasksUiConstants.TITLE_DIALOG,
+					MESSAGE_NO_CONTEXT);
+			return;
+		}
+
 		boolean increment = isIncrement();
 		ISelection currentSelection = null;
 		if (action instanceof ObjectPluginAction) {
@@ -72,7 +78,7 @@ public abstract class AbstractInterestManipulationAction implements IViewActionD
 				if (object instanceof IMylarElement) {
 					node = (IMylarElement) object;
 				} else {
-					IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(object);
+					AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(object);
 					String handle = bridge.getHandleIdentifier(object);
 					node = ContextCorePlugin.getContextManager().getElement(handle);
 				}
@@ -87,26 +93,23 @@ public abstract class AbstractInterestManipulationAction implements IViewActionD
 							// ignore
 						}
 					}
-					boolean manipulated = ContextCorePlugin.getContextManager().manipulateInterestForElement(node, increment,
-							false, SOURCE_ID);
+					boolean manipulated = ContextCorePlugin.getContextManager().manipulateInterestForElement(node,
+							increment, false, SOURCE_ID);
 					if (!manipulated) {
 						UiUtil.displayInterestManipulationFailure();
 					}
-				} else {
-					MessageDialog.openInformation(Display.getCurrent().getActiveShell(),
-							TasksUiPlugin.TITLE_DIALOG, MESSAGE_NO_CONTEXT);
 				}
 			}
 		} else {
 			IMylarElement node = ContextCorePlugin.getContextManager().getActiveElement();
 			if (node != null) {
-				boolean manipulated = ContextCorePlugin.getContextManager().manipulateInterestForElement(node, increment,
-						false, SOURCE_ID);
+				boolean manipulated = ContextCorePlugin.getContextManager().manipulateInterestForElement(node,
+						increment, false, SOURCE_ID);
 				if (!manipulated) {
 					UiUtil.displayInterestManipulationFailure();
 				}
 			} else {
-				MessageDialog.openInformation(Display.getCurrent().getActiveShell(), TasksUiPlugin.TITLE_DIALOG,
+				MessageDialog.openInformation(Display.getCurrent().getActiveShell(), ITasksUiConstants.TITLE_DIALOG,
 						MESSAGE_NO_CONTEXT);
 				// MylarStatusHandler.log("no active element for interest
 				// manipulation", this);

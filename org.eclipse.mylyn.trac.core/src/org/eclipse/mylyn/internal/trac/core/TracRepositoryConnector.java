@@ -12,26 +12,32 @@
 package org.eclipse.mylar.internal.trac.core;
 
 import java.io.File;
-import java.net.Proxy;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.trac.core.ITracClient.Version;
 import org.eclipse.mylar.internal.trac.core.TracTask.Kind;
 import org.eclipse.mylar.internal.trac.core.model.TracTicket;
 import org.eclipse.mylar.internal.trac.core.model.TracTicket.Key;
+import org.eclipse.mylar.internal.trac.core.util.TracUtils;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.IAttachmentHandler;
-import org.eclipse.mylar.tasks.core.IOfflineTaskHandler;
 import org.eclipse.mylar.tasks.core.ITask;
+import org.eclipse.mylar.tasks.core.ITaskDataHandler;
 import org.eclipse.mylar.tasks.core.QueryHitCollector;
+import org.eclipse.mylar.tasks.core.RepositoryOperation;
+import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 
 /**
@@ -39,13 +45,11 @@ import org.eclipse.mylar.tasks.core.TaskRepository;
  */
 public class TracRepositoryConnector extends AbstractRepositoryConnector {
 
-	private final static String CLIENT_LABEL = "Trac (supports 0.9 and later or XML-RPC)";
-
-	private List<String> supportedVersions;
+	private final static String CLIENT_LABEL = "Trac (supports 0.9 or 0.10 through Web and XML-RPC)";
 
 	private TracClientManager clientManager;
 
-	private TracOfflineTaskHandler offlineTaskHandler = new TracOfflineTaskHandler(this);
+	private TracTaskDataHandler taskDataHandler = new TracTaskDataHandler(this);
 
 	private TracAttachmentHandler attachmentHandler = new TracAttachmentHandler(this);
 
@@ -78,19 +82,21 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 		if (url == null) {
 			return null;
 		}
-		int i = url.lastIndexOf(ITracClient.TICKET_URL);
-		return (i != -1) ? url.substring(0, i) : null;
+		int index = url.lastIndexOf(ITracClient.TICKET_URL);
+		return index == -1 ? null : url.substring(0, index);
+	}
+
+	public String getTaskIdFromTaskUrl(String url) {
+		if (url == null) {
+			return null;
+		}
+		int index = url.lastIndexOf(ITracClient.TICKET_URL);
+		return index == -1 ? null : url.substring(index + ITracClient.TICKET_URL.length());
 	}
 
 	@Override
-	public List<String> getSupportedVersions() {
-		if (supportedVersions == null) {
-			supportedVersions = new ArrayList<String>();
-			for (Version version : Version.values()) {
-				supportedVersions.add(version.toString());
-			}
-		}
-		return supportedVersions;
+	public String getTaskWebUrl(String repositoryUrl, String taskId) {
+		return repositoryUrl + ITracClient.TICKET_URL + taskId;
 	}
 
 	@Override
@@ -99,18 +105,27 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 	}
 
 	@Override
-	public IOfflineTaskHandler getOfflineTaskHandler() {
-		return offlineTaskHandler;
+	public ITaskDataHandler getTaskDataHandler() {
+		return taskDataHandler;
 	}
 
 	@Override
-	public void updateTaskState(AbstractRepositoryTask repositoryTask) {
-		// TODO Auto-generated method stub
+	public void updateTask(TaskRepository repository, AbstractRepositoryTask repositoryTask) throws CoreException {
+		if (repositoryTask instanceof TracTask) {
+//			String taskId = RepositoryTaskHandleUtil.getTaskId(repositoryTask.getHandleIdentifier());
+			try {
+				ITracClient connection = getClientManager().getRepository(repository);
+				TracTicket ticket = connection.getTicket(Integer.parseInt(repositoryTask.getTaskId()));
+				updateTaskDetails((TracTask) repositoryTask, ticket, false);
+			} catch (Exception e) {
+				throw new CoreException(TracCorePlugin.toStatus(e));
+			}
+		}
 	}
 
 	@Override
 	public IStatus performQuery(AbstractRepositoryQuery query, TaskRepository repository,
-			Proxy proxySettings, IProgressMonitor monitor, QueryHitCollector resultCollector) {
+			IProgressMonitor monitor, QueryHitCollector resultCollector) {
 
 		final List<TracTicket> tickets = new ArrayList<TracTicket>();
 
@@ -125,8 +140,8 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 				TracQueryHit hit = new TracQueryHit(taskList, query.getRepositoryUrl(), getTicketDescription(ticket), ticket
 						.getId()
 						+ "");
-				hit.setCompleted(TracTask.isCompleted(ticket.getValue(Key.STATUS)));
 				hit.setPriority(TracTask.getMylarPriority(ticket.getValue(Key.PRIORITY)));
+				hit.setCompleted(TracTask.isCompleted(ticket.getValue(Key.STATUS)));
 				resultCollector.accept(hit);
 			}
 		} catch (Throwable e) {			
@@ -135,20 +150,85 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 
 		return Status.OK_STATUS;
 	}
+
+	@Override
+	public Set<AbstractRepositoryTask> getChangedSinceLastSync(TaskRepository repository,
+			Set<AbstractRepositoryTask> tasks) throws CoreException {
+		if (repository.getSyncTimeStamp() == null) {
+			return tasks;
+		}
+
+		if (!TracRepositoryConnector.hasChangedSince(repository)) {
+			// return an empty list to avoid causing all tasks to synchronized
+			return Collections.emptySet();
+		}
+
+		Date since = new Date(0);
+		try {
+			since = TracUtils.parseDate(Integer.parseInt(repository.getSyncTimeStamp()));
+		} catch (NumberFormatException e) {
+		}
+
+		ITracClient client;
+		try {
+			client = getClientManager().getRepository(repository);
+			Set<Integer> ids = client.getChangedTickets(since);
+
+			Set<AbstractRepositoryTask> result = new HashSet<AbstractRepositoryTask>();
+			if (!ids.isEmpty()) {
+				for (AbstractRepositoryTask task : tasks) {
+					Integer id = Integer.parseInt(task.getTaskId());
+					if (ids.contains(id)) {
+						result.add(task);
+					}
+				}
+			}
+			return result;
+		} catch (Exception e) {
+			throw new CoreException(new Status(IStatus.ERROR, TracCorePlugin.PLUGIN_ID, IStatus.OK,
+					"could not determine changed tasks", e));
+		}
+	}
+
 	
 	@Override
-	public ITask createTaskFromExistingKey(TaskRepository repository, String id, Proxy proxySettings) throws CoreException {
+	public AbstractRepositoryTask createTaskFromExistingKey(TaskRepository repository, String taskId) throws CoreException {
+		int taskIdInt = getTicketId(taskId);
+		
+//		String handle = AbstractRepositoryTask.getHandle(repository.getUrl(), bugId);
+		TracTask task;
+		ITask existingTask = taskList.getTask(repository.getUrl(), taskId);
+		if (existingTask instanceof TracTask) {
+			task = (TracTask) existingTask;
+		} else {
+			RepositoryTaskData taskData = taskDataHandler.downloadTaskData(repository, taskIdInt);
+			if (taskData != null) {
+				task = new TracTask(repository.getUrl(), taskId, getTicketDescription(taskData), true);
+				task.setTaskData(taskData);
+				taskList.addTask(task);
+			} else {
+				// repository does not support XML-RPC, fall back to web access
+				try {
+					ITracClient connection = getClientManager().getRepository(repository);
+					TracTicket ticket = connection.getTicket(taskIdInt);
+
+					task = new TracTask(repository.getUrl(), taskId, getTicketDescription(ticket), true);
+					updateTaskDetails(task, ticket, false);
+					taskList.addTask(task);
+				} catch (Exception e) {
+					throw new CoreException(TracCorePlugin.toStatus(e, repository));
+				}
+			}
+		}
+		return task;
+	}
+
+	public static int getTicketId(String taskId) throws CoreException {
 		try {
-			ITracClient connection = getClientManager().getRepository(repository);
-			TracTicket ticket = connection.getTicket(Integer.parseInt(id));
-
-			String handleIdentifier = AbstractRepositoryTask.getHandle(repository.getUrl(), ticket.getId());
-			TracTask task = createTask(ticket, handleIdentifier);
-			updateTaskDetails(task, ticket, true);
-
-			return task;
-		} catch (Exception e) {
-			throw new CoreException(TracCorePlugin.toStatus(e));
+			return Integer.parseInt(taskId);
+		} catch (NumberFormatException e) {
+			throw new CoreException(new Status(IStatus.ERROR, TracCorePlugin.PLUGIN_ID, IStatus.OK,
+						"Invalid ticket id: " + taskId, e));
 		}
 	}
 
@@ -163,13 +243,14 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 		return clientManager;
 	}
 
-	public TracTask createTask(TracTicket ticket, String handleIdentifier) {
+	public TracTask createTask(TracTicket ticket, String repositoryUrl, String taskId) {
 		TracTask task;
-		ITask existingTask = taskList.getTask(handleIdentifier);
+//		String handleIdentifier = AbstractRepositoryTask.getHandle(repositoryUrl, taskId);
+		ITask existingTask = taskList.getTask(repositoryUrl, taskId);
 		if (existingTask instanceof TracTask) {
 			task = (TracTask) existingTask;
 		} else {
-			task = new TracTask(handleIdentifier, getTicketDescription(ticket), true);
+			task = new TracTask(repositoryUrl, taskId, getTicketDescription(ticket), true);
 			taskList.addTask(task);
 		}
 		return task;
@@ -197,19 +278,27 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 		}
 	}
 
-	private static String getTicketDescription(TracTicket ticket) {
-		return ticket.getId() + ": " + ticket.getValue(Key.SUMMARY);
+	public static String getTicketDescription(TracTicket ticket) {
+		return /* ticket.getId() + ": " + */ ticket.getValue(Key.SUMMARY);
 	}
 
-	public boolean hasChangedSince(TaskRepository repository) {
+	public static String getTicketDescription(RepositoryTaskData taskData) {
+		return taskData.getId() + ":" + taskData.getSummary();
+	}
+
+	public static boolean hasChangedSince(TaskRepository repository) {
 		return Version.XML_RPC.name().equals(repository.getVersion());
 	}
 
-	public boolean hasRichEditor(TaskRepository repository, AbstractRepositoryTask task) {
+	public static boolean hasRichEditor(TaskRepository repository) {
 		return Version.XML_RPC.name().equals(repository.getVersion());
 	}
 
-	public boolean hasAttachmentSupport(TaskRepository repository, AbstractRepositoryTask task) {
+	public static boolean hasRichEditor(TaskRepository repository, AbstractRepositoryTask task) {
+		return hasRichEditor(repository);
+	}
+
+	public static boolean hasAttachmentSupport(TaskRepository repository, AbstractRepositoryTask task) {
 		return Version.XML_RPC.name().equals(repository.getVersion());
 	}
 
@@ -220,12 +309,12 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 	}
 
 	@Override
-	public void updateAttributes(TaskRepository repository, Proxy proxySettings, IProgressMonitor monitor) throws CoreException {
+	public void updateAttributes(TaskRepository repository, IProgressMonitor monitor) throws CoreException {
 		try {
 			ITracClient client = getClientManager().getRepository(repository);
 			client.updateAttributes(monitor, true);
 		} catch (Exception e) {
-			MylarStatusHandler.fail(e, "Could not update attributes", false);
+			throw new CoreException(new TracStatus(IStatus.INFO, TracCorePlugin.PLUGIN_ID, Status.WARNING, "Could not update attributes", null));
 		}
 	}
 	
@@ -236,4 +325,70 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 		return repository.getUserName();
 	}
 
+	@Override
+	public String getTaskIdPrefix() {
+		return "#";
+	}
+
+	public static TracTicket getTracTicket(TaskRepository repository, RepositoryTaskData data) throws InvalidTicketException {
+		TracTicket ticket = new TracTicket(Integer.parseInt(data.getId()));
+	
+		List<RepositoryTaskAttribute> attributes = data.getAttributes();
+		for (RepositoryTaskAttribute attribute : attributes) {
+			if (TracAttributeFactory.isInternalAttribute(attribute.getID())) {
+				// ignore
+			} else if (!attribute.isReadOnly()) {
+				ticket.putValue(attribute.getID(), attribute.getValue());
+			}
+		}
+
+		// set cc value
+		StringBuilder sb = new StringBuilder();
+		List<String> removeValues = data.getAttributeValues(RepositoryTaskAttribute.REMOVE_CC);
+		List<String> values = data.getAttributeValues(RepositoryTaskAttribute.USER_CC);
+		for (String user : values) {
+			if (!removeValues.contains(user)) {
+				if (sb.length() > 0) {
+					sb.append(",");
+				}
+				sb.append(user);
+			}
+		}
+		if (data.getAttributeValue(RepositoryTaskAttribute.NEW_CC).length() > 0) {
+			if (sb.length() > 0) {
+				sb.append(",");
+			}
+			sb.append(data.getAttributeValue(RepositoryTaskAttribute.NEW_CC));
+		}
+		if (RepositoryTaskAttribute.TRUE.equals(data.getAttributeValue(RepositoryTaskAttribute.ADD_SELF_CC))) {
+			if (sb.length() > 0) {
+				sb.append(",");
+			}
+			sb.append(repository.getUserName());
+		}
+		ticket.putBuiltinValue(Key.CC, sb.toString());
+		
+		RepositoryOperation operation = data.getSelectedOperation();
+		if (operation != null) {
+			String action = operation.getKnobName();
+			if (!"leave".equals(action)) {
+				if ("accept".equals(action)) {
+					ticket.putValue("status", "assigned");
+					ticket.putValue("owner", getDisplayUsername(repository));
+				} else if ("resolve".equals(action)) {
+					ticket.putValue("status", "closed");
+					ticket.putValue("resolution", operation.getOptionSelection());
+				} else if ("reopen".equals(action)) {
+					ticket.putValue("status", "reopened");
+					ticket.putValue("resolution", "");
+				} else if ("reassign".equals(operation.getKnobName())) {
+					ticket.putValue("status", "new");
+					ticket.putValue("owner", operation.getInputValue());
+				}
+			}
+		}
+	
+		return ticket;
+	}
+	
 }

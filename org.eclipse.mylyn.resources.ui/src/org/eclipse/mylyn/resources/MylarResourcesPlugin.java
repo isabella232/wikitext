@@ -11,6 +11,7 @@
 package org.eclipse.mylar.resources;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.MissingResourceException;
@@ -23,16 +24,17 @@ import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
+import org.eclipse.mylar.context.core.IMylarContext;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.resources.ResourceChangeMonitor;
 import org.eclipse.mylar.internal.resources.ResourceInteractionMonitor;
 import org.eclipse.mylar.internal.resources.ResourceInterestUpdater;
+import org.eclipse.mylar.internal.resources.ui.ContextEditorManager;
 import org.eclipse.mylar.internal.resources.ui.EditorInteractionMonitor;
-import org.eclipse.mylar.internal.resources.ui.MylarEditorManager;
-import org.eclipse.mylar.monitor.MylarMonitorPlugin;
+import org.eclipse.mylar.monitor.ui.MylarMonitorUiPlugin;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
@@ -42,11 +44,13 @@ import org.osgi.framework.BundleContext;
  */
 public class MylarResourcesPlugin extends AbstractUIPlugin {
 
+	public static final String PLUGIN_ID = "org.eclipse.mylar.resources";
+	
 	private static MylarResourcesPlugin plugin;
 
 	private ResourceChangeMonitor resourceChangeMonitor = new ResourceChangeMonitor();
 	
-	private MylarEditorManager editorManager = new MylarEditorManager();
+	private ContextEditorManager editorManager = new ContextEditorManager();
 
 	private ResourceInteractionMonitor resourceInteractionMonitor;
 
@@ -55,7 +59,7 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 	private ResourceInterestUpdater interestUpdater = new ResourceInterestUpdater();
 	
 	private ResourceBundle resourceBundle;
-
+	
 	private static final String PREF_STORE_DELIM = ", ";
 
 	public static final String PREF_RESOURCES_IGNORED = "org.eclipse.mylar.ide.resources.ignored.pattern";
@@ -78,7 +82,7 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 		initPreferenceDefaults();
 
 		ContextCorePlugin.getContextManager().addListener(editorManager);
-		MylarMonitorPlugin.getDefault().getSelectionMonitors().add(resourceInteractionMonitor);
+		MylarMonitorUiPlugin.getDefault().getSelectionMonitors().add(resourceInteractionMonitor);
 
 		ResourcesPlugin.getWorkspace().addResourceChangeListener(resourceChangeMonitor,
 				IResourceChangeEvent.POST_CHANGE);
@@ -117,7 +121,7 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 			
 			ResourcesPlugin.getWorkspace().removeResourceChangeListener(resourceChangeMonitor);
 			ContextCorePlugin.getContextManager().removeListener(editorManager);
-			MylarMonitorPlugin.getDefault().getSelectionMonitors().remove(resourceInteractionMonitor);
+			MylarMonitorUiPlugin.getDefault().getSelectionMonitors().remove(resourceInteractionMonitor);
 		} catch (Exception e) {
 			MylarStatusHandler.fail(e, "Mylar XML stop failed", false);
 		}
@@ -127,13 +131,14 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 		getPreferenceStore().setDefault(PREF_RESOURCES_IGNORED, PREF_VAL_DEFAULT_RESOURCES_IGNORED);
 	}
 
-	public List<IResource> getInterestingResources() {
+	public List<IResource> getInterestingResources(IMylarContext context) {
 		List<IResource> interestingResources = new ArrayList<IResource>();
-		List<IMylarElement> resourceElements = ContextCorePlugin.getContextManager().getInterestingDocuments();
+		Collection<IMylarElement> resourceElements = ContextCorePlugin.getContextManager().getInterestingDocuments(context);
 		for (IMylarElement element : resourceElements) {
 			IResource resource = getResourceForElement(element, false);
-			if (resource != null)
+			if (resource != null) {
 				interestingResources.add(resource);
+			}
 		}
 		return interestingResources;
 	}
@@ -151,7 +156,7 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 		Set<String> ignored = new HashSet<String>();
 		String read = getPreferenceStore().getString(PREF_RESOURCES_IGNORED);
 		if (read != null) {
-			StringTokenizer st = new StringTokenizer(read, PREF_STORE_DELIM);
+ 			StringTokenizer st = new StringTokenizer(read, PREF_STORE_DELIM);
 			while (st.hasMoreTokens()) {
 				ignored.add(st.nextToken());
 			}
@@ -166,7 +171,7 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 	public IResource getResourceForElement(IMylarElement element, boolean findContainingResource) {
 		if (element == null)
 			return null;
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(element.getContentType());
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(element.getContentType());
 		Object object = bridge.getObjectForHandle(element.getHandleIdentifier());
 		if (object instanceof IResource) {
 			return (IResource) object;
@@ -192,7 +197,7 @@ public class MylarResourcesPlugin extends AbstractUIPlugin {
 		resourceChangeMonitor.setEnabled(enabled);
 	}
 	
-	public MylarEditorManager getEditorManager() {
+	public ContextEditorManager getEditorManager() {
 		return editorManager;
 	}
 	

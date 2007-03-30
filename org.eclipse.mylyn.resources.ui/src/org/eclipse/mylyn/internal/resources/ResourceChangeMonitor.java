@@ -23,8 +23,9 @@ import org.eclipse.core.resources.IResourceDeltaVisitor;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
-import org.eclipse.mylar.context.core.InteractionEvent;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.resources.preferences.MylarResourcesPreferenceInitializer;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 import org.eclipse.mylar.resources.MylarResourcesPlugin;
 
 /**
@@ -43,18 +44,19 @@ public class ResourceChangeMonitor implements IResourceChangeListener {
 		}
 		final Set<IResource> addedResources = new HashSet<IResource>();
 		final Set<IResource> changedResources = new HashSet<IResource>();
+		final Set<String> excludedPatterns = MylarResourcesPreferenceInitializer.getExcludedResourcePatterns();
 		IResourceDelta rootDelta = event.getDelta();
 		IResourceDeltaVisitor visitor = new IResourceDeltaVisitor() {
 			public boolean visit(IResourceDelta delta) {
 				IResourceDelta[] added = delta.getAffectedChildren(IResourceDelta.ADDED);
 				for (int i = 0; i < added.length; i++) {
 					IResource resource = added[i].getResource();
-					if ((resource instanceof IFile || resource instanceof IFolder) && !isExcluded(resource.getProjectRelativePath())) {
+					if ((resource instanceof IFile || resource instanceof IFolder) && !isExcluded(resource.getProjectRelativePath(), excludedPatterns)) {
 						addedResources.add(resource);
 					}
 				}
 //				int changeMask = IResourceDelta.CONTENT | IResourceDelta.REMOVED | IResourceDelta.MOVED_TO | IResourceDelta.MOVED_FROM;
-				IResourceDelta[] changed = delta.getAffectedChildren(IResourceDelta.CHANGED);
+				IResourceDelta[] changed = delta.getAffectedChildren(IResourceDelta.CHANGED | IResourceDelta.REMOVED);
 				for (int i = 0; i < changed.length; i++) {
 					IResource resource = changed[i].getResource();
 					if (resource instanceof IFile) {
@@ -73,17 +75,25 @@ public class ResourceChangeMonitor implements IResourceChangeListener {
 		}
 	}
 
-	private boolean isExcluded(IPath path) {
+	/**
+	 * Public for testing.
+	 */
+	public boolean isExcluded(IPath path, Set<String> excludedPatterns) {
 		if (path == null) {
 			return false;
 		}
 		// NOTE: n^2 time complexity, but should not be a bottleneck
-		for (String pattern : MylarResourcesPlugin.getDefault().getExcludedResourcePatterns()) {
+		boolean excluded = false;
+		for (String pattern : excludedPatterns) {
 			for (String segment : path.segments()) {
-				return segment.matches(pattern.replaceAll("\\.", "\\\\.").replaceAll("\\*", ".*"));		
+				boolean matches = segment.matches(pattern.replaceAll("\\.", "\\\\.").replaceAll("\\*", ".*"));		
+				if (matches) {
+					excluded = true;
+				}
 			}
 		}
-		return false;
+		
+		return excluded;
 	}
 
 	public boolean isEnabled() {

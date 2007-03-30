@@ -13,26 +13,39 @@ package org.eclipse.mylar.tasks.core;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Class representing a report attribute 
+ * Class representing a report attribute
  * 
  * @author Rob Elves
+ * 
  */
 public class RepositoryTaskAttribute implements Serializable {
-	
-	private static final long serialVersionUID = 6959987055086133307L;
 
+	private static final long serialVersionUID = 5548885751645139746L;
+
+	/**
+	 * Key for the author of a comment.
+	 * 
+	 * TODO remove this key: Trac uses owner to denote the assignee of a ticket
+	 * and AbstractRepository has a getOwner() method which is confusing
+	 */
 	public static final String USER_OWNER = "task.common.user.owner";
 
 	public static final String USER_CC = "task.common.user.cc";
-	
+
+	public static final String COMMENT_NEW = "task.common.comment.new";
+
 	public static final String COMMENT_TEXT = "task.common.comment.text";
-	
+
 	public static final String COMMENT_DATE = "task.common.comment.date";
+
+	// THIS IS NOT BEING USED BUT RATHER "USER_OWNER" for comments
+	// TODO: use this taskId instead
+	public static final String COMMENT_AUTHOR = "task.common.comment.author";
 
 	public static final String DESCRIPTION = "task.common.description";
 
@@ -41,9 +54,9 @@ public class RepositoryTaskAttribute implements Serializable {
 	public static final String ATTACHMENT_TYPE = "task.common.attachment.type";
 
 	public static final String ATTACHMENT_CTYPE = "task.common.attachment.ctype";
-	
+
 	public static final String ATTACHMENT_DATE = "task.common.attachment.date";
-	
+
 	public static final String ATTACHMENT_URL = "task.common.attachment.url";
 
 	public static final String ATTACHMENT_FILENAME = "filename";
@@ -53,7 +66,7 @@ public class RepositoryTaskAttribute implements Serializable {
 	public static final String RESOLUTION = "task.common.resolution";
 
 	public static final String STATUS = "task.common.status";
-	
+
 	public static final String PRIORITY = "task.common.priority";
 
 	public static final String DATE_MODIFIED = "task.common.date.modified";
@@ -67,38 +80,56 @@ public class RepositoryTaskAttribute implements Serializable {
 	public static final String DATE_CREATION = "task.common.date.created";
 
 	public static final String KEYWORDS = "task.common.keywords";
-	
+
+	/**
+	 * Boolean attribute. If true, repository user needs to be added to the cc
+	 * list.
+	 */
 	public static final String ADD_SELF_CC = "task.common.addselfcc";
-	
+
+	public static final String NEW_CC = "task.common.newcc";
+
+	public static final String REMOVE_CC = "task.common.removecc";
+
+	/**
+	 * String constant used to represent true for boolean attributes.
+	 */
+	public static final String TRUE = "1";
+
+	/**
+	 * String constant used to represent false for boolean attributes.
+	 */
+	public static final String FALSE = "0";
+
 	private boolean hidden = false;
-	
+
 	private boolean isReadOnly = false;
-	
+
 	/** Attribute pretty printing name */
 	private String name;
 
 	/** Name of the option used when updating the attribute on the server */
 	private String key;
 
-	/** Legal values of the attribute */
-	private LinkedHashMap<String, String> optionValues;
+	/** Option parameters */
+	private Map<String, String> optionParameters;
+
+	/** Ordered list of legal attribute values */
+	private List<String> options;
 
 	/**
-	 * Attribute's values (selected or added) 
+	 * Attribute's values (selected or added)
 	 */
 	private List<String> values = new ArrayList<String>();
 
-//	public RepositoryTaskAttribute(String key, ) {
-//		this(element.toString(), element.isHidden());
-//		setID(element.getKeyString());
-//		setReadOnly(element.isReadOnly());
-//	}
-	
+	private Map<String, String> metaData = new HashMap<String, String>();
+
 	public RepositoryTaskAttribute(String key, String name, boolean hidden) {
 		this.key = key;
 		this.name = name;
 		this.hidden = hidden;
-		optionValues = new LinkedHashMap<String, String>();
+		this.options = new ArrayList<String>();
+		optionParameters = new HashMap<String, String>();
 	}
 
 	public String getName() {
@@ -110,15 +141,19 @@ public class RepositoryTaskAttribute implements Serializable {
 	}
 
 	public boolean isReadOnly() {
-		return isReadOnly ;
+		return isReadOnly;
 	}
-	
+
 	public void setReadOnly(boolean readonly) {
 		this.isReadOnly = readonly;
 	}
 
-	public Map<String, String> getOptionValues() {
-		return optionValues;
+	public String getOptionParameter(String option) {
+		return optionParameters.get(option);
+	}
+
+	public List<String> getOptions() {
+		return options;
 	}
 
 	public String getValue() {
@@ -134,7 +169,7 @@ public class RepositoryTaskAttribute implements Serializable {
 	}
 
 	public void setValue(String value) {
-		if(values.size() > 0) {
+		if (values.size() > 0) {
 			values.set(0, value);
 		} else {
 			values.add(value);
@@ -142,8 +177,8 @@ public class RepositoryTaskAttribute implements Serializable {
 	}
 
 	public void setValues(List<String> values) {
-		values.clear();
-		values.addAll(values);
+		this.values.clear();
+		this.values.addAll(values);
 	}
 
 	public void addValue(String value) {
@@ -155,21 +190,10 @@ public class RepositoryTaskAttribute implements Serializable {
 			values.remove(values.indexOf(value));
 		}
 	}
-	
+
 	public void clearValues() {
 		values.clear();
 	}
-
-//	/**
-//	 * Sets the name of the option used when updating the attribute on the
-//	 * server
-//	 * 
-//	 * @param parameterName
-//	 *            The name of the option when updating from the server
-//	 */
-//	public void setID(String parameterName) {
-//		this.id = parameterName;
-//	}
 
 	/**
 	 * Adds an attribute option value
@@ -179,8 +203,18 @@ public class RepositoryTaskAttribute implements Serializable {
 	 * @param parameterValue
 	 *            The option value used when sending the form to the server
 	 */
-	public void addOptionValue(String readableValue, String parameterValue) {
-		optionValues.put(readableValue, parameterValue);
+	public void addOption(String readableValue, String parameterValue) {
+		options.add(readableValue);
+		optionParameters.put(readableValue, parameterValue);
+	}
+
+	public boolean hasOptions() {
+		return options.size() > 0;
+	}
+
+	public void clearOptions() {
+		options.clear();
+		optionParameters.clear();
 	}
 
 	/**
@@ -202,15 +236,46 @@ public class RepositoryTaskAttribute implements Serializable {
 		hidden = b;
 	}
 
+	@Override
 	public String toString() {
-		return getValue();
-	}
-	
-	public boolean hasOptions() {
-		return optionValues.size() > 0;
+		return getID() + ":" + values;
 	}
 
-	public void clearOptions() {
-		optionValues.clear();
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((key == null) ? 0 : key.hashCode());
+		return result;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		final RepositoryTaskAttribute other = (RepositoryTaskAttribute) obj;
+		if (key == null) {
+			if (other.key != null)
+				return false;
+		} else if (!key.equals(other.key))
+			return false;
+		return true;
+	}
+
+	public void putMetaDataValue(String key, String value) {
+		metaData.put(key, value);
+	}
+
+	public String getMetaDataValue(String key) {
+		return metaData.get(key);
+	}
+
+	public void removeMetaDataValue(String key) {
+		metaData.remove(key);
+	}
+
 }

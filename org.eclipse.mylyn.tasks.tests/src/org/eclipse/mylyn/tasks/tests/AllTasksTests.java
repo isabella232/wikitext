@@ -20,11 +20,15 @@ import junit.framework.TestSuite;
 public class AllTasksTests {
 
 	public static Test suite() {
-		TestSuite suite = new TestSuite("Test for org.eclipse.mylar.tasklist.tests");
+		TestSuite suite = new TestSuite("Test for org.eclipse.mylar.tasks.tests");
 
 		// $JUnit-BEGIN$
+		suite.addTestSuite(TaskRepositorySorterTest.class);
+		suite.addTestSuite(TaskDataManagerTest.class);
+		suite.addTestSuite(CopyDetailsActionTest.class);
+		suite.addTestSuite(TaskListTest.class);
 		suite.addTestSuite(ProjectRepositoryAssociationTest.class);
-		suite.addTestSuite(TaskListDataMigrationTest.class);
+		suite.addTestSuite(TaskList06DataMigrationTest.class);
 		suite.addTestSuite(TaskPlanningEditorTest.class);
 		suite.addTestSuite(TaskListManagerTest.class);
 		suite.addTestSuite(RepositoryTaskSynchronizationTest.class);
@@ -33,20 +37,22 @@ public class AllTasksTests {
 		suite.addTestSuite(TaskListContentProviderTest.class);
 		suite.addTestSuite(TaskListBackupManagerTest.class);
 		suite.addTestSuite(TableSorterTest.class);
-		suite.addTestSuite(TaskKeyComparatorTest.class); 
+		suite.addTestSuite(TaskKeyComparatorTest.class);
 		suite.addTestSuite(TaskTest.class);
 		suite.addTestSuite(TaskListUiTest.class);
 		suite.addTestSuite(TaskListDnDTest.class);
 		suite.addTestSuite(TaskDataExportTest.class);
 		suite.addTestSuite(TaskDataImportTest.class);
-		suite.addTestSuite(BackgroundSaveTest.class);
-		suite.addTestSuite(TaskActivityViewTest.class);
+		suite.addTestSuite(TaskActivityTest.class);
 		suite.addTestSuite(TaskAttachmentActionsTest.class);
 		suite.addTestSuite(RepositorySettingsPageTest.class);
-		// suite.addTestSuite(RetrieveTitleFromUrlTest.class);
 		suite.addTestSuite(TaskHistoryTest.class);
 		suite.addTestSuite(UrlConnectionUtilTest.class);
+		suite.addTestSuite(CommentQuoterTest.class);
 		// $JUnit-END$
+		
+		// suite.addTestSuite(BackgroundSaveTest.class);
+		// suite.addTestSuite(RetrieveTitleFromUrlTest.class);
 		return suite;
 	}
 }

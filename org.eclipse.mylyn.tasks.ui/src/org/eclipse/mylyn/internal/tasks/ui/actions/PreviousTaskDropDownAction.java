@@ -14,10 +14,11 @@ import java.util.List;
 
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.ActionContributionItem;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskActivationHistory;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 import org.eclipse.mylar.tasks.core.ITask;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 
 /**
  * @author Wesley Coelho
@@ -32,9 +33,10 @@ public class PreviousTaskDropDownAction extends TaskNavigateDropDownAction {
 		setToolTipText("Previous Task");
 		setId(ID);
 		setEnabled(true);
-		setImageDescriptor(TaskListImages.NAVIGATE_PREVIOUS);
+		setImageDescriptor(TasksUiImages.NAVIGATE_PREVIOUS);
 	}
 
+	@Override
 	protected void addActionsToMenu() {
 		List<ITask> tasks = taskHistory.getPreviousTasks();
 
@@ -53,11 +55,14 @@ public class PreviousTaskDropDownAction extends TaskNavigateDropDownAction {
 		}
 	}
 
+	@Override
 	public void run() {
 		if (taskHistory.hasPrevious()) {
-			new TaskActivateAction().run(taskHistory.getPreviousTask());
+			ITask previousTask = taskHistory.getPreviousTask();
+			new TaskActivateAction().run(previousTask);
 			setButtonStatus();
 			view.refreshAndFocus(false);
+			TasksUiUtil.refreshAndOpenTaskListElement(previousTask);
 		}
 	}
 

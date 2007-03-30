@@ -12,10 +12,9 @@
 package org.eclipse.mylar.tasks.core;
 
 import java.io.File;
-import java.net.Proxy;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
@@ -25,7 +24,7 @@ import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask.RepositoryTaskSyncState;
 
 /**
- * Encapsulates synchronization policy.
+ * Operations on a task repository
  * 
  * @author Mik Kersten
  * @author Rob Elves
@@ -38,11 +37,11 @@ public abstract class AbstractRepositoryConnector {
 
 	private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
 
-	protected List<String> supportedVersions;
-
 	protected Set<RepositoryTemplate> templates = new LinkedHashSet<RepositoryTemplate>();
 
 	protected TaskList taskList;
+
+	private boolean userManaged = true;
 
 	public void init(TaskList taskList) {
 		this.taskList = taskList;
@@ -56,36 +55,30 @@ public abstract class AbstractRepositoryConnector {
 	/**
 	 * @return null if not supported
 	 */
-	public abstract IOfflineTaskHandler getOfflineTaskHandler();
+	public abstract ITaskDataHandler getTaskDataHandler();
 
-	public abstract String getRepositoryUrlFromTaskUrl(String url);
+	public abstract String getRepositoryUrlFromTaskUrl(String taskFullUrl);
+
+	public abstract String getTaskIdFromTaskUrl(String taskFullUrl);
+
+	public abstract String getTaskWebUrl(String repositoryUrl, String taskId);
+
+	public String[] getTaskIdsFromComment(TaskRepository repository, String comment) {
+		return null;
+	}
 
 	public abstract boolean canCreateTaskFromKey(TaskRepository repository);
 
 	public abstract boolean canCreateNewTask(TaskRepository repository);
 
 	/**
-	 * Reset and update the repository attributes from the server (e.g.
-	 * products, components)
-	 * 
-	 * @param proxySettings
-	 *            TODO
-	 * @throws CoreException
-	 *             TODO
-	 */
-	public abstract void updateAttributes(TaskRepository repository, Proxy proxySettings, IProgressMonitor monitor)
-			throws CoreException;
-
-	/**
-	 * @param id
+	 * @param taskId
 	 *            identifier, e.g. "123" bug Bugzilla bug 123
-	 * @param proxySettings
-	 *            TODO
 	 * @return null if task could not be created
 	 * @throws CoreException
 	 *             TODO
 	 */
-	public abstract ITask createTaskFromExistingKey(TaskRepository repository, String id, Proxy proxySettings)
+	public abstract AbstractRepositoryTask createTaskFromExistingKey(TaskRepository repository, String id)
 			throws CoreException;
 
 	/**
@@ -94,15 +87,16 @@ public abstract class AbstractRepositoryConnector {
 	 * @param query
 	 * @param repository
 	 *            TODO
-	 * @param proxySettings
-	 *            TODO
 	 * @param monitor
 	 * @param resultCollector
 	 *            IQueryHitCollector that collects the hits found
 	 */
-	public abstract IStatus performQuery(AbstractRepositoryQuery query, TaskRepository repository, Proxy proxySettings,
+	public abstract IStatus performQuery(AbstractRepositoryQuery query, TaskRepository repository,
 			IProgressMonitor monitor, QueryHitCollector resultCollector);
 
+	/**
+	 * The connector's summary i.e. "JIRA (supports 3.3.1 and later)"
+	 */
 	public abstract String getLabel();
 
 	/**
@@ -110,9 +104,27 @@ public abstract class AbstractRepositoryConnector {
 	 */
 	public abstract String getRepositoryType();
 
-	public abstract List<String> getSupportedVersions();
-
-	public abstract void updateTaskState(AbstractRepositoryTask repositoryTask);
+	/**
+	 * Updates the properties of <code>repositoryTask</code>. Invoked when on
+	 * task synchronization if {@link #getTaskDataHandler()} returns
+	 * <code>null</code> or
+	 * {@link ITaskDataHandler#getTaskData(TaskRepository, String)} returns
+	 * <code>null</code>.
+	 * 
+	 * <p>
+	 * Connectors that provide {@link RepositoryTaskData} objects for all tasks
+	 * do not need to implement this method.
+	 * 
+	 * @param repository
+	 *            the repository
+	 * @param repositoryTask
+	 *            the task that is synchronized
+	 * @throws CoreException
+	 *             thrown in case of error while synchronizing
+	 * @see {@link #getTaskDataHandler()}
+	 */
+	public abstract void updateTask(TaskRepository repository, AbstractRepositoryTask repositoryTask)
+			throws CoreException;
 
 	public String[] repositoryPropertyNames() {
 		return new String[] { IRepositoryConstants.PROPERTY_VERSION, IRepositoryConstants.PROPERTY_TIMEZONE,
@@ -149,15 +161,31 @@ public abstract class AbstractRepositoryConnector {
 	}
 
 	/**
+	 * Of <code>tasks</code> provided, return all that have changed since last
+	 * synchronization of <code>repository</code>
+	 * 
+	 * All errors should be thrown as <code>CoreException</code> for the framework
+	 * to handle, since background synchronizations fail silently when disconnected.
+	 * 
+	 * TODO: Add progress monitor as parameter
+	 * 
+	 * @throws CoreException
+	 */
+	public abstract Set<AbstractRepositoryTask> getChangedSinceLastSync(TaskRepository repository,
+			Set<AbstractRepositoryTask> tasks) throws CoreException;
+
+	/**
 	 * Attaches the associated context to <code>task</code>.
 	 * 
 	 * @return false, if operation is not supported by repository
 	 */
-	public final boolean attachContext(TaskRepository repository, AbstractRepositoryTask task, String longComment,
-			Proxy proxySettings) throws CoreException {
+	public final boolean attachContext(TaskRepository repository, AbstractRepositoryTask task, String longComment)
+			throws CoreException {
 		ContextCorePlugin.getContextManager().saveContext(task.getHandleIdentifier());
 		File sourceContextFile = ContextCorePlugin.getContextManager().getFileForContext(task.getHandleIdentifier());
 
+		RepositoryTaskSyncState previousState = task.getSyncState();
+		
 		if (sourceContextFile != null && sourceContextFile.exists()) {
 			IAttachmentHandler handler = getAttachmentHandler();
 			if (handler == null) {
@@ -165,15 +193,19 @@ public abstract class AbstractRepositoryConnector {
 			}
 
 			try {
-				// TODO: 'faking' outgoing state
 				task.setSyncState(RepositoryTaskSyncState.OUTGOING);
+				if (task.getTaskData() != null) {
+					task.getTaskData().setHasLocalChanges(true);
+				}
 				handler.uploadAttachment(repository, task, longComment, MYLAR_CONTEXT_DESCRIPTION, sourceContextFile,
-						APPLICATION_OCTET_STREAM, false, proxySettings);
+						APPLICATION_OCTET_STREAM, false);
 			} catch (CoreException e) {
-				task.setSyncState(RepositoryTaskSyncState.SYNCHRONIZED);
+				// TODO: Calling method should be responsible for returning
+				// state of task. Wizard will have different behaviour than
+				// editor.
+				task.setSyncState(previousState);
 				throw e;
 			}
-			task.setTaskData(null);
 		}
 		return true;
 	}
@@ -185,7 +217,7 @@ public abstract class AbstractRepositoryConnector {
 	 * @return false, if operation is not supported by repository
 	 */
 	public final boolean retrieveContext(TaskRepository repository, AbstractRepositoryTask task,
-			RepositoryAttachment attachment, Proxy proxySettings, String destinationPath) throws CoreException {
+			RepositoryAttachment attachment, String destinationPath) throws CoreException {
 		IAttachmentHandler attachmentHandler = getAttachmentHandler();
 		if (attachmentHandler == null) {
 			return false;
@@ -193,14 +225,14 @@ public abstract class AbstractRepositoryConnector {
 
 		File destinationContextFile = ContextCorePlugin.getContextManager().getFileForContext(
 				task.getHandleIdentifier());
-		
+
 		// TODO: add functionality for not overwriting previous context
-		if(destinationContextFile.exists()) {
-			if(!destinationContextFile.delete()) {
+		if (destinationContextFile.exists()) {
+			if (!destinationContextFile.delete()) {
 				return false;
 			}
 		}
-		attachmentHandler.downloadAttachment(repository, task, attachment, destinationContextFile, proxySettings);
+		attachmentHandler.downloadAttachment(repository, attachment, destinationContextFile);
 		return true;
 	}
 
@@ -212,6 +244,10 @@ public abstract class AbstractRepositoryConnector {
 		return templates;
 	}
 
+	public void removeTemplate(RepositoryTemplate template) {
+		this.templates.remove(template);
+	}
+
 	/** returns null if template not found */
 	public RepositoryTemplate getTemplate(String label) {
 		for (RepositoryTemplate template : getTemplates()) {
@@ -220,6 +256,53 @@ public abstract class AbstractRepositoryConnector {
 			}
 		}
 		return null;
+	}
+
+	public String getTaskIdPrefix() {
+		return "task";
+	}
+
+	/**
+	 * Reset and update the repository attributes from the server (e.g.
+	 * products, components)
+	 * 
+	 * TODO: remove?
+	 */
+	public abstract void updateAttributes(TaskRepository repository, IProgressMonitor monitor) throws CoreException;
+
+	public void setUserManaged(boolean userManaged) {
+		this.userManaged = userManaged;
+	}
+
+	public boolean isUserManaged() {
+		return userManaged;
+	}
+
+	/**
+	 * Following synchronization, the timestamp needs to be recorded.
+	 * This provides a default implementation for determining the last synchronization
+	 * timestamp. Override to return actual timestamp from repository.
+	 */
+	public String getLastSyncTimestamp(TaskRepository repository, Set<AbstractRepositoryTask> changedTasks) {
+		Date mostRecent = new Date(0);
+		String mostRecentTimeStamp = repository.getSyncTimeStamp();
+		for (AbstractRepositoryTask task : changedTasks) {
+			Date taskModifiedDate;
+
+			if (getTaskDataHandler() != null && task.getTaskData() != null
+					&& task.getTaskData().getLastModified() != null) {
+				taskModifiedDate = task.getTaskData().getAttributeFactory().getDateForAttributeType(
+						RepositoryTaskAttribute.DATE_MODIFIED, task.getTaskData().getLastModified());
+			} else {
+				continue;
+			}
+
+			if (taskModifiedDate != null && taskModifiedDate.after(mostRecent)) {
+				mostRecent = taskModifiedDate;
+				mostRecentTimeStamp = task.getTaskData().getLastModified();
+			}
+		}
+		return mostRecentTimeStamp;
 	}
 
 }

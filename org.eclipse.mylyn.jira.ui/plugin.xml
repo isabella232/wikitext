@@ -51,9 +51,9 @@
       <editorFactory
             class="org.eclipse.mylar.internal.jira.ui.editor.JiraTaskEditorFactory"
             id="org.eclipse.mylar.jira.ui.JiraTaskEditorFactory"/>
-     <!-- <hyperlinkDetector
+     <hyperlinkDetector
             class="org.eclipse.mylar.internal.jira.ui.JiraTaskHyperlinkDetector"
-            id="org.eclipse.mylar.tasks.hyperlinkdetector.jiratask"/>-->
+            id="org.eclipse.mylar.tasks.hyperlinkdetector.jiratask"/>
             
    </extension>
 

@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -24,7 +25,7 @@ import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.core.IMylarContext;
 import org.eclipse.mylar.context.core.IMylarContextListener;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.tasks.ui.RetrieveTitleFromUrlJob;
 
 /**
@@ -40,7 +41,7 @@ public class WebResourceManager {
 
 	private Set<IWebResourceListener> listeners = new HashSet<IWebResourceListener>();
 
-	private boolean webContextEnabled = false;
+	private boolean webContextEnabled = true;
 
 	private Properties titleCache = new Properties();
 
@@ -76,11 +77,11 @@ public class WebResourceManager {
 			// ignore
 		}
 
-		public void edgesChanged(IMylarElement node) {
+		public void relationsChanged(IMylarElement node) {
 			// ignore
 		}
 
-		public void nodeDeleted(IMylarElement node) {
+		public void elementDeleted(IMylarElement node) {
 			// ignore
 		}
 
@@ -120,7 +121,7 @@ public class WebResourceManager {
 
 	protected void updateContents(boolean populate) {
 		if (populate) {
-			List<IMylarElement> interestingElements = ContextCorePlugin.getContextManager().getInterestingDocuments();
+			Collection<IMylarElement> interestingElements = ContextCorePlugin.getContextManager().getInterestingDocuments();
 			for (IMylarElement element : interestingElements) {
 				if (WebResourceStructureBridge.CONTENT_TYPE.equals(element.getContentType())) {
 					addUrl(element.getHandleIdentifier(), true);

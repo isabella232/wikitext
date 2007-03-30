@@ -16,8 +16,11 @@ import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
+import org.eclipse.mylar.tasks.core.TaskComment;
+import org.eclipse.mylar.tasks.ui.editors.AbstractRepositoryTaskEditor;
+import org.eclipse.mylar.tasks.ui.editors.RepositoryTaskOutlineNode;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.ISelectionListener;
@@ -56,7 +59,7 @@ public class RepositoryTaskOutlinePage extends ContentOutlinePage {
 
 	/**
 	 * Creates a new <code>RepositoryTaskOutlinePage</code>.
-	 * 
+	 *
 	 * @param topTreeNode
 	 *            The top data node of the tree for this view.
 	 * @param editor
@@ -77,16 +80,16 @@ public class RepositoryTaskOutlinePage extends ContentOutlinePage {
 			public Image getImage(Object element) {
 				if (element instanceof RepositoryTaskOutlineNode) {
 					RepositoryTaskOutlineNode node = (RepositoryTaskOutlineNode) element;
-					
+
 					if (RepositoryTaskOutlineNode.LABEL_COMMENTS.equals(node.getContents())||
 						RepositoryTaskOutlineNode.LABEL_NEW_COMMENT.equals(node.getContents())) {
-						return TaskListImages.getImage(TaskListImages.COMMENT);
+						return TasksUiImages.getImage(TasksUiImages.COMMENT);
 					} if (RepositoryTaskOutlineNode.LABEL_DESCRIPTION.equals(node.getContents())) {
-						return TaskListImages.getImage(TaskListImages.TASK_NOTES);
+						return TasksUiImages.getImage(TasksUiImages.TASK_NOTES);
 					} else if (node.getComment() != null) {
-						return TaskListImages.getImage(TaskListImages.PERSON);
+						return TasksUiImages.getImage(TasksUiImages.PERSON);
 					} else {
-						return TaskListImages.getImage(TaskListImages.TASK_REPOSITORY);
+						return TasksUiImages.getImage(TasksUiImages.TASK_REPOSITORY);
 					}
 				} else {
 					return super.getImage(element);
@@ -97,11 +100,15 @@ public class RepositoryTaskOutlinePage extends ContentOutlinePage {
 			public String getText(Object element) {
 				if (element instanceof RepositoryTaskOutlineNode) {
 					RepositoryTaskOutlineNode node = (RepositoryTaskOutlineNode) element;
-					if (node.getComment() != null) {
-						return node.getComment().getAuthorName() + " (" + node.getName() + ")";
-					} else {
+					TaskComment comment = node.getComment();
+					if (comment == null) {
 						return node.getName();
 					}
+					int n = comment.getNumber();
+//					if (n == 0) {
+//						return comment.getAuthorName() + " (" + node.getName() + ")";
+//					}
+					return n + ": " + comment.getAuthorName() + " (" + node.getName() + ")";
 				}
 				return super.getText(element);
 			}
@@ -128,7 +135,7 @@ public class RepositoryTaskOutlinePage extends ContentOutlinePage {
 
 	/**
 	 * A content provider for the tree for this view.
-	 * 
+	 *
 	 * @see ITreeContentProvider
 	 */
 	protected static class BugTaskOutlineContentProvider implements ITreeContentProvider {

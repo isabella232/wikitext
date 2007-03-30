@@ -18,6 +18,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -75,7 +76,9 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 	public static final String NEW_TASK_DESC = "New Task";
 
 	public static final String COMPRESSION_KEY = "compression";
-	
+
+	public static final int RETURN_ALL_HITS = -1;
+
 	public JiraRepositoryConnector() {
 		offlineHandler = new JiraTaskDataHandler(this);
 	}
@@ -127,7 +130,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 	public IStatus performQuery(AbstractRepositoryQuery repositoryQuery, TaskRepository repository,
 			IProgressMonitor monitor, QueryHitCollector resultCollector) {
 		final List<Issue> issues = new ArrayList<Issue>();
-		JiraIssueCollector collector = new JiraIssueCollector(monitor, issues, repositoryQuery.getMaxHits());
+		JiraIssueCollector collector = new JiraIssueCollector(monitor, issues, QueryHitCollector.MAX_HITS);
 
 		// TODO: Get rid of JiraIssueCollector and pass IQueryHitCollector
 
@@ -203,7 +206,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 
 		Date lastSyncDate;
 		try {
-			lastSyncDate = new SimpleDateFormat(JiraAttributeFactory.JIRA_DATE_FORMAT).parse(dateString);
+			lastSyncDate = new SimpleDateFormat(JiraAttributeFactory.JIRA_DATE_FORMAT, Locale.US).parse(dateString);
 		} catch (ParseException e) {
 			return tasks;
 		}
@@ -236,7 +239,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 		try {
 			// XXX: disabled work around
 			// TODO: remove, added to re-open connection, bug 164543
-			//jiraServer.getServerInfo();
+			// jiraServer.getServerInfo();
 			// Will get ALL issues that have changed since lastSyncDate
 			jiraServer.search(changedFilter, collector);
 		} catch (AuthenticationException ex) {
@@ -255,17 +258,17 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 			if (task instanceof AbstractRepositoryTask) {
 				changedTasks.add((AbstractRepositoryTask) task);
 			}
-			
+
 			if (issue.getUpdated() != null && issue.getUpdated().after(lastSyncDate)) {
 				lastSyncDate = issue.getUpdated();
 			}
 		}
 
 		repository.setSyncTimeStamp(lastSyncDate.toGMTString());
-		
+
 		return changedTasks;
 	}
-	
+
 	@Override
 	public String getLastSyncTimestamp(TaskRepository repository, Set<AbstractRepositoryTask> changedTasks) {
 		// XXX to late for JIRA to calcualate the timestamp: bug 176934
@@ -487,7 +490,8 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 				comp.setName(compStr);
 				components.add(comp);
 			} else {
-				MylarStatusHandler.fail(null, "Error setting component for JIRA issue. Component id is null: " + compStr, false);
+				MylarStatusHandler.fail(null, "Error setting component for JIRA issue. Component id is null: "
+						+ compStr, false);
 			}
 		}
 		issue.setComponents(components.toArray(new Component[components.size()]));
@@ -501,7 +505,8 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 				version.setName(fixStr);
 				fixversions.add(version);
 			} else {
-				MylarStatusHandler.fail(null, "Error setting fix version for JIRA issue. Version id is null: " + fixStr, false);
+				MylarStatusHandler.fail(null,
+						"Error setting fix version for JIRA issue. Version id is null: " + fixStr, false);
 			}
 		}
 		issue.setFixVersions(fixversions.toArray(new Version[fixversions.size()]));
@@ -515,7 +520,8 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 				version.setName(fixStr);
 				affectsversions.add(version);
 			} else {
-				MylarStatusHandler.fail(null, "Error setting affects version for JIRA issue. Version id is null: " + fixStr, false);
+				MylarStatusHandler.fail(null, "Error setting affects version for JIRA issue. Version id is null: "
+						+ fixStr, false);
 			}
 		}
 		issue.setReportedVersions(affectsversions.toArray(new Version[affectsversions.size()]));

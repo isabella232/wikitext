@@ -2,10 +2,9 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mylar Ide Plug-in
 Bundle-SymbolicName: org.eclipse.mylar.ide;singleton:=true
-Bundle-Version: 0.7.0.1
+Bundle-Version: 2.0.0.v20070328-2130
 Bundle-Activator: org.eclipse.mylar.internal.ide.MylarIdePlugin
 Bundle-Vendor: Eclipse.org
-Bundle-Localization: plugin
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  org.eclipse.core.resources,
@@ -16,18 +15,20 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ui.ide,
  org.eclipse.search,
  org.eclipse.ant.ui,
- org.eclipse.jdt.core,
  org.eclipse.pde.ui,
  org.eclipse.ui.views,
  org.eclipse.ui.editors,
- org.eclipse.mylar.context.core,
- org.eclipse.mylar.context.ui,
- org.eclipse.mylar.monitor,
- org.eclipse.mylar.resources,
  org.eclipse.ui.navigator.resources,
  org.eclipse.debug.ui,
+ org.eclipse.pde.runtime,
+ org.eclipse.jdt.core;resolution:=optional,
+ org.eclipse.mylar.context.core,
+ org.eclipse.mylar.context.ui,
+ org.eclipse.mylar.monitor.ui,
  org.eclipse.mylar.tasks.ui,
- org.eclipse.pde.runtime
+ org.eclipse.mylar.resources,
+ org.eclipse.mylar.monitor.core,
+ org.eclipse.mylar
 Eclipse-AutoStart: true
 Export-Package: org.eclipse.mylar.internal.ide,
  org.eclipse.mylar.internal.ide.ui,

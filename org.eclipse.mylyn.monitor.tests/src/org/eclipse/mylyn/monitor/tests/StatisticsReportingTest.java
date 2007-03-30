@@ -20,20 +20,20 @@ import junit.framework.TestCase;
 
 import org.eclipse.jdt.internal.ui.packageview.PackageExplorerPart;
 import org.eclipse.jdt.ui.JavaUI;
-import org.eclipse.mylar.context.core.InteractionEvent;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.ui.ContextUiPlugin;
 import org.eclipse.mylar.internal.java.MylarJavaPlugin;
-import org.eclipse.mylar.internal.java.ui.actions.ApplyMylarToPackageExplorerAction;
-import org.eclipse.mylar.internal.monitor.reports.ReportGenerator;
+import org.eclipse.mylar.internal.java.ui.actions.FocusPackageExplorerAction;
+import org.eclipse.mylar.internal.monitor.core.collection.IUsageCollector;
 import org.eclipse.mylar.internal.monitor.reports.collectors.MylarUsageAnalysisCollector;
 import org.eclipse.mylar.internal.monitor.reports.collectors.MylarViewUsageCollector;
-import org.eclipse.mylar.internal.monitor.reports.ui.views.UsageStatisticsSummary;
 import org.eclipse.mylar.internal.monitor.usage.InteractionEventLogger;
+import org.eclipse.mylar.internal.monitor.usage.MylarUsageMonitorPlugin;
 import org.eclipse.mylar.internal.tasks.ui.actions.TaskActivateAction;
-import org.eclipse.mylar.monitor.MylarMonitorPlugin;
-import org.eclipse.mylar.monitor.reports.IUsageCollector;
-import org.eclipse.mylar.monitor.usage.MylarUsageMonitorPlugin;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
+import org.eclipse.mylar.monitor.ui.MylarMonitorUiPlugin;
+import org.eclipse.mylar.monitor.usage.ReportGenerator;
+import org.eclipse.mylar.monitor.usage.UsageStatisticsSummary;
 
 /**
  * @author Mik Kersten
@@ -74,17 +74,17 @@ public class StatisticsReportingTest extends TestCase {
 	protected InteractionEvent mockExplorerSelection(String handle) {
 		InteractionEvent event = new InteractionEvent(InteractionEvent.Kind.SELECTION, "java", handle,
 				JavaUI.ID_PACKAGES);
-		MylarMonitorPlugin.getDefault().notifyInteractionObserved(event);
+		MylarMonitorUiPlugin.getDefault().notifyInteractionObserved(event);
 		return event;
 	}
 
 	protected void mockEdit(String handle) {
-		MylarMonitorPlugin.getDefault().notifyInteractionObserved(
+		MylarMonitorUiPlugin.getDefault().notifyInteractionObserved(
 				new InteractionEvent(InteractionEvent.Kind.EDIT, "java", handle, JavaUI.ID_PACKAGES));
 	}
 
 	protected void mockTypesSelection(String handle) {
-		MylarMonitorPlugin.getDefault().notifyInteractionObserved(
+		MylarMonitorUiPlugin.getDefault().notifyInteractionObserved(
 				new InteractionEvent(InteractionEvent.Kind.SELECTION, "java", handle, JavaUI.ID_TYPES_VIEW));
 	}
 
@@ -111,7 +111,7 @@ public class StatisticsReportingTest extends TestCase {
 
 		mockEdit("A.java");
 
-		MylarMonitorPlugin.getDefault().notifyInteractionObserved(InteractionEvent.makeCommand(TaskActivateAction.ID, ""));
+		MylarMonitorUiPlugin.getDefault().notifyInteractionObserved(InteractionEvent.makeCommand(TaskActivateAction.ID, ""));
 
 		mockExplorerSelection("A.java");
 		mockEdit("A.java");
@@ -145,12 +145,12 @@ public class StatisticsReportingTest extends TestCase {
 		mockTypesSelection("A.java");
 
 		assertNotNull(ContextUiPlugin.getDefault().getPreferenceStore());
-		String prefId = ApplyMylarToPackageExplorerAction.PREF_ID_PREFIX + PackageExplorerPart.VIEW_ID;
+		String prefId = FocusPackageExplorerAction.PREF_ID_PREFIX + JavaUI.ID_PACKAGES;
 		assertNotNull(prefId);
 		
 		PackageExplorerPart part = PackageExplorerPart.openInActivePerspective();
 		assertNotNull(part);
-//		AbstractApplyMylarAction action = ApplyMylarToPackageExplorerAction.getActionForPart(part);
+//		AbstractFocusViewAction action = FocusPackageExplorerAction.getActionForPart(part);
 //		assertNotNull(action);
 		
 		ContextUiPlugin.getDefault().getPreferenceStore().setValue(prefId, true);

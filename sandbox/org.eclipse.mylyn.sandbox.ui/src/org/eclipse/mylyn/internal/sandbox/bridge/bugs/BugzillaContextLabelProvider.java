@@ -13,11 +13,11 @@ package org.eclipse.mylar.internal.sandbox.bridge.bugs;
 
 import org.eclipse.mylar.context.core.IMylarElement;
 import org.eclipse.mylar.context.core.IMylarRelation;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.internal.context.ui.AbstractContextLabelProvider;
 import org.eclipse.mylar.internal.context.ui.ContextUiImages;
-import org.eclipse.mylar.internal.tasks.ui.TaskListImages;
+import org.eclipse.mylar.internal.tasks.ui.TasksUiImages;
 import org.eclipse.swt.graphics.Image;
 
 /**
@@ -27,7 +27,7 @@ public class BugzillaContextLabelProvider extends AbstractContextLabelProvider {
 
 	@Override
 	protected Image getImage(IMylarElement node) {
-		return TaskListImages.getImage(TaskListImages.TASK_REMOTE);
+		return TasksUiImages.getImage(TasksUiImages.TASK_REMOTE);
 	}
 
 	@Override
@@ -37,7 +37,7 @@ public class BugzillaContextLabelProvider extends AbstractContextLabelProvider {
 
 	@Override
 	protected Image getImageForObject(Object object) {
-		return TaskListImages.getImage(TaskListImages.TASK_REMOTE);
+		return TasksUiImages.getImage(TasksUiImages.TASK_REMOTE);
 	}
 
 	@Override
@@ -54,7 +54,7 @@ public class BugzillaContextLabelProvider extends AbstractContextLabelProvider {
 		Object report;
 		BugzillaReportInfo reportNode = MylarBugsManager.getReferenceProvider().getCached(node.getHandleIdentifier());
 //		BugzillaReport cachedReport = MylarBugsPlugin.getDefault().getCache().getCached(node.getHandleIdentifier());
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault()
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault()
 				.getStructureBridge(BugzillaStructureBridge.CONTENT_TYPE);
 
 		if (reportNode != null) {

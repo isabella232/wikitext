@@ -11,8 +11,8 @@
 
 package org.eclipse.mylar.monitor.tests;
 
-import org.eclipse.mylar.internal.context.core.util.ITimerThreadListener;
-import org.eclipse.mylar.internal.context.core.util.TimerThread;
+import org.eclipse.mylar.monitor.core.IActivityTimerListener;
+import org.eclipse.mylar.monitor.core.ActivityTimerThread;
 
 import junit.framework.TestCase;
 
@@ -24,35 +24,35 @@ public class ActiveTimerTest extends TestCase {
 
 	private boolean gotTimeOut = false;
 
-	private TimerThread thread;
+	private ActivityTimerThread thread;
 
-	private ITimerThreadListener listener = new ITimerThreadListener() {
+	private IActivityTimerListener listener = new IActivityTimerListener() {
 
-		public void fireTimedOut() {
+		public void fireInactive() {
 			gotTimeOut = true;
 			thread.kill();
 		}
 
-		public void intervalElapsed() {
+		public void fireActive(long start, long end) {
 			// ignore
 		}
 
 	};
 
-	private ITimerThreadListener listener2 = new ITimerThreadListener() {
+	private IActivityTimerListener listener2 = new IActivityTimerListener() {
 
-		public void fireTimedOut() {
+		public void fireInactive() {
 			gotTimeOut = true;
 		}
 
-		public void intervalElapsed() {
+		public void fireActive(long start, long end) {
 			// ignore
 		}
 
 	};
 
 	public void testActiveTimer() {
-		thread = new TimerThread(600, 100);
+		thread = new ActivityTimerThread(600, 100);
 		thread.addListener(listener);
 		int i = 0;
 		gotTimeOut = false;
@@ -67,7 +67,7 @@ public class ActiveTimerTest extends TestCase {
 		assertFalse("Too long of a wait (" + i + ")", i > 8);
 		assertFalse("Too short of a wait (" + i + ")", i < 6);
 
-		thread = new TimerThread(1000, 100);
+		thread = new ActivityTimerThread(1000, 100);
 		thread.addListener(listener2);
 		i = 0;
 		gotTimeOut = false;

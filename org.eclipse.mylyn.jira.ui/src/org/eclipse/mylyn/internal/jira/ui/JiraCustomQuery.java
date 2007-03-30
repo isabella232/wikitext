@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.eclipse.mylar.internal.jira.core.model.Component;
@@ -85,8 +86,6 @@ public class JiraCustomQuery extends AbstractRepositoryQuery {
 	private static final String ISSUE_CURRENT_USER = "issue_current_user";
 	private static final String ISSUE_NO_REPORTER = "issue_no_reporter";
 
-	private static final int MAX_HITS = 200;
-
 //	private FilterDefinition filter;
 	private String encoding;
 
@@ -97,7 +96,7 @@ public class JiraCustomQuery extends AbstractRepositoryQuery {
 		this.repositoryUrl = repositoryUrl;
 		this.encoding = encoding;
 		this.url = repositoryUrl + JiraRepositoryConnector.FILTER_URL_PREFIX + "&reset=true" + getQueryParams(filter);
-		this.maxHits = MAX_HITS;
+//		this.setMaxHits(maxHits);
 	}
 
 	public JiraCustomQuery(String name, String queryUrl, String repositoryUrl, String encoding, TaskList taskList) {
@@ -105,9 +104,9 @@ public class JiraCustomQuery extends AbstractRepositoryQuery {
 		this.repositoryUrl = repositoryUrl;
 		this.url = queryUrl;
 		this.encoding = encoding;
+//		this.setMaxHits(maxHits);
 		// this.filter = createFilter(jiraServer, queryUrl);
 		// this.filter.setName(name);
-		this.maxHits = MAX_HITS;
 	}
 
 	@Override
@@ -257,7 +256,7 @@ public class JiraCustomQuery extends AbstractRepositoryQuery {
 		String after = getId(params, key + ":after");
 		String before = getId(params, key + ":before");
 
-		SimpleDateFormat df = new SimpleDateFormat("d/MMM/yy");
+		SimpleDateFormat df = new SimpleDateFormat("d/MMM/yy", Locale.US);
 		Date fromDate;
 		try {
 			fromDate = df.parse(after);
@@ -412,7 +411,7 @@ public class JiraCustomQuery extends AbstractRepositoryQuery {
 
 	private void addDateFilter(StringBuffer sb, DateFilter filter, String type) {
 		if(filter instanceof DateRangeFilter) {
-			SimpleDateFormat df = new SimpleDateFormat("d/MMM/yy");
+			SimpleDateFormat df = new SimpleDateFormat("d/MMM/yy", Locale.US);
 			DateRangeFilter rangeFilter = (DateRangeFilter) filter;
 			addParameter(sb, type + ":after", df.format(rangeFilter.getFromDate()));
 			addParameter(sb, type + ":before", df.format(rangeFilter.getToDate()));
