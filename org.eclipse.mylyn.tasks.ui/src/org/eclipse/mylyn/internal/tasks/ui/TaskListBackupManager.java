@@ -28,7 +28,6 @@ import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.util.IPropertyChangeListener;
 import org.eclipse.jface.util.PropertyChangeEvent;
-import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.internal.tasks.ui.util.TaskDataExportJob;
 import org.eclipse.mylar.internal.tasks.ui.wizards.TaskDataExportWizard;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
@@ -41,7 +40,7 @@ import org.eclipse.ui.progress.IProgressService;
 public class TaskListBackupManager implements IPropertyChangeListener {
 
 	private static final String TITLE_TASKLIST_BACKUP = "Tasklist Backup";
-
+  
 	private static final String BACKUP_JOB_NAME = "Scheduled task data backup";
 
 	public static final String BACKUP_FAILURE_MESSAGE = "Could not backup task data. Check backup preferences.\n";
@@ -49,7 +48,7 @@ public class TaskListBackupManager implements IPropertyChangeListener {
 	private static final long SECOND = 1000;
 
 	private static final long MINUTE = 60 * SECOND;
-
+  
 	private static final long HOUR = 60 * MINUTE;
 
 	private static final long DAY = 24 * HOUR;
@@ -155,12 +154,43 @@ public class TaskListBackupManager implements IPropertyChangeListener {
 			}
 		}
 	}
+	
+//	public File getMostRecentBackup() {
+//		String destination = TasksUiPlugin.getDefault().getBackupFolderPath();
+//
+//		File backupFolder = new File(destination);
+//		ArrayList<File> backupFiles = new ArrayList<File>();
+//		if (backupFolder.exists()) {
+//			File[] files = backupFolder.listFiles();
+//			for (File file : files) {
+//				if (file.getName().startsWith(TaskDataExportWizard.ZIP_FILE_PREFIX)) {
+//					backupFiles.add(file);
+//				}
+//			}
+//		} 
+//
+//		File[] backupFileArray = backupFiles.toArray(new File[backupFiles.size()]);
+//   
+//		if (backupFileArray != null && backupFileArray.length > 0) {
+//			Arrays.sort(backupFileArray, new Comparator<File>() {
+//				public int compare(File file1, File file2) {
+//					return (new Long((file1).lastModified()).compareTo(new Long((file2).lastModified()))) * -1;
+//				}
+//
+//			});
+//		}
+//		if (backupFileArray != null && backupFileArray.length > 0) {
+//			return backupFileArray[0];
+//		}
+//		
+//		return null;
+//	}
 
 	class CheckBackupRequired extends TimerTask {
-
+  
 		@Override
 		public void run() {
-			if (!Platform.isRunning() || ContextCorePlugin.getDefault() == null) {
+			if (!Platform.isRunning() || TasksUiPlugin.getDefault() == null) {
 				return;
 			} else {
 				long lastBackup = TasksUiPlugin.getDefault().getPreferenceStore().getLong(

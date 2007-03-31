@@ -17,14 +17,16 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.core.runtime.PlatformObject;
 
 /**
  * @author Mik Kersten
  */
-public class Task implements ITask {
+public class Task extends PlatformObject implements ITask {
 
 	private static final String REPOSITORY_KIND_LOCAL = "local";
+
+	public static final String DEFAULT_TASK_KIND = "task";
 
 	public enum PriorityLevel {
 		P1, P2, P3, P4, P5;
@@ -65,8 +67,6 @@ public class Task implements ITask {
 		}
 
 		public static PriorityLevel fromString(String string) {
-			if (string == null)
-				return null;
 			if (string.equals("P1"))
 				return P1;
 			if (string.equals("P2"))
@@ -77,11 +77,11 @@ public class Task implements ITask {
 				return P4;
 			if (string.equals("P5"))
 				return P5;
-			return P3;
+			return getDefault();
 		}
 
 		public static PriorityLevel fromDescription(String string) {
-			if (string == null)    
+			if (string == null)
 				return null;
 			if (string.equals("Very High"))
 				return P1;
@@ -93,22 +93,25 @@ public class Task implements ITask {
 				return P4;
 			if (string.equals("Very Low"))
 				return P5;
-			return null;
+			return getDefault();
 		}
 
+		public static PriorityLevel getDefault() {
+			return P3;
+		}
 	}
 
-	private boolean active = false;
+	private String handleIdentifier = "-1";
 
-	protected String handle = "-1";
+	private boolean active = false;
 
 	private boolean category = false;
 
 	private boolean hasReminded = false;
 
-	private String description;
+	private String summary;
 
-	private String priority = PriorityLevel.P3.toString();
+	private String priority = PriorityLevel.getDefault().toString();
 
 	private String notes = "";
 
@@ -116,17 +119,17 @@ public class Task implements ITask {
 
 	private boolean completed;
 
-	private String url = "";
+	private String taskUrl = "";
 
 	private AbstractTaskContainer parentCategory = null;
-
-	private long timeActive = 0;
 
 	private Date completionDate = null;
 
 	private Date creationDate = null;
 
-	private Date reminderDate = null;
+	private Date scheduledForDate = null;
+
+	private Date dueDate = null;
 
 	/**
 	 * @return null if root
@@ -135,27 +138,23 @@ public class Task implements ITask {
 
 	private Set<ITask> children = new HashSet<ITask>();
 
-	protected String kind;
+	protected String kind = DEFAULT_TASK_KIND;
 
 	@Override
 	public String toString() {
-		return description;
+		return summary;
 	}
 
-	public Task(String handle, String label, boolean newTask) {
-		this.handle = handle;
-		this.description = label;
+	public Task(String handle, String summary, boolean newTask) {
+		this.handleIdentifier = handle;
+		this.summary = summary;
 		if (newTask) {
 			creationDate = new Date();
 		}
 	}
 
 	public String getHandleIdentifier() {
-		return handle;
-	}
-
-	public void setHandleIdentifier(String id) {
-		this.handle = id;
+		return handleIdentifier;
 	}
 
 	public ITask getParent() {
@@ -175,10 +174,6 @@ public class Task implements ITask {
 
 	public boolean isActive() {
 		return active;
-	}
-
-	public String getToolTipText() {
-		return getDescription();
 	}
 
 	@Override
@@ -224,12 +219,15 @@ public class Task implements ITask {
 		this.priority = priority;
 	}
 
-	public void setUrl(String url) {
-		this.url = url;
+	/**
+	 * TODO: consider removing
+	 */
+	public void setTaskUrl(String url) {
+		this.taskUrl = url;
 	}
 
-	public String getUrl() {
-		return url;
+	public String getTaskUrl() {
+		return taskUrl;
 	}
 
 	public String getNotes() {
@@ -242,18 +240,6 @@ public class Task implements ITask {
 
 	public void setNotes(String notes) {
 		this.notes = notes;
-	}
-
-	public long getElapsedTime() {
-		return timeActive;
-	}
-
-	public void setElapsedTime(long elapsedTime) {
-		if (elapsedTime >= 0) {
-			this.timeActive = elapsedTime;
-		} else {
-			MylarStatusHandler.log("Attempt to set negative time on task: " + getDescription(), this);
-		}
 	}
 
 	public int getEstimateTimeHours() {
@@ -284,8 +270,8 @@ public class Task implements ITask {
 		return parentCategory;
 	}
 
-	public String getDescription() {
-		return description;
+	public String getSummary() {
+		return summary;
 	}
 
 	public boolean isLocal() {
@@ -296,12 +282,12 @@ public class Task implements ITask {
 		return completionDate;
 	}
 
-	public void setReminderDate(Date date) {
-		reminderDate = date;
+	public void setScheduledForDate(Date date) {
+		scheduledForDate = date;
 	}
 
-	public Date getReminderDate() {
-		return reminderDate;
+	public Date getScheduledForDate() {
+		return scheduledForDate;
 	}
 
 	public boolean hasBeenReminded() {
@@ -322,8 +308,8 @@ public class Task implements ITask {
 		this.creationDate = date;
 	}
 
-	public void setDescription(String description) {
-		this.description = description;
+	public void setDescription(String summary) {
+		this.summary = summary;
 	}
 
 	public void setCompletionDate(Date completionDate) {
@@ -331,11 +317,11 @@ public class Task implements ITask {
 	}
 
 	public boolean isPastReminder() {
-		if (reminderDate == null) {
+		if (scheduledForDate == null) {
 			return false;
 		} else {
 			Date now = new Date();
-			if (reminderDate.compareTo(now) < 0) {
+			if (scheduledForDate.compareTo(now) < 0) {
 				return true;
 			} else {
 				return false;
@@ -344,7 +330,7 @@ public class Task implements ITask {
 	}
 
 	public boolean hasValidUrl() {
-		String taskUrl = getUrl();
+		String taskUrl = getTaskUrl();
 		if (taskUrl != null && !taskUrl.equals("") && !taskUrl.equals("http://") && !taskUrl.equals("https://")) {
 			try {
 				new URL(taskUrl);
@@ -360,7 +346,7 @@ public class Task implements ITask {
 		return REPOSITORY_KIND_LOCAL;
 	}
 
-	public String getTaskType() {
+	public String getTaskKind() {
 		return kind;
 	}
 
@@ -368,4 +354,15 @@ public class Task implements ITask {
 		this.kind = kind;
 	}
 
+	public int compareTo(ITaskListElement taskListElement) {
+		return summary.compareTo(((Task) taskListElement).summary);
+	}
+
+	public Date getDueDate() {
+		return dueDate;
+	}
+
+	public void setDueDate(Date date) {
+		this.dueDate = date;
+	}
 }

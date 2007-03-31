@@ -11,6 +11,9 @@
 
 package org.eclipse.mylar.monitor.tests;
 
+import org.eclipse.mylar.monitor.reports.tests.AllMonitorReportTests;
+import org.eclipse.mylar.monitor.tests.usage.tests.AllMonitorUsageTests;
+
 import junit.framework.Test;
 import junit.framework.TestSuite;
 
@@ -20,14 +23,13 @@ import junit.framework.TestSuite;
 public class AllMonitorTests {
 
 	public static Test suite() {
-		TestSuite suite = new TestSuite("Test for org.eclipse.mylar.monitor.tests");
+		TestSuite suite = new TestSuite("Test for org.eclipse.mylar.monitor.ui.tests");
 
 		// $JUnit-BEGIN$
+		suite.addTest(AllMonitorUsageTests.suite());
+		suite.addTest(AllMonitorReportTests.suite());
 		// suite.addTestSuite(TaskTimerTest.class);
-		suite.addTestSuite(StatisticsReportingTest.class); // HACK: needs to be
-		// last due to
-		// loading race
-		// condition
+		suite.addTestSuite(StatisticsReportingTest.class);
 		suite.addTestSuite(InteractionLoggerTest.class);
 		suite.addTestSuite(ActiveTimerTest.class);
 		suite.addTestSuite(StatisticsLoggingTest.class);

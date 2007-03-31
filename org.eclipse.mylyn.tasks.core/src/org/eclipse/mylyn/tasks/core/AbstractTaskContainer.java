@@ -13,32 +13,35 @@ package org.eclipse.mylar.tasks.core;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.eclipse.core.runtime.PlatformObject;
+
 /**
  * Manipulate containers via TaskListManager
  * 
  * @author Mik Kersten
  */
-public abstract class AbstractTaskContainer implements ITaskListElement {
+public abstract class AbstractTaskContainer extends PlatformObject implements ITaskListElement {
 
 	private String handle = "";
-	
+
 	private Set<String> childHandles = new HashSet<String>();
 
-	private TaskList taskList;
-	
+	protected TaskList taskList;
+
 	/**
-	 * Optional URL corresponding to the web resource associated with this container.
+	 * Optional URL corresponding to the web resource associated with this
+	 * container.
 	 */
-	protected String url = null;	
-	
+	protected String url = null;
+
 	public AbstractTaskContainer(String handleAndDescription, TaskList taskList) {
 		assert handle != null;
 		this.handle = handleAndDescription;
 		this.taskList = taskList;
 	}
-	
+
 	public abstract boolean isLocal();
-	
+
 	public Set<ITask> getChildren() {
 		Set<ITask> children = new HashSet<ITask>();
 		for (String childHandle : childHandles) {
@@ -50,38 +53,43 @@ public abstract class AbstractTaskContainer implements ITaskListElement {
 		return children;
 	}
 
-	public String getDescription() {
+	public String getSummary() {
 		return handle;
 	}
-	
+
 	public String getHandleIdentifier() {
 		return handle;
 	}
 
-	void setDescription(String description) {
+	public void setDescription(String description) {
 		this.handle = description;
 	}
 
 	public void setHandleIdentifier(String handle) {
 		this.handle = handle;
 	}
-	
+
 	void add(ITask task) {
 		childHandles.add(task.getHandleIdentifier());
 	}
-	
+
 	void remove(ITask task) {
 		childHandles.remove(task.getHandleIdentifier());
+	}
+
+	void clear() {
+		childHandles.clear();
 	}
 
 	public boolean isCompleted() {
 		return false;
 	}
 
+	@Override
 	public int hashCode() {
 		return handle.hashCode();
 	}
-	
+
 	public void setUrl(String url) {
 		this.url = url;
 	}
@@ -89,7 +97,7 @@ public abstract class AbstractTaskContainer implements ITaskListElement {
 	public String getUrl() {
 		return url;
 	}
-	
+
 	@Override
 	public boolean equals(Object object) {
 		if (object == null)
@@ -101,9 +109,21 @@ public abstract class AbstractTaskContainer implements ITaskListElement {
 			return false;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
 		return "container: " + handle;
+	}
+
+	public boolean canRename() {
+		return true;
+	}
+
+	/**
+	 * The handle for most containers is their summary. Override to specify a
+	 * different natural ordering.
+	 */
+	public int compareTo(ITaskListElement taskListElement) {
+		return getHandleIdentifier().compareTo(((AbstractTaskContainer) taskListElement).getHandleIdentifier());
 	}
 }

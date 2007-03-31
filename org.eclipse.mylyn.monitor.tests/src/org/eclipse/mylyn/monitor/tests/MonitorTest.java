@@ -20,13 +20,13 @@ import junit.framework.TestCase;
 
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.jface.viewers.StructuredSelection;
-import org.eclipse.mylar.context.core.InteractionEvent;
 import org.eclipse.mylar.internal.monitor.usage.InteractionEventLogger;
-import org.eclipse.mylar.monitor.IMylarMonitorLifecycleListener;
-import org.eclipse.mylar.monitor.usage.MylarUsageMonitorPlugin;
-import org.eclipse.mylar.monitor.workbench.BrowserMonitor;
-import org.eclipse.mylar.monitor.workbench.KeybindingCommandMonitor;
-import org.eclipse.mylar.monitor.workbench.PerspectiveChangeMonitor;
+import org.eclipse.mylar.internal.monitor.usage.MylarUsageMonitorPlugin;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
+import org.eclipse.mylar.monitor.ui.IMylarMonitorLifecycleListener;
+import org.eclipse.mylar.monitor.ui.workbench.BrowserMonitor;
+import org.eclipse.mylar.monitor.ui.workbench.KeybindingCommandMonitor;
+import org.eclipse.mylar.monitor.ui.workbench.PerspectiveChangeMonitor;
 import org.eclipse.ui.IPerspectiveDescriptor;
 import org.eclipse.ui.IPerspectiveRegistry;
 import org.eclipse.ui.PlatformUI;
@@ -90,7 +90,7 @@ public class MonitorTest extends TestCase implements IMylarMonitorLifecycleListe
 		assertEquals(0, browserMonitor.getAcceptedUrls().size());
 	}
 
-	@SuppressWarnings("deprecation")
+	@SuppressWarnings( { "deprecation", "unchecked" })
 	public void testLogging() throws InterruptedException {
 		MylarUsageMonitorPlugin.getDefault().startMonitoring();
 		logger.stopMonitoring();
@@ -130,8 +130,9 @@ public class MonitorTest extends TestCase implements IMylarMonitorLifecycleListe
 
 		perspectiveMonitor.perspectiveActivated(null, perspective);
 	}
-	
+
 	boolean monitorRunning = false;
+
 	public void startMonitoring() {
 		monitorRunning = true;
 	}
@@ -145,12 +146,12 @@ public class MonitorTest extends TestCase implements IMylarMonitorLifecycleListe
 		MylarUsageMonitorPlugin.getDefault().stopMonitoring();
 		MylarUsageMonitorPlugin.getDefault().addMonitoringLifecycleListener(this);
 		assertFalse(monitorRunning);
-		
+
 		MylarUsageMonitorPlugin.getDefault().startMonitoring();
 		assertTrue(monitorRunning);
 		MylarUsageMonitorPlugin.getDefault().stopMonitoring();
 		assertFalse(monitorRunning);
-		
+
 		MylarUsageMonitorPlugin.getDefault().startMonitoring();
 		assertTrue(monitorRunning);
 		MylarUsageMonitorPlugin.getDefault().stopMonitoring();
