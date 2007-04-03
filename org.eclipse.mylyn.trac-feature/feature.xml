@@ -2,7 +2,7 @@
 <feature
       id="org.eclipse.mylar.trac_feature"
       label="Mylar Connector: Trac"
-      version="2.0.0.v20070330-2000"
+      version="2.0.0.v20070330-2030"
       provider-name="Eclipse.org"
       plugin="org.eclipse.mylar">
 
@@ -228,20 +228,24 @@ litigation.
       <import plugin="org.eclipse.mylar" version="2.0.0.v20070216" match="greaterOrEqual"/>
       <import plugin="org.eclipse.mylar.monitor.core"/>
       <import feature="org.eclipse.mylar_feature" version="2.0.0.v20070330-2000" match="greaterOrEqual"/>
+      <import plugin="org.eclipse.ui.editors"/>
+      <import plugin="org.eclipse.jface.text"/>
+      <import plugin="org.eclipse.core.resources"/>
+      <import plugin="org.eclipse.ui.workbench.texteditor"/>
    </requires>
 
    <plugin
          id="org.eclipse.mylar.trac.ui"
          download-size="0"
          install-size="0"
-         version="2.0.0.v20070330-2000"
+         version="2.0.0.v20070330-2030"
          unpack="false"/>
 
    <plugin
          id="org.eclipse.mylar.trac.core"
          download-size="0"
          install-size="0"
-         version="2.0.0.v20070330-2000"
+         version="2.0.0.v20070330-2030"
          unpack="false"/>
 
 </feature>
