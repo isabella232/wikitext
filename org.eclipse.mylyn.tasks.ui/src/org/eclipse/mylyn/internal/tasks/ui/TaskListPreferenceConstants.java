@@ -35,9 +35,11 @@ public class TaskListPreferenceConstants {
 	public static final String TASK_EDITOR_ID = "org.eclipse.mylar.tasklist.ui.taskEditor";
 
 	public static final String CATEGORY_EDITOR_ID = "org.eclipse.mylar.tasklist.ui.catEditor";
-
+	
 	public static final String SELECTED_PRIORITY = "org.eclipse.mylar.tasklist.filter.priority";
 
+	public static final String FILTER_SUBTASKS = "org.eclipse.mylar.tasklist.filter.subtasks";
+	
 	public static final String FILTER_COMPLETE_MODE = "org.eclipse.mylar.tasklist.filter.complete";
 
 	public static final String FILTER_ARCHIVE_MODE = "org.eclipse.mylar.tasklist.filter.archive";
@@ -48,14 +50,14 @@ public class TaskListPreferenceConstants {
 
 	public static final String PREVIOUS_SAVE_DATE = "org.eclipse.mylar.tasklist.save.last";
 
-	public static final String CONTEXTS_MIGRATED = "org.eclipse.mylar.tasklist.repositories.migrated.single";
-
 	public static final String REPOSITORY_SYNCH_SCHEDULE_ENABLED = "org.eclipse.mylar.tasklist.repositories.synch.schedule";
 	
 	public static final String REPOSITORY_SYNCH_SCHEDULE_MILISECONDS = "org.eclipse.mylar.tasklist.repositories.synch.schedule.miliseconds";
 
 	public static final String NOTIFICATIONS_ENABLED = "org.eclipse.mylar.tasklist.notifications.enabled";
 
+	public static final String INCOMING_OVERLAID = "org.eclipse.mylar.tasks.ui.incoming.overlaid";
+	
 	public static final String BACKUP_SCHEDULE = "org.eclipse.mylar.tasklist.backup.schedule";
 
 	public static final String BACKUP_LAST = "org.eclipse.mylar.tasklist.backup.lastarchived";

@@ -16,6 +16,7 @@ import junit.framework.TestSuite;
 
 /**
  * @author Wesley Coelho (initial integration patch)
+ * @author Steffen Pingel
  */
 public class AllJiraTests {
 
@@ -23,13 +24,17 @@ public class AllJiraTests {
 		TestSuite suite = new TestSuite("Test for mylar.jira.tests");
 
 		// $JUnit-BEGIN$
+		suite.addTestSuite(JiraCustomQueryTest.class);
 		suite.addTestSuite(JiraTaskTest.class);
-		suite.addTestSuite(JiraServerFacadeTest.class);
+		suite.addTestSuite(JiraClientFacadeTest.class);
 		suite.addTestSuite(JiraTaskExternalizationTest.class);
 		suite.addTestSuite(JiraFilterTest.class);
 		suite.addTestSuite(JiraTaskArchiveTest.class);
 		suite.addTestSuite(JiraRepositoryConnectorTest.class);
+		suite.addTestSuite(JiraRpcClientTest.class);
+		suite.addTestSuite(JiraAttachmentHandlerTest.class);
 		// $JUnit-END$
 		return suite;
 	}
+
 }

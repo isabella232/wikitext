@@ -13,23 +13,29 @@ package org.eclipse.mylar.tasks.tests;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.Vector;
 
 import junit.framework.TestCase;
 
+import org.eclipse.jface.action.IContributionItem;
+import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.mylar.internal.tasks.core.WebTask;
 import org.eclipse.mylar.internal.tasks.ui.MoveToCategoryMenuContributor;
 import org.eclipse.mylar.internal.tasks.ui.TaskPriorityFilter;
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
 import org.eclipse.mylar.internal.tasks.ui.actions.MarkTaskCompleteAction;
+import org.eclipse.mylar.internal.tasks.ui.actions.NewCategoryAction;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListChangeListener;
 import org.eclipse.mylar.tasks.core.ITaskListElement;
 import org.eclipse.mylar.tasks.core.Task;
 import org.eclipse.mylar.tasks.core.TaskCategory;
+import org.eclipse.mylar.tasks.tests.connector.MockRepositoryQuery;
 import org.eclipse.mylar.tasks.ui.TaskListManager;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.PartInitException;
 
@@ -40,6 +46,8 @@ import org.eclipse.ui.PartInitException;
  * 
  */
 public class TaskListUiTest extends TestCase {
+	
+	private TaskListManager manager = null;
 
 	private TaskCategory cat1 = null;
 
@@ -75,11 +83,11 @@ public class TaskListUiTest extends TestCase {
 
 	private final static int CHECK_PRIORITY_FILTER = 3;
 
+	@Override
 	public void setUp() throws PartInitException {
 		try {
-			TasksUiPlugin.getDefault().getWorkbench().getActiveWorkbenchWindow().getActivePage().showView(
-					"org.eclipse.mylar.tasks.ui.views.TaskListView");
-			TaskListManager manager = TasksUiPlugin.getTaskListManager();
+			TaskListView.openInActivePerspective();
+			manager = TasksUiPlugin.getTaskListManager();
 			cat1 = new TaskCategory("First Category", manager.getTaskList());
 
 			cat1task1 = new Task(TasksUiPlugin.getTaskListManager().genUniqueTaskHandle(), "task 1", true);
@@ -160,6 +168,7 @@ public class TaskListUiTest extends TestCase {
 		}
 	}
 
+	@Override
 	public void tearDown() {
 		// clear everything
 	}
@@ -169,7 +178,7 @@ public class TaskListUiTest extends TestCase {
 		assertNotNull(view);
 		WebTask webTask = new WebTask("1", "1", "", "", "web");
 		TasksUiPlugin.getTaskListManager().getTaskList().addTask(webTask,
-				TasksUiPlugin.getTaskListManager().getTaskList().getRootCategory());
+				TasksUiPlugin.getTaskListManager().getTaskList().getUncategorizedCategory());
 		view.getViewer().refresh();
 		// Arrays.asList(view.getViewer().getVisibleExpandedElements());
 		assertFalse(webTask.isCompleted());
@@ -192,7 +201,7 @@ public class TaskListUiTest extends TestCase {
 			TaskListView.getFromActivePerspective().removeFilter(
 					TaskListView.getFromActivePerspective().getCompleteFilter());
 
-			TaskPriorityFilter filter = (TaskPriorityFilter) TaskListView.getFromActivePerspective()
+			TaskPriorityFilter filter = TaskListView.getFromActivePerspective()
 					.getPriorityFilter();
 			filter.displayPrioritiesAbove("P2");
 			TaskListView.getFromActivePerspective().addFilter(filter);
@@ -217,16 +226,16 @@ public class TaskListUiTest extends TestCase {
 		int numListenersAfter = 0;
 
 		TaskListManager manager = TasksUiPlugin.getTaskListManager();
-		List<ITaskListChangeListener> listeners = manager.getTaskList().getChangeListeners();
+		Set<ITaskListChangeListener> listeners = manager.getTaskList().getChangeListeners();
 		numListenersBefore = listeners.size();
 
 		// open a task in editor
 		// cat1task1.setForceSyncOpen(true);
-		TaskUiUtil.openEditor(cat1task1, false, true);
+		TasksUiUtil.openEditor(cat1task1, false, true);
 		// cat1task1.openTaskInEditor(false);
 		// cat1task2.setForceSyncOpen(true);
 		// cat1task2.openTaskInEditor(false);
-		TaskUiUtil.openEditor(cat1task2, false, true);
+		TasksUiUtil.openEditor(cat1task2, false, true);
 
 		listeners = manager.getTaskList().getChangeListeners();
 		numListenersDuring = listeners.size();
@@ -241,6 +250,79 @@ public class TaskListUiTest extends TestCase {
 
 	}
 	
+	
+	/**
+	 * Tests whether an additional NewCategory action is added to the category
+	 */
+	public void testGetSubMenuManagerContainsAllCategoriesPlusNewCategory() {
+		// setup
+		MoveToCategoryMenuContributor moveToMenuContrib = new MoveToCategoryMenuContributor();
+		List<ITaskListElement> selectedElements = new Vector<ITaskListElement>();
+		selectedElements.add(cat1task1);
+		int nrOfCategoriesMinusArchiveContainer = manager.getTaskList().getCategories().size() - 1;
+		int nrOfSeparators = 1;
+		// adding a separator and the New Category... action
+		int expectedNrOfSubMenuEntries = nrOfCategoriesMinusArchiveContainer + nrOfSeparators + 1;
+		NewCategoryAction newCatActon = new NewCategoryAction();
+
+		// execute sytem under test
+		MenuManager menuManager = moveToMenuContrib.getSubMenuManager(selectedElements);
+		IContributionItem[] items = menuManager.getItems();
+		IContributionItem item = items[menuManager.getItems().length-1];
+
+		// +1 for separator
+		assertEquals(expectedNrOfSubMenuEntries, menuManager.getItems().length);
+
+		if (item instanceof NewCategoryAction) {
+			NewCategoryAction action = (NewCategoryAction) item;
+			assertEquals(newCatActon.getText(), action.getText());
+		}
+		
+		// teardown
+	}
+
+	
+	/**
+	 * Tests visibility of SubMenuManager
+	 */
+	public void testVisibilityOfSubMenuManager(){
+		//setup
+		MoveToCategoryMenuContributor moveToMenuContrib = new MoveToCategoryMenuContributor();
+		MenuManager menuManager = null;
+		List<ITaskListElement> selectedElements = new Vector<ITaskListElement>();
+		selectedElements.add(cat1task1);
+		
+		List<ITaskListElement> emptySelection = new Vector<ITaskListElement>();
+
+		List<ITaskListElement> categorySelection = new Vector<ITaskListElement>();
+		categorySelection.add(cat1);
+		
+		List<ITaskListElement> querySelection = new Vector<ITaskListElement>();
+		querySelection.add(new MockRepositoryQuery("query", null));
+		
+		//execute system under test & assert
+		menuManager = moveToMenuContrib.getSubMenuManager(selectedElements);
+		assertTrue(menuManager.isVisible());
+		
+		menuManager = null;
+		menuManager = moveToMenuContrib.getSubMenuManager(emptySelection);
+		assertFalse(menuManager.isVisible());
+		
+		menuManager = null;
+		menuManager = moveToMenuContrib.getSubMenuManager(categorySelection);
+		assertFalse(menuManager.isVisible());
+		
+		menuManager = null;
+		menuManager = moveToMenuContrib.getSubMenuManager(querySelection);
+		assertFalse(menuManager.isVisible());
+		
+		//teardown
+	}
+	
+	
+	/**
+	 * Tests that the category name is shown in the Move To Category submenu, even when they have an @ in their name
+	 */
 	public void testCategoryNameIsShownInMoveToCategoryAction() {
 		String catNameWithAtBefore = "@CatName";
 		String catNameWithAtExpected = "@CatName@";

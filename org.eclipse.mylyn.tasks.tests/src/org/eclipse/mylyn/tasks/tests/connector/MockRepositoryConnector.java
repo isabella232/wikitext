@@ -11,19 +11,20 @@
 
 package org.eclipse.mylar.tasks.tests.connector;
 
-import java.net.Proxy;
-import java.util.List;
+import java.util.Collections;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.mylar.tasks.core.AbstractAttributeFactory;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
 import org.eclipse.mylar.tasks.core.IAttachmentHandler;
-import org.eclipse.mylar.tasks.core.IOfflineTaskHandler;
-import org.eclipse.mylar.tasks.core.ITask;
+import org.eclipse.mylar.tasks.core.ITaskDataHandler;
 import org.eclipse.mylar.tasks.core.QueryHitCollector;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 
 /**
@@ -33,6 +34,8 @@ import org.eclipse.mylar.tasks.core.TaskRepository;
 public class MockRepositoryConnector extends AbstractRepositoryConnector {
 
 	public static final String REPOSITORY_KIND = "mock";
+
+	public static final String REPOSITORY_URL = "http://mockrepository.test";
 
 	@Override
 	public boolean canCreateNewTask(TaskRepository repository) {
@@ -47,12 +50,6 @@ public class MockRepositoryConnector extends AbstractRepositoryConnector {
 	}
 
 	@Override
-	public ITask createTaskFromExistingKey(TaskRepository repository, String id, Proxy proxySettings) throws CoreException {
-		// ignore
-		return null;
-	}
-
-	@Override
 	public IAttachmentHandler getAttachmentHandler() {
 		// ignore
 		return null;
@@ -64,13 +61,37 @@ public class MockRepositoryConnector extends AbstractRepositoryConnector {
 	}
 
 	@Override
-	public IOfflineTaskHandler getOfflineTaskHandler() {
+	public ITaskDataHandler getTaskDataHandler() {
 		// ignore
-		return null;
+		return new ITaskDataHandler() {
+
+			public AbstractAttributeFactory getAttributeFactory(String repositoryUrl, String repositoryKind,
+					String taskKind) {
+				// we don't care about the repository information right now
+				return new MockAttributeFactory();
+			}
+
+			public RepositoryTaskData getTaskData(TaskRepository repository, String taskId) throws CoreException {
+				// ignore
+				return null;
+			}
+
+			public String postTaskData(TaskRepository repository, RepositoryTaskData taskData) throws CoreException {
+				// ignore
+				return null;
+			}
+
+			public boolean initializeTaskData(TaskRepository repository, RepositoryTaskData data,
+					IProgressMonitor monitor) throws CoreException {
+				// ignore
+				return false;
+			}
+
+		};
 	}
 
 	@Override
-	public String getRepositoryType() {		
+	public String getRepositoryType() {
 		return REPOSITORY_KIND;
 	}
 
@@ -81,24 +102,49 @@ public class MockRepositoryConnector extends AbstractRepositoryConnector {
 	}
 
 	@Override
-	public List<String> getSupportedVersions() {
+	public String getTaskIdFromTaskUrl(String url) {
 		// ignore
 		return null;
 	}
-	
+
 	@Override
-	public void updateAttributes(TaskRepository repository, Proxy proxySettings, IProgressMonitor monitor) throws CoreException {
+	public String getTaskWebUrl(String repositoryUrl, String taskId) {
+		return null;
+	}
+
+	@Override
+	public void updateAttributes(TaskRepository repository, IProgressMonitor monitor) throws CoreException {
 		// ignore
 	}
 
 	@Override
-	public void updateTaskState(AbstractRepositoryTask repositoryTask) {
+	public void updateTaskFromRepository(TaskRepository repository, AbstractRepositoryTask repositoryTask) {
 		// ignore
 	}
 
 	@Override
-	public IStatus performQuery(AbstractRepositoryQuery query, TaskRepository repository, Proxy proxySettings, IProgressMonitor monitor, QueryHitCollector resultCollector) {
+	public IStatus performQuery(AbstractRepositoryQuery query, TaskRepository repository, IProgressMonitor monitor,
+			QueryHitCollector resultCollector) {
 		return null;
+	}
+
+	@Override
+	public Set<AbstractRepositoryTask> getChangedSinceLastSync(TaskRepository repository,
+			Set<AbstractRepositoryTask> tasks) throws CoreException {
+		return Collections.emptySet();
+	}
+
+	@Override
+	protected AbstractRepositoryTask makeTask(String repositoryUrl, String id, String summary) {
+		// ignore
+		return null;
+	}
+
+	@Override
+	public void updateTaskFromTaskData(TaskRepository repository, AbstractRepositoryTask repositoryTask,
+			RepositoryTaskData taskData, boolean retrieveSubTasks) {
+		// ignore
+
 	}
 
 }

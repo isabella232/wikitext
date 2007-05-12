@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 
 /**
  * @author Rob Elves
@@ -26,15 +26,15 @@ public class AttributeContainer implements Serializable {
 
 	public static final String ERROR_NO_ATTRIBUTE_FACTORY = "Attribute factory not available.";
 
-	private static final long serialVersionUID = 3533078709450471836L;
+	private static final long serialVersionUID = 3538078709450471836L;
 
 	/** The keys for the report attributes */
 	private ArrayList<String> attributeKeys;
 
 	/** report attributes (status, resolution, etc.) */
 	private HashMap<String, RepositoryTaskAttribute> attributes;
-
-	transient private AbstractAttributeFactory attributeFactory;
+	
+	private transient AbstractAttributeFactory attributeFactory;
 
 	public AttributeContainer(AbstractAttributeFactory attributeFactory) {
 		this.attributeFactory = attributeFactory;
@@ -52,7 +52,10 @@ public class AttributeContainer implements Serializable {
 			return;
 		}
 		String mapped = attributeFactory.mapCommonAttributeKey(key);
-		if (!attributes.containsKey(mapped)) {
+		if(mapped == null) {
+			MylarStatusHandler.log("Mylar Error: mapped value for "+key+" returned null.", this);
+			return;
+		} if (!attributes.containsKey(mapped)) {
 			attributeKeys.add(mapped);
 		}
 		attributes.put(mapped, attribute);
@@ -144,6 +147,10 @@ public class AttributeContainer implements Serializable {
 			returnValue = attrib.getValues();
 		}
 		return returnValue;
+	}
+	
+	public AbstractAttributeFactory getAttributeFactory(){
+		return attributeFactory;
 	}
 
 }

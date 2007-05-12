@@ -12,16 +12,16 @@ import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.IDialogSettings;
 import org.eclipse.jface.window.Window;
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.IWorkbenchWindowActionDelegate;
 import org.eclipse.ui.actions.ActionDelegate;
 
 /**
- * @author wmitsuda
+ * @author Willian Mitsuda
  */
 public class OpenTaskAction extends ActionDelegate implements IWorkbenchWindowActionDelegate {
 
@@ -60,11 +60,11 @@ public class OpenTaskAction extends ActionDelegate implements IWorkbenchWindowAc
 			ITask task = (ITask) result;
 			if (dlg.getOpenInBrowser()) {
 				if (task.hasValidUrl()) {
-					TaskUiUtil.openUrl(task.getUrl());
+					TasksUiUtil.openUrl(task.getTaskUrl(), false);
 					TasksUiPlugin.getTaskListManager().getTaskActivationHistory().addTask(task);
 				}
 			} else {
-				TaskUiUtil.refreshAndOpenTaskListElement(task);
+				TasksUiUtil.refreshAndOpenTaskListElement(task);
 				TasksUiPlugin.getTaskListManager().getTaskActivationHistory().addTask(task);
 			}
 		} else if (result instanceof AbstractQueryHit) {
@@ -73,11 +73,11 @@ public class OpenTaskAction extends ActionDelegate implements IWorkbenchWindowAc
 			if (task != null) {
 				if (dlg.getOpenInBrowser()) {
 					if (task.hasValidUrl()) {
-						TaskUiUtil.openUrl(task.getUrl());
+						TasksUiUtil.openUrl(task.getTaskUrl(), false);
 						TasksUiPlugin.getTaskListManager().getTaskActivationHistory().addTask(task);
 					}
 				} else {
-					TaskUiUtil.refreshAndOpenTaskListElement(task);
+					TasksUiUtil.refreshAndOpenTaskListElement(task);
 					TasksUiPlugin.getTaskListManager().getTaskActivationHistory().addTask(task);
 				}
 			}

@@ -14,7 +14,7 @@ package org.eclipse.mylar.java.tests;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.internal.ui.JavaPlugin;
@@ -22,7 +22,7 @@ import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.tests.AbstractContextTest;
 import org.eclipse.mylar.context.ui.ContextUiPlugin;
 import org.eclipse.mylar.internal.context.core.MylarContext;
-import org.eclipse.mylar.internal.context.core.MylarContextManager;
+import org.eclipse.mylar.internal.context.core.ContextManager;
 import org.eclipse.mylar.internal.context.core.ScalingFactors;
 import org.eclipse.mylar.internal.java.JavaStructureBridge;
 import org.eclipse.mylar.internal.java.MylarJavaPlugin;
@@ -35,7 +35,7 @@ import org.eclipse.mylar.resources.tests.ResourceTestUtil;
  */
 public abstract class AbstractJavaContextTest extends AbstractContextTest {
 
-	protected MylarContextManager manager = ContextCorePlugin.getContextManager();
+	protected ContextManager manager = ContextCorePlugin.getContextManager();
 
 	protected JavaEditingMonitor monitor = new JavaEditingMonitor();
 
@@ -94,7 +94,7 @@ public abstract class AbstractJavaContextTest extends AbstractContextTest {
 		boolean wasInterrupted = false;
 		do {
 			try {
-				Platform.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_BUILD, null);
+				Job.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_BUILD, null);
 				wasInterrupted = false;
 			} catch (OperationCanceledException e) {
 				e.printStackTrace();

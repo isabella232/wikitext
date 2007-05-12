@@ -11,9 +11,7 @@
 
 package org.eclipse.mylar.internal.trac.core;
 
-import org.eclipse.mylar.internal.trac.core.TracAttributeFactory.Attribute;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
-import org.eclipse.mylar.tasks.core.RepositoryTaskAttribute;
 import org.eclipse.mylar.tasks.core.Task;
 
 /**
@@ -125,43 +123,14 @@ public class TracTask extends AbstractRepositoryTask {
 
 	}
 
-	public TracTask(String handle, String label, boolean newTask) {
-		super(handle, label, newTask);
-
-		setUrl(AbstractRepositoryTask.getRepositoryUrl(handle) + ITracClient.TICKET_URL
-				+ AbstractRepositoryTask.getTaskId(handle));
-	}
-
-	@Override
-	public boolean isCompleted() {
-		if (taskData != null) {
-			return isCompleted(taskData.getStatus());
-		} else {
-			return super.isCompleted();
-		}
+	public TracTask(String repositoryUrl, String id, String label, boolean newTask) {
+		super(repositoryUrl, id, label, newTask);
+		setTaskUrl(repositoryUrl + ITracClient.TICKET_URL + id);
 	}
 
 	@Override
 	public String getRepositoryKind() {
 		return TracCorePlugin.REPOSITORY_KIND;
-	}
-
-	@Override
-	public String getPriority() {
-		if (taskData != null && taskData.getAttribute(Attribute.PRIORITY.getTracKey()) != null) {
-			return getMylarPriority(taskData.getAttributeValue(Attribute.PRIORITY.getTracKey()));
-		} else {
-			return super.getPriority();
-		}
-	}
-
-	@Override
-	public String getOwner() {
-		if (taskData != null && taskData.getAttribute(RepositoryTaskAttribute.USER_OWNER) != null) {
-			return taskData.getAttributeValue(RepositoryTaskAttribute.USER_OWNER);
-		} else {
-			return super.getOwner();
-		}
 	}
 
 	// TODO use priority attributes from repository instead of hard coded enum

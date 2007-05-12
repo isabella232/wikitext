@@ -20,7 +20,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.mylar.internal.jira.core.JiraCorePlugin;
 import org.eclipse.mylar.internal.jira.ui.JiraRepositoryConnector;
-import org.eclipse.mylar.internal.jira.ui.JiraServerFacade;
+import org.eclipse.mylar.internal.jira.ui.JiraClientFacade;
 import org.eclipse.mylar.internal.jira.ui.JiraUiPlugin;
 import org.eclipse.mylar.tasks.core.RepositoryTemplate;
 import org.eclipse.mylar.tasks.core.TaskRepository;
@@ -130,11 +130,11 @@ public class JiraRepositorySettingsPage extends AbstractRepositorySettingsPage {
 			}
 
 			try {
-				JiraServerFacade.getDefault().validateServerAndCredentials(repository.getUrl(),
+				JiraClientFacade.getDefault().validateServerAndCredentials(repository.getUrl(),
 						repository.getUserName(), repository.getPassword(), repository.getProxy(),
 						repository.getHttpUser(), repository.getHttpPassword());
 			} catch (Exception e) {
-				throw new CoreException(JiraCorePlugin.toStatus(e));
+				throw new CoreException(JiraCorePlugin.toStatus(repository, e));
 			}
 
 			setStatus(new Status(IStatus.OK, JiraUiPlugin.PLUGIN_ID, IStatus.OK,

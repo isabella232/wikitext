@@ -20,7 +20,7 @@ import junit.framework.TestCase;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.mylar.internal.monitor.usage.InteractionEventLogger;
-import org.eclipse.mylar.monitor.usage.MylarUsageMonitorPlugin;
+import org.eclipse.mylar.internal.monitor.usage.MylarUsageMonitorPlugin;
 import org.eclipse.ui.IMemento;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
@@ -42,9 +42,10 @@ public class MultiWindowMonitorTest extends TestCase {
 	private IWorkbenchWindow window1;
 
 	private IWorkbenchWindow window2;
-	
+
 	private boolean monitoringWasEnabled;
 
+	@Override
 	protected void setUp() throws Exception {
 		super.setUp();
 		monitoringWasEnabled = MylarUsageMonitorPlugin.getDefault().isMonitoringEnabled();
@@ -71,7 +72,7 @@ public class MultiWindowMonitorTest extends TestCase {
 		File monitorFile = MylarUsageMonitorPlugin.getDefault().getMonitorLogFile();
 		logger.clearInteractionHistory();
 		assertEquals(0, logger.getHistoryFromFile(monitorFile).size());
-		
+
 		generateSelection(window1);
 		assertEquals(0, logger.getHistoryFromFile(monitorFile).size());
 
@@ -96,8 +97,8 @@ public class MultiWindowMonitorTest extends TestCase {
 				new Object[] { memento });
 	}
 
-	protected Object invokeMethod(Object instance, String methodName, Class argTypes[], Object arguments[]) {
-		Class clas = instance.getClass();
+	protected Object invokeMethod(Object instance, String methodName, Class<?> argTypes[], Object arguments[]) {
+		Class<?> clas = instance.getClass();
 		try {
 			Method method = clas.getDeclaredMethod(methodName, argTypes);
 			method.setAccessible(true);

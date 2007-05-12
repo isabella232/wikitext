@@ -10,11 +10,17 @@
  *******************************************************************************/
 package org.eclipse.mylar.internal.trac.core;
 
+import java.net.MalformedURLException;
+
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.mylar.tasks.core.IMylarStatusConstants;
+import org.eclipse.mylar.tasks.core.MylarStatus;
+import org.eclipse.mylar.tasks.core.RepositoryStatus;
+import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.osgi.framework.BundleContext;
 
 /**
@@ -75,16 +81,33 @@ public class TracCorePlugin extends Plugin {
 		return cacheFile;
 	}
 
+	public static IStatus toStatus(Throwable e, TaskRepository repository) {
+		if (e instanceof TracLoginException) {
+			return RepositoryStatus.createLoginError(repository.getUrl(), PLUGIN_ID);
+		} else if (e instanceof TracPermissionDeniedException) {
+			return TracStatus.createPermissionDeniedError(repository.getUrl(), PLUGIN_ID);
+		}
+		
+		return toStatus(e);
+	}
+
 	public static IStatus toStatus(Throwable e) {
 		if (e instanceof TracLoginException) {
-			return new Status(Status.ERROR, PLUGIN_ID, IStatus.INFO, 
-					"Your login name or password is incorrect. Ensure proper repository configuration in Task Repositories View.", null);
+			throw new RuntimeException("Invoke TracCorePlugin.toStatus(Throwable, TaskRepository)", e);
+		} else if (e instanceof TracPermissionDeniedException) {
+			throw new RuntimeException("Invoke TracCorePlugin.toStatus(Throwable, TaskRepository)", e);
 		} else if (e instanceof TracException) {
-			return new Status(Status.ERROR, PLUGIN_ID, IStatus.INFO, "Connection Error: " + e.getMessage(), e);
+			String message = e.getMessage();
+			if (message == null) {
+				message = "I/O error has occured";
+			}
+			return new MylarStatus(Status.ERROR, PLUGIN_ID, IMylarStatusConstants.IO_ERROR, message, e);
 		} else if (e instanceof ClassCastException) {
-			return new Status(Status.ERROR, PLUGIN_ID, IStatus.INFO, "Error parsing server response", e);
+			return new MylarStatus(Status.ERROR, PLUGIN_ID, IMylarStatusConstants.IO_ERROR, "Unexpected server response: " + e.getMessage(), e);
+		} else if (e instanceof MalformedURLException) {
+			return new MylarStatus(Status.ERROR, PLUGIN_ID, IMylarStatusConstants.IO_ERROR, "Repository URL is invalid", e);
 		} else {
-			return new Status(Status.ERROR, PLUGIN_ID, IStatus.ERROR, "Unexpected error", e);
+			return new MylarStatus(Status.ERROR, PLUGIN_ID, IMylarStatusConstants.INTERNAL_ERROR, "Unexpected error", e);
 		}
 	}
 

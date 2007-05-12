@@ -13,7 +13,6 @@
  */
 package org.eclipse.mylar.internal.sandbox.bridge.bugs;
 
-import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -21,7 +20,6 @@ import java.util.Set;
 
 import javax.security.auth.login.LoginException;
 
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -29,7 +27,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMember;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jface.resource.ImageDescriptor;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaQueryHit;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaTask;
@@ -218,7 +216,8 @@ public class BugzillaMylarSearchOperation extends WorkspaceModifyOperation imple
 
 				// we have a bugzilla task, so get the bug report
 				BugzillaTask bugTask = (BugzillaTask) task;
-				RepositoryTaskData bugTaskData = bugTask.getTaskData();
+				RepositoryTaskData bugTaskData = TasksUiPlugin.getDefault().getTaskDataManager().getNewTaskData(bugTask.getHandleIdentifier());
+				//RepositoryTaskData bugTaskData = bugTask.getTaskData();
 
 				// parse the bug report for the element that we are searching
 				// for
@@ -226,14 +225,9 @@ public class BugzillaMylarSearchOperation extends WorkspaceModifyOperation imple
 
 				// determine if we have a hit or not
 				if (isHit) {
-
 					// make a search hit from the bug and then add it to the collector
-					try {						
-						BugzillaQueryHit hit = new BugzillaQueryHit(TasksUiPlugin.getTaskListManager().getTaskList(), bugTaskData.getDescription(), "", bugTaskData.getRepositoryUrl(), bugTaskData.getId(), null, "");
-						searchCollector.accept(hit);
-					} catch (CoreException e) {
-						MylarStatusHandler.log(e, "bug search failed");
-					}
+					BugzillaQueryHit hit = new BugzillaQueryHit(TasksUiPlugin.getTaskListManager().getTaskList(), bugTaskData.getDescription(), "", bugTaskData.getRepositoryUrl(), bugTaskData.getId(), null, "");
+					searchCollector.accept(hit);
 				}
 			}
 		}
@@ -256,7 +250,7 @@ public class BugzillaMylarSearchOperation extends WorkspaceModifyOperation imple
 		String summary = bug.getSummary();
 		List<TaskComment> taskComments = bug.getComments();
 
-		// search the description and the summary
+		// search the summary and the summary
 		if (Util.hasElementName(elementName, summary))
 			return true;
 
@@ -292,8 +286,8 @@ public class BugzillaMylarSearchOperation extends WorkspaceModifyOperation imple
 		int matches = 0;
 		// setup the progress monitor and start the search
 		searchCollector.setProgressMonitor(monitor);
-		Proxy proxySettings = TasksUiPlugin.getDefault().getProxySettings();
-		BugzillaSearchEngine engine = new BugzillaSearchEngine(repository, url, proxySettings);
+		
+		BugzillaSearchEngine engine = new BugzillaSearchEngine(repository, url);
 		try {
 			// perform the search
 			status = engine.search(searchCollector, matches);
@@ -381,7 +375,7 @@ public class BugzillaMylarSearchOperation extends WorkspaceModifyOperation imple
 			if (b == null)
 				continue;
 
-			// see if the description has a stack trace in it
+			// see if the summary has a stack trace in it
 			StackTrace[] stackTrace = StackTrace.getStackTrace(b.getDescription(), b.getDescription());
 			if (stackTrace != null) {
 

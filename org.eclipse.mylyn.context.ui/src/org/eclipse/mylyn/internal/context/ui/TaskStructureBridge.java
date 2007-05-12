@@ -14,9 +14,7 @@ package org.eclipse.mylar.internal.context.ui;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.mylar.context.core.AbstractRelationProvider;
-import org.eclipse.mylar.context.core.IDegreeOfSeparation;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListElement;
@@ -25,18 +23,16 @@ import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 /**
  * @author Mik Kersten
  */
-public class TaskStructureBridge implements IMylarStructureBridge {
+public class TaskStructureBridge extends AbstractContextStructureBridge {
 
 	public static final String CONTENT_TYPE = "meta/task";
-	
-	public void setParentBridge(IMylarStructureBridge bridge) {
-		// ignore
-	}
 
+	@Override
 	public String getContentType() {
 		return CONTENT_TYPE;
 	}
 
+	@Override
 	public String getHandleIdentifier(Object object) {
 		if (object instanceof ITask) {
 			return ((ITask)object).getHandleIdentifier();
@@ -45,56 +41,57 @@ public class TaskStructureBridge implements IMylarStructureBridge {
 		}
 	}
 
+	@Override
 	public String getParentHandle(String handle) {
 		return null;
 	}
 
+	@Override
 	public Object getObjectForHandle(String handle) {
 		return TasksUiPlugin.getTaskListManager().getTaskList().getTask(handle);
 	}
 
+	@Override
 	public List<String> getChildHandles(String handle) {
 		return Collections.emptyList();
 	}
 
+	@Override
 	public String getName(Object object) {
 		if (object instanceof ITask) {
-			return ((ITask)object).getDescription();
+			return ((ITask)object).getSummary();
 		} else {
 			return null;
 		}
 	}
 
+	@Override
 	public boolean canBeLandmark(String handle) {
 		return false;
 	}
 
+	@Override
 	public boolean acceptsObject(Object object) {
 		return object instanceof ITaskListElement;
 	}
 
+	@Override
 	public boolean canFilter(Object object) {
 		return object instanceof ITask || object instanceof AbstractQueryHit;
 	}
 
+	@Override
 	public boolean isDocument(String handle) {
 		return getObjectForHandle(handle) instanceof ITask;
 	}
 
+	@Override
 	public String getHandleForOffsetInObject(Object resource, int offset) {
 		return null;
 	}
 
+	@Override
 	public String getContentType(String elementHandle) {
 		return getContentType();
 	}
-
-	public List<AbstractRelationProvider> getRelationshipProviders() {
-		return null;
-	}
-
-	public List<IDegreeOfSeparation> getDegreesOfSeparation() {
-		return null;
-	}
-
 }

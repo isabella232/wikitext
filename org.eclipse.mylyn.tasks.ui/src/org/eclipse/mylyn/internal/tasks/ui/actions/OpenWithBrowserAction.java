@@ -13,10 +13,10 @@ package org.eclipse.mylar.internal.tasks.ui.actions;
 
 import java.util.Iterator;
 
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
 import org.eclipse.mylar.tasks.core.AbstractQueryHit;
 import org.eclipse.mylar.tasks.core.AbstractTaskContainer;
 import org.eclipse.mylar.tasks.core.ITask;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 import org.eclipse.ui.actions.BaseSelectionListenerAction;
 
 /**
@@ -35,6 +35,7 @@ public class OpenWithBrowserAction extends BaseSelectionListenerAction {
 		setId(ID);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
 		if (super.getStructuredSelection() != null) {
@@ -45,22 +46,22 @@ public class OpenWithBrowserAction extends BaseSelectionListenerAction {
 	}
 
 	private void runWithSelection(Object selectedObject) {
-		ITask task = null;
+		String urlString = null;
 		if (selectedObject instanceof ITask) {
-			task = (ITask) selectedObject;
+			ITask task = (ITask)selectedObject;
+			if (task != null && task.hasValidUrl()) {
+				urlString = task.getTaskUrl();
+			}
 		} else if (selectedObject instanceof AbstractQueryHit) {
 			AbstractQueryHit hit = (AbstractQueryHit) selectedObject;
-			task = hit.getOrCreateCorrespondingTask();
-		}
-		String urlString = null;
-		if (task != null && task.hasValidUrl()) {
-			urlString = task.getUrl();
+			urlString = hit.getUrl();
 		} else if (selectedObject instanceof AbstractTaskContainer) {
 			AbstractTaskContainer query = (AbstractTaskContainer) selectedObject;
 			urlString = query.getUrl();
 		}
+		
 		if (urlString != null) {
-			TaskUiUtil.openUrl(urlString);
+			TasksUiUtil.openUrl(urlString, false);
 		}
 	}
 }

@@ -18,11 +18,10 @@ import java.util.List;
 import junit.framework.TestCase;
 
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.mylar.context.core.InteractionEvent;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaTask;
-import org.eclipse.mylar.internal.context.core.MylarContextManager;
-import org.eclipse.mylar.monitor.usage.MylarUsageMonitorPlugin;
-import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
+import org.eclipse.mylar.internal.context.core.ContextManager;
+import org.eclipse.mylar.internal.monitor.usage.MylarUsageMonitorPlugin;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.Task;
 import org.eclipse.mylar.tasks.ui.TaskListManager;
@@ -42,6 +41,7 @@ public class ChangeDataDirTest extends TestCase {
 
 	private TaskListManager manager = TasksUiPlugin.getTaskListManager();
 
+	@Override
 	protected void setUp() throws Exception {
 		super.setUp();
 
@@ -52,9 +52,11 @@ public class ChangeDataDirTest extends TestCase {
 		dir.deleteOnExit();
 		manager.resetTaskList();
 		assertTrue(manager.getTaskList().isEmpty());
-		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
+		TasksUiPlugin.getTaskListManager().saveTaskList(); 
+//		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
 	}
 
+	@Override
 	protected void tearDown() throws Exception {
 		super.tearDown();
 		manager.resetTaskList();
@@ -75,7 +77,7 @@ public class ChangeDataDirTest extends TestCase {
 		assertTrue(new File(newPath).exists());
 
 		assertTrue(MylarUsageMonitorPlugin.getDefault().getInteractionLogger().getOutputFile().exists());
-		String monitorFileName = MylarUsageMonitorPlugin.MONITOR_LOG_NAME + MylarContextManager.OLD_CONTEXT_FILE_EXTENSION;
+		String monitorFileName = MylarUsageMonitorPlugin.MONITOR_LOG_NAME + ContextManager.CONTEXT_FILE_EXTENSION_OLD;
 		List<String> newFiles = Arrays.asList(new File(newDataDir).list());
 		assertTrue(newFiles.toString(), newFiles.contains(monitorFileName));
 
@@ -99,30 +101,31 @@ public class ChangeDataDirTest extends TestCase {
 		manager.getTaskList().moveToRoot(task);
 
 		ITask readTaskBeforeMove = manager.getTaskList().getTask(handle);
-		TasksUiPlugin.getDefault().getTaskListSaveManager().copyDataDirContentsTo(newDataDir);
+		TasksUiPlugin.getTaskListManager().copyDataDirContentsTo(newDataDir);
 		TasksUiPlugin.getDefault().setDataDirectory(newDataDir);
-
 		ITask readTaskAfterMove = manager.getTaskList().getTask(handle);
+		
 		assertNotNull(readTaskAfterMove);
 		assertEquals(readTaskBeforeMove.getCreationDate(), readTaskAfterMove.getCreationDate());
 	}
 
 	// TODO: delete? using lastOpened date wrong
 	public void testBugzillaTaskMove() {
-		String handle = AbstractRepositoryTask.getHandle("server", 1);
-		BugzillaTask bugzillaTask = new BugzillaTask(handle, "bug1", true);
+//		String handle = AbstractRepositoryTask.getHandle("server", 1);
+		BugzillaTask bugzillaTask = new BugzillaTask("server", "1", "bug1", true);
 		String refreshDate = (new Date()).toString();
 		bugzillaTask.setLastSyncDateStamp(refreshDate);
 		addBugzillaTask(bugzillaTask);
-		BugzillaTask readTaskBeforeMove = (BugzillaTask) manager.getTaskList().getTask(handle);
+		BugzillaTask readTaskBeforeMove = (BugzillaTask) manager.getTaskList().getTask("server", "1");
 		assertNotNull(readTaskBeforeMove);
 		assertEquals(refreshDate, readTaskBeforeMove.getLastSyncDateStamp());
 
-		TasksUiPlugin.getDefault().getTaskListSaveManager().copyDataDirContentsTo(newDataDir);
+		TasksUiPlugin.getTaskListManager().copyDataDirContentsTo(newDataDir);
 		TasksUiPlugin.getDefault().setDataDirectory(newDataDir);
 
-		BugzillaTask readTaskAfterMove = (BugzillaTask) manager.getTaskList().getTask(handle);
+		BugzillaTask readTaskAfterMove = (BugzillaTask) manager.getTaskList().getTask("server", "1");
 		assertNotNull(readTaskAfterMove);
+		assertEquals("bug1", readTaskAfterMove.getSummary());
 		assertEquals(refreshDate, readTaskAfterMove.getLastSyncDateStamp());
 	}
 

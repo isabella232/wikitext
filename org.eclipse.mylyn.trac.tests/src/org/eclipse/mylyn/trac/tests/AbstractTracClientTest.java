@@ -11,6 +11,8 @@
 
 package org.eclipse.mylar.trac.tests;
 
+import java.net.Proxy;
+
 import junit.framework.TestCase;
 
 import org.eclipse.mylar.context.tests.support.MylarTestUtils;
@@ -37,10 +39,21 @@ public abstract class AbstractTracClientTest extends TestCase {
 
 	public Version version;
 
-	public AbstractTracClientTest(Version version) {
+	private PrivilegeLevel level;
+
+	public AbstractTracClientTest(Version version, PrivilegeLevel level) {
 		this.version = version;
+		this.level = level;
 	}
 
+	public AbstractTracClientTest(Version version) {
+		this(version, PrivilegeLevel.USER);
+	}
+
+	public AbstractTracClientTest() {
+		this(null, PrivilegeLevel.USER);
+	}
+	
 	public ITracClient connect096() throws Exception {
 		return connect(Constants.TEST_TRAC_096_URL);
 	}
@@ -53,16 +66,32 @@ public abstract class AbstractTracClientTest extends TestCase {
 		return connect(Constants.TEST_TRAC_010_DIGEST_AUTH_URL);
 	}
 
+	public ITracClient connect011() throws Exception {
+		return connect(Constants.TEST_TRAC_011_URL);
+	}
+
 	public ITracClient connect(String url) throws Exception {
-		Credentials credentials = MylarTestUtils.readCredentials(PrivilegeLevel.USER);
-		return connect(url, credentials.username, credentials.password);
+		return connect(url, Proxy.NO_PROXY);
+	}
+
+	public ITracClient connect(String url, Proxy proxy) throws Exception {
+		Credentials credentials = MylarTestUtils.readCredentials(level);
+		return connect(url, credentials.username, credentials.password, proxy);
 	}
 
 	public ITracClient connect(String url, String username, String password) throws Exception {
+		return connect(url, username, password, Proxy.NO_PROXY);
+	}
+
+	public ITracClient connect(String url, String username, String password, Proxy proxy) throws Exception {
+		return connect(url, username, password, proxy, version);
+	}
+
+	public ITracClient connect(String url, String username, String password, Proxy proxy, Version version) throws Exception {
 		this.repositoryUrl = url;
 		this.username = username;
 		this.password = password;
-		this.repository = TracClientFactory.createClient(url, version, username, password);
+		this.repository = TracClientFactory.createClient(url, version, username, password, proxy);
 
 		return this.repository;
 	}

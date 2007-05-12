@@ -19,11 +19,10 @@ import org.eclipse.jface.viewers.ISelectionProvider;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.wizard.WizardDialog;
-import org.eclipse.mylar.internal.tasks.ui.editors.AbstractRepositoryTaskEditor;
-import org.eclipse.mylar.internal.tasks.ui.editors.ExistingBugEditorInput;
-import org.eclipse.mylar.internal.tasks.ui.editors.MylarTaskEditor;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
 import org.eclipse.mylar.internal.tasks.ui.wizards.NewRepositoryTaskWizard;
-import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.editors.AbstractRepositoryTaskEditor;
+import org.eclipse.mylar.tasks.ui.editors.TaskEditor;
 import org.eclipse.pde.internal.runtime.logview.LogEntry;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.TextTransfer;
@@ -52,7 +51,9 @@ public class NewTaskFromErrorAction implements IViewActionDelegate, ISelectionCh
 		if (items.length > 0) {
 			selection = (LogEntry) items[0].getData();
 		}
-
+		if (selection == null) {
+			return;
+		}
 		NewRepositoryTaskWizard wizard = new NewRepositoryTaskWizard();
 
 		Shell shell = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
@@ -67,30 +68,28 @@ public class NewTaskFromErrorAction implements IViewActionDelegate, ISelectionCh
 			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 			AbstractRepositoryTaskEditor editor = null;
 
-			String summary = selection.getSeverityText() + ": \"" + selection.getMessage() + "\" in "
-					+ selection.getPluginId();
+			String summary = ""; 
+//				selection.getSeverityText() + ": \"" + selection.getMessage() + "\" in "
+//					+ selection.getPluginId();
 			String description = "\n\n-- Error Log --\nDate: " + selection.getDate() + "\nMessage: "
 					+ selection.getMessage() + "\nSeverity: " + selection.getSeverityText() + "\nPlugin ID: "
 					+ selection.getPluginId() + "\nStack Trace:\n"
 					+ ((selection.getStack() == null) ? "no stack trace available" : selection.getStack());
 
 			try {
-				MylarTaskEditor taskEditor = (MylarTaskEditor)page.getActiveEditor();			
-				editor = (AbstractRepositoryTaskEditor) taskEditor.getActivePageInstance();				
+				TaskEditor taskEditor = (TaskEditor) page.getActiveEditor();
+				editor = (AbstractRepositoryTaskEditor) taskEditor.getActivePageInstance();
 			} catch (ClassCastException e) {
 				Clipboard clipboard = new Clipboard(page.getWorkbenchWindow().getShell().getDisplay());
-				clipboard.setContents(new Object[] { summary + "\n" + description }, new Transfer[] { TextTransfer.getInstance() });
+				clipboard.setContents(new Object[] { summary + "\n" + description }, new Transfer[] { TextTransfer
+						.getInstance() });
 
 				MessageDialog
 						.openInformation(
 								page.getWorkbenchWindow().getShell(),
-								TasksUiPlugin.TITLE_DIALOG,
+								ITasksUiConstants.TITLE_DIALOG,
 								"This connector does not provide a rich task editor for creating tasks.\n\n"
-								+ "The error contents have been placed in the clipboard so that you can paste them into the entry form.");
-				return;
-			}
-
-			if (selection == null || editor.getEditorInput() instanceof ExistingBugEditorInput) {
+										+ "The error contents have been placed in the clipboard so that you can paste them into the entry form.");
 				return;
 			}
 

@@ -27,9 +27,10 @@ public class NewAttachmentWizardDialog extends WizardDialog {
 
 		setShellStyle(getShellStyle() | SWT.RESIZE);
 		setMinimumPageSize(600, 300);
-		setPageSize(600, 300);
+		setPageSize(600, 300);		
 	}
 
+	@Override
 	protected IDialogSettings getDialogBoundsSettings() {
 		IDialogSettings settings = TasksUiPlugin.getDefault().getDialogSettings();
 		IDialogSettings section = settings.getSection(ATTACHMENT_WIZARD_SETTINGS_SECTION);

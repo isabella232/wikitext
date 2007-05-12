@@ -33,13 +33,13 @@ import org.eclipse.mylar.context.core.AbstractRelationProvider;
 import org.eclipse.mylar.context.core.IMylarContext;
 import org.eclipse.mylar.context.core.IMylarContextListener;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.InteractionEvent;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.internal.context.core.MylarContext;
-import org.eclipse.mylar.internal.context.core.MylarContextManager;
+import org.eclipse.mylar.internal.context.core.ContextManager;
 import org.eclipse.mylar.internal.java.InterestInducingProblemListener;
 import org.eclipse.mylar.internal.java.JavaStructureBridge;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PlatformUI;
@@ -84,19 +84,11 @@ public class ContextManagerTest extends AbstractJavaContextTest {
 			// don't care about this event
 		}
 
-		public void edgesChanged(IMylarElement node) {
+		public void relationsChanged(IMylarElement node) {
 			// don't care about this event
 		}
 
-		public void presentationSettingsChanging(UpdateKind kind) {
-			// don't care about this event
-		}
-
-		public void presentationSettingsChanged(UpdateKind kind) {
-			// don't care about this event
-		}
-
-		public void nodeDeleted(IMylarElement node) {
+		public void elementDeleted(IMylarElement node) {
 			// don't care about this event
 		}
 
@@ -104,6 +96,10 @@ public class ContextManagerTest extends AbstractJavaContextTest {
 			// don't care about this event
 		}
 
+		public void contextCleared(IMylarContext context) {
+			// ignore
+		}
+		
 		public void contextDeactivated(IMylarContext taskscapeDeactivated) {
 			// don't care about this event
 		}
@@ -136,8 +132,8 @@ public class ContextManagerTest extends AbstractJavaContextTest {
 
 	public void testShellLifecycleActivityStart() {
 		List<InteractionEvent> events = manager.getActivityHistoryMetaContext().getInteractionHistory();
-		assertEquals(MylarContextManager.ACTIVITY_DELTA_STARTED, events.get(0).getDelta());
-		assertEquals(MylarContextManager.ACTIVITY_DELTA_ACTIVATED, events.get(1).getDelta());
+		assertEquals(ContextManager.ACTIVITY_DELTA_STARTED, events.get(0).getDelta());
+		assertEquals(ContextManager.ACTIVITY_DELTA_ACTIVATED, events.get(1).getDelta());
 	}
 	
 	public void testActivityHistory() {
@@ -199,7 +195,7 @@ public class ContextManagerTest extends AbstractJavaContextTest {
 		manager.handleInteractionEvent(mockInterestContribution(m2.getHandleIdentifier(), scaling.getLandmark()));
 		assertTrue(m2Node.getInterest().isLandmark());
 
-		AbstractRelationProvider provider = new JavaStructureBridge().getRelationshipProviders().get(0);
+		AbstractRelationProvider provider = ContextCorePlugin.getDefault().getRelationProviders("java").iterator().next();
 		provider.createEdge(m2Node, m1Node.getContentType(), m2.getHandleIdentifier());
 
 		assertEquals(1, m2Node.getRelations().size());
@@ -266,7 +262,7 @@ public class ContextManagerTest extends AbstractJavaContextTest {
 
 		IMylarElement node = ContextCorePlugin.getContextManager().getElement(m1.getHandleIdentifier());
 		assertTrue(node.getInterest().isInteresting());
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
 		IMylarElement parent = ContextCorePlugin.getContextManager().getElement(
 				bridge.getParentHandle(node.getHandleIdentifier()));
 		assertTrue(parent.getInterest().isInteresting());

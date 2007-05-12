@@ -17,12 +17,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
+import org.eclipse.mylar.internal.jira.core.model.Attachment;
 import org.eclipse.mylar.internal.jira.core.model.Comment;
 import org.eclipse.mylar.internal.jira.core.model.Component;
 import org.eclipse.mylar.internal.jira.core.model.Issue;
+import org.eclipse.mylar.internal.jira.core.model.Project;
 import org.eclipse.mylar.internal.jira.core.model.Version;
 import org.eclipse.mylar.internal.jira.core.model.filter.IssueCollector;
-import org.eclipse.mylar.internal.jira.core.service.JiraServer;
+import org.eclipse.mylar.internal.jira.core.service.JiraClient;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -57,6 +59,7 @@ import org.xml.sax.helpers.DefaultHandler;
  */
 /**
  * @author	Brock Janiczak
+ * @author Steffen Pingel
  */
 public class RssContentHandler extends DefaultHandler {
 
@@ -75,6 +78,10 @@ public class RssContentHandler extends DefaultHandler {
 	private static final String USERNAME_ATTR = "username"; //$NON-NLS-1$
 
 	private static final String SECONDS_ATTR = "seconds"; //$NON-NLS-1$
+
+	private static final String NAME_ATTR = "name"; //$NON-NLS-1$
+	
+	private static final String SIZE_ATTR = "size"; //$NON-NLS-1$
 
 	private static final String RSS = "rss"; //$NON-NLS-1$
 
@@ -187,12 +194,14 @@ public class RssContentHandler extends DefaultHandler {
 	private static final int IN_INWARDS_ISSUE_LINK = 12;
 
 	private static final int IN_OUTWARDS_ISSUE_LINK = 13;
+	
+	private static final int IN_ATTACHMENTS = 14;
 
 	int state = START;
 
 	private StringBuffer currentElementText;
 
-	private final JiraServer server;
+	private final JiraClient client;
 
 	private final IssueCollector collector;
 
@@ -212,40 +221,43 @@ public class RssContentHandler extends DefaultHandler {
 
 	private ArrayList<Component> currentComponents = new ArrayList<Component>();
 
+	private ArrayList<Attachment> currentAttachments = new ArrayList<Attachment>();
+
+	private String attachmentId;
+
+	private String attachmentName;
+
+	private long attachmentSize;
+
+	private String attachmentAuthor;
+
+	private Date attachmentCreated;
+	
 	/**
 	 * Creates a new RSS reader that will create issues from the RSS information
 	 * by querying the local Jira Server for any missing information. Issues
 	 * will be published to <code>collector</code> as they are read from the
 	 * stream.
 	 * 
-	 * @param server
+	 * @param client
 	 *            Jira server we are listing the issues of. This can either be a
 	 *            locally cached jira server or a connection to a live instance.
 	 * @param collector
 	 *            Collecter that will be processing the issues as they are read
 	 *            from the RSS feed.
+	 * @param baseUrl the base URL of the repository
 	 */
-	public RssContentHandler(JiraServer server, IssueCollector collector) {
-		this.server = server;
+	public RssContentHandler(JiraClient client, IssueCollector collector, String baseUrl) {
+		this.client = client;
 		this.collector = collector;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.xml.sax.helpers.DefaultHandler#startDocument()
-	 */
 	public void startDocument() throws SAXException {
 		state = START;
 		currentElementText = new StringBuffer(256);
 		collector.start();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.xml.sax.helpers.DefaultHandler#endDocument()
-	 */
 	public void endDocument() throws SAXException {
 		if (state != START) {
 			// System.err.println("Document ended abnormally");
@@ -255,16 +267,10 @@ public class RssContentHandler extends DefaultHandler {
 		currentElementText = null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.xml.sax.helpers.DefaultHandler#startElement(java.lang.String,
-	 *      java.lang.String, java.lang.String, org.xml.sax.Attributes)
-	 */
 	public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
 		currentElementText.setLength(0);
 		if (collector.isCancelled()) {
-			throw new ParseCancelledException("User cancelled operation");
+			throw new ParseCancelledException("User canceled operation");
 		}
 
 		switch (state) {
@@ -288,11 +294,11 @@ public class RssContentHandler extends DefaultHandler {
 			if (KEY.equals(localName)) {
 				currentIssue.setId(attributes.getValue(ID_ATTR));
 			} else if (TYPE.equals(localName)) {
-				currentIssue.setType(server.getIssueTypeById(attributes.getValue(ID_ATTR)));
+				currentIssue.setType(client.getIssueTypeById(attributes.getValue(ID_ATTR)));
 			} else if (PRIORITY.equals(localName)) {
-				currentIssue.setPriority(server.getPriorityById(attributes.getValue(ID_ATTR)));
+				currentIssue.setPriority(client.getPriorityById(attributes.getValue(ID_ATTR)));
 			} else if (STATUS.equals(localName)) {
-				currentIssue.setStatus(server.getStatusById(attributes.getValue(ID_ATTR)));
+				currentIssue.setStatus(client.getStatusById(attributes.getValue(ID_ATTR)));
 			} else if (ASSIGNEE.equals(localName)) {
 				String assigneeName = attributes.getValue(USERNAME_ATTR);
 				currentIssue.setAssignee(assigneeName);
@@ -301,7 +307,7 @@ public class RssContentHandler extends DefaultHandler {
 				currentIssue.setReporter(reporterName);
 			} else if (RESOLUTION.equals(localName)) {
 				String resolutionId = attributes.getValue(ID_ATTR);
-				currentIssue.setResolution(resolutionId != null ? server.getResolutionById(resolutionId) : null);
+				currentIssue.setResolution(resolutionId != null ? client.getResolutionById(resolutionId) : null);
 			} else if (ORIGINAL_ESTIMATE.equals(localName)) {
 				currentIssue.setInitialEstimate(Long.parseLong(attributes.getValue(SECONDS_ATTR)));
 			} else if (CURRENT_ESTIMATE.equals(localName)) {
@@ -316,6 +322,8 @@ public class RssContentHandler extends DefaultHandler {
 				state = IN_ISSUE_LINKS;
 			} else if (CUSTOM_FIELDS.equals(localName)) {
 				state = IN_CUSTOM_FIELDS;
+			} else if (ATTACHMENTS.equals(localName)) {
+				state = IN_ATTACHMENTS;
 			}
 
 			break;
@@ -386,6 +394,21 @@ public class RssContentHandler extends DefaultHandler {
 			break;
 		case IN_CUSTOM_FIELD_VALUES:
 			break;
+		case IN_ATTACHMENTS:
+			if (ATTACHMENT.equals(localName)) {
+				attachmentId = attributes.getValue(ID_ATTR);
+				attachmentName = attributes.getValue(NAME_ATTR);
+				attachmentSize = Long.parseLong(attributes.getValue(SIZE_ATTR));
+				attachmentAuthor = attributes.getValue(AUTHOR_ATTR);
+				try {
+					attachmentCreated = new SimpleDateFormat(XML_DATE_FORMAT, Locale.US).parse(attributes
+							.getValue(CREATED_ATTR));
+				} catch (ParseException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			break;
 		}
 	}
 
@@ -397,6 +420,15 @@ public class RssContentHandler extends DefaultHandler {
 	 */
 	public void endElement(String uri, String localName, String qName) throws SAXException {
 		switch (state) {
+		case IN_ATTACHMENTS:
+			if (ATTACHMENTS.equals(localName)) {
+				state = IN_ITEM;
+			} else if (ATTACHMENT.equals(localName)) {
+				Attachment attachment = new Attachment(attachmentId, attachmentName, attachmentSize, attachmentAuthor, attachmentCreated);
+				currentAttachments.add(attachment);
+			}
+			break;
+
 		case IN_CUSTOM_FIELD_VALUES:
 			if (CUSTOM_FIELD_VALUES.equals(localName)) {
 				state = IN_CUSTOM_FIELD;
@@ -467,8 +499,10 @@ public class RssContentHandler extends DefaultHandler {
 				currentIssue.setComponents(currentComponents.toArray(new Component[currentComponents
 						.size()]));
 				currentIssue.setComments(currentComments.toArray(new Comment[currentComments.size()]));
+				currentIssue.setAttachments(currentAttachments.toArray(new Attachment[currentAttachments.size()]));
 				collector.collectIssue(currentIssue);
 				currentIssue = null;
+				currentAttachments.clear();
 				currentComments.clear();
 				currentFixVersions.clear();
 				currentReportedVersions.clear();
@@ -485,9 +519,14 @@ public class RssContentHandler extends DefaultHandler {
 			} else if (KEY.equals(localName)) {
 				String key = currentElementText.toString();
 				currentIssue.setKey(key);
-				currentIssue.setUrl(server.getBaseURL() + "/browse/" + key);
+				currentIssue.setUrl(client.getBaseUrl() + "/browse/" + key);
 				// TODO super dodgey to assume the project from the issue key
-				currentIssue.setProject(server.getProject(key.substring(0, key.indexOf('-'))));
+				String projectKey = key.substring(0, key.indexOf('-'));
+				Project project = client.getProjectByKey(projectKey);
+				if (project == null) {
+					throw new SAXException("No project with key '" + projectKey + "' found");
+				}
+				currentIssue.setProject(project);
 			} else if (SUMMARY.equals(localName)) {
 				currentIssue.setSummary(currentElementText.toString());
 			} else if (CREATED.equals(localName)) {
@@ -495,11 +534,32 @@ public class RssContentHandler extends DefaultHandler {
 			} else if (UPDATED.equals(localName)) {
 				currentIssue.setUpdated(convertToDate(currentElementText.toString()));
 			} else if (VERSION.equals(localName)) {
-				currentReportedVersions.add(currentIssue.getProject().getVersion(currentElementText.toString()));
+				if (currentIssue.getProject() == null) {
+					throw new SAXException("Issue " + currentIssue.getId() + " does not have a valid project");
+				}
+				Version version = currentIssue.getProject().getVersion(currentElementText.toString());
+				if (version == null) {
+					throw new SAXException("No version with name '" + currentElementText.toString() + "' found");
+				}
+				currentReportedVersions.add(version);
 			} else if (FIX_VERSION.equals(localName)) {
-				currentFixVersions.add(currentIssue.getProject().getVersion(currentElementText.toString()));
+				if (currentIssue.getProject() == null) {
+					throw new SAXException("Issue " + currentIssue.getId() + " does not have a valid project");
+				}
+				Version version = currentIssue.getProject().getVersion(currentElementText.toString());
+				if (version == null) {
+					throw new SAXException("No version with name '" + currentElementText.toString() + "' found");
+				}
+				currentFixVersions.add(version);
 			} else if (COMPONENT.equals(localName)) {
-				currentComponents.add(currentIssue.getProject().getComponent(currentElementText.toString()));
+				if (currentIssue.getProject() == null) {
+					throw new SAXException("Issue " + currentIssue.getId() + " does not have a valid project");
+				}
+				Component component = currentIssue.getProject().getComponent(currentElementText.toString());
+				if (component == null) {
+					throw new SAXException("No component with name '" + currentElementText.toString() + "' found");
+				}
+				currentComponents.add(component);
 			} else if (DUE.equals(localName)) {
 				currentIssue.setDue(convertToDate(currentElementText.toString()));
 			} else if (VOTES.equals(localName)) {
@@ -550,11 +610,6 @@ public class RssContentHandler extends DefaultHandler {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.xml.sax.helpers.DefaultHandler#characters(char[], int, int)
-	 */
 	public void characters(char[] ch, int start, int length) throws SAXException {
 		currentElementText.append(ch, start, length);
 	}

@@ -64,9 +64,10 @@ public class WebResourceManager {
 			webContextEnabled = false;
 			updateContents(false);
 		}
-
-		public void presentationSettingsChanging(UpdateKind kind) {
-			// ignore
+		
+		public void contextCleared(IMylarContext context) {
+			webContextEnabled = false;
+			updateContents(false);
 		}
 
 		public void landmarkAdded(IMylarElement node) {
@@ -82,10 +83,6 @@ public class WebResourceManager {
 		}
 
 		public void elementDeleted(IMylarElement node) {
-			// ignore
-		}
-
-		public void presentationSettingsChanged(UpdateKind kind) {
 			// ignore
 		}
 	};
@@ -159,7 +156,7 @@ public class WebResourceManager {
 		if (siteUrl != null) {
 			WebSite webSite = webRoot.getSite(siteUrl);
 			if (webSite == null) {
-				webSite = new WebSite(siteUrl, webRoot);
+				webSite = new WebSite(siteUrl);
 				webRoot.addSite(webSite);
 			}
 			if (!url.equals(siteUrl)) {

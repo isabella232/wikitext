@@ -10,30 +10,40 @@
  *******************************************************************************/
 package org.eclipse.mylar.tasks.core;
 
+import org.eclipse.core.runtime.PlatformObject;
+import org.eclipse.mylar.internal.tasks.core.RepositoryTaskHandleUtil;
+import org.eclipse.mylar.tasks.core.Task.PriorityLevel;
 
 /**
  * @author Mik Kersten
  */
-public abstract class AbstractQueryHit implements ITaskListElement {
+public abstract class AbstractQueryHit extends PlatformObject implements ITaskListElement {
+
+	protected TaskList taskList;
+
+	protected AbstractRepositoryTask task;
 
 	protected String repositoryUrl;
-	
-	protected String description;
 
-	protected String priority;
-	
-	protected String id;
+	protected String summary;
 
-	protected boolean isNotified = false;
+	protected String priority = PriorityLevel.getDefault().toString();
+
+	protected String taskId;
+
+	private boolean completed = false;
+
+	private boolean isNotified = false;
 
 	private AbstractRepositoryQuery parent;
-	
-	protected AbstractQueryHit(String repositoryUrl, String description, String id) {
+
+	protected AbstractQueryHit(TaskList taskList, String repositoryUrl, String description, String taskId) {
+		this.taskList = taskList;
 		this.repositoryUrl = repositoryUrl;
-		this.description = description;
-		this.id = id;
+		this.summary = description;
+		this.taskId = taskId;
 	}
-	
+
 	public AbstractRepositoryQuery getParent() {
 		return parent;
 	}
@@ -41,7 +51,7 @@ public abstract class AbstractQueryHit implements ITaskListElement {
 	public void setParent(AbstractRepositoryQuery parent) {
 		this.parent = parent;
 	}
-	
+
 	public String getRepositoryUrl() {
 		return repositoryUrl;
 	}
@@ -50,56 +60,109 @@ public abstract class AbstractQueryHit implements ITaskListElement {
 		this.repositoryUrl = repositoryUrl;
 	}
 
-	public abstract AbstractRepositoryTask getOrCreateCorrespondingTask();
- 
+	public String getSummary() {
+		if (task != null) {
+			return task.getSummary();
+		} else {
+			return summary;
+		}
+	}
+
+	public AbstractRepositoryTask getOrCreateCorrespondingTask() {
+		if (taskList == null) {
+			return null;
+		}
+
+		ITask existingTask = taskList.getTask(getHandleIdentifier());
+		if (existingTask instanceof AbstractRepositoryTask) {
+			this.task = (AbstractRepositoryTask) existingTask;
+		} else {			
+			task = createTask();			
+			task.setCompleted(completed);
+			taskList.addTask(task);
+		}
+		return task;
+	}
+
+	//@Deprecated
+	protected abstract AbstractRepositoryTask createTask();
+
 	/**
-	 * @return null if there is no corresponding report
+	 * @return null if there is no corresponding task
 	 */
-	public abstract AbstractRepositoryTask getCorrespondingTask();
-
-	public abstract boolean isCompleted();
-	
-	public abstract void setCorrespondingTask(AbstractRepositoryTask task);
-
-	public String getHandleIdentifier() {
-		return AbstractRepositoryTask.getHandle(repositoryUrl, id);
+	public AbstractRepositoryTask getCorrespondingTask() {
+		return task;
 	}
 
-	public String getId() {
-		return id;
+	public void setCorrespondingTask(AbstractRepositoryTask task) {
+		this.task = task;
 	}
-	
+
+	public boolean isCompleted() {
+		if (task != null) {
+			return task.isCompleted();
+		} else {
+			return completed;
+		}
+	}
+
+	public void setCompleted(boolean completed) {
+		this.completed = completed;
+	}
+
+	public final String getHandleIdentifier() {
+		if (task != null) {
+			return task.getHandleIdentifier();
+		}
+		return RepositoryTaskHandleUtil.getHandle(repositoryUrl, taskId);
+	}
+
+	/**
+	 * @return Unique identifier for this task on the corresponding server, must
+	 *         be robust to changing attributes on the task.
+	 */
+	public String getTaskId() {
+		return taskId;
+	}
+
+	/**
+	 * @return An ID that can be presented to the user for identifying the task,
+	 *         override to return null if no such ID exists.
+	 */
+	public String getIdentifyingLabel() {
+		return getTaskId();
+	}
+
 	public boolean isNotified() {
 		return isNotified;
 	}
-	
+
 	public void setNotified(boolean notified) {
 		isNotified = notified;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if(!(obj instanceof AbstractQueryHit)) {
+		if (!(obj instanceof AbstractQueryHit)) {
 			return false;
 		}
-		AbstractQueryHit hit = (AbstractQueryHit)obj;
-		return hit.getHandleIdentifier().equals(this.getHandleIdentifier());		
+		AbstractQueryHit hit = (AbstractQueryHit) obj;
+		return hit.getHandleIdentifier().equals(this.getHandleIdentifier());
 	}
 
 	@Override
 	public int hashCode() {
 		return this.getHandleIdentifier().hashCode();
 	}
-	
+
 	/**
 	 * @return the url of the hit without any additional login information etc.
 	 */
 	public String getUrl() {
 		return "";
 	}
-	
+
 	public String getPriority() {
-		AbstractRepositoryTask task = getCorrespondingTask();
 		if (task != null) {
 			return task.getPriority();
 		} else {
@@ -107,25 +170,24 @@ public abstract class AbstractQueryHit implements ITaskListElement {
 		}
 	}
 
-	public String getDescription() {
-		AbstractRepositoryTask task = getCorrespondingTask();
-		if (task != null) {
-			return task.getDescription();
-		} else {
-			return description;
-		}
-	}
-
 	public void setPriority(String priority) {
 		this.priority = priority;
 	}
 
-	public void setDescription(String description) {
-		this.description = description;
+	public void setSummary(String description) {
+		this.summary = description;
 	}
 
 	public void setHandleIdentifier(String id) {
-		//ignore
+		// ignore
 	}
-	
+
+	public int compareTo(ITaskListElement taskListElement) {
+		return this.taskId.compareTo(((AbstractQueryHit) taskListElement).taskId);
+	}
+
+	@Deprecated
+	public void setTaskId(String taskId) {
+		this.taskId = taskId;
+	}
 }

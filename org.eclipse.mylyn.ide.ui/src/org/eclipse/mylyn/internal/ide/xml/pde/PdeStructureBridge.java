@@ -11,7 +11,6 @@
 
 package org.eclipse.mylar.internal.ide.xml.pde;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -24,15 +23,13 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.mylar.context.core.AbstractRelationProvider;
-import org.eclipse.mylar.context.core.IDegreeOfSeparation;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
+import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.internal.context.core.DegreeOfSeparation;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.internal.ide.xml.XmlNodeHelper;
-import org.eclipse.mylar.internal.ide.xml.XmlReferencesProvider;
 import org.eclipse.pde.internal.core.text.build.BuildEntry;
+import org.eclipse.pde.internal.core.text.plugin.PluginNode;
 import org.eclipse.pde.internal.core.text.plugin.PluginObjectNode;
 import org.eclipse.pde.internal.ui.editor.PDEFormPage;
 import org.eclipse.pde.internal.ui.editor.plugin.ManifestEditor;
@@ -44,47 +41,38 @@ import org.eclipse.ui.views.markers.internal.ProblemMarker;
  * @author Mik Kersten
  * 
  */
-public class PdeStructureBridge implements IMylarStructureBridge {
+public class PdeStructureBridge extends AbstractContextStructureBridge {
 
 	public final static String CONTENT_TYPE = "plugin.xml";
 
-	private List<AbstractRelationProvider> providers;
-
-	private IMylarStructureBridge parentBridge;
-
-	public PdeStructureBridge() {
-		providers = new ArrayList<AbstractRelationProvider>();
-		providers.add(new XmlReferencesProvider());
-
-	}
-
+	@Override
 	public String getContentType() {
 		return CONTENT_TYPE;
 	}
 
+	@Override
 	public String getContentType(String elementHandle) {
 		if (elementHandle.endsWith(".xml")) {
-			return parentBridge.getContentType();
+			return parentContentType;
+//			return parentBridge.getContentType();
 		} else {
 			return CONTENT_TYPE;
 		}
 	}
 
+	@Override
 	public List<String> getChildHandles(String handle) {
 		return Collections.emptyList();
 	}
 
+	@Override
 	public String getParentHandle(String handle) {
 		// we can only get the parent if we have a PluginObjectNode
 
-		Object o = getObjectForHandle(handle);
-		if (o instanceof PluginObjectNode) {
-
-			// try to get the parent
-			PluginObjectNode parent = (PluginObjectNode) ((PluginObjectNode) o).getParentNode();
-
+		Object object = getObjectForHandle(handle);
+		if (object instanceof PluginObjectNode) {
+			PluginObjectNode parent = (PluginObjectNode) ((PluginObjectNode) object).getParentNode();
 			if (parent != null) {
-				// get the handle for the parent
 				return getHandleIdentifier(parent);
 			} else {
 				// the parent is the plugin.xml file, so return that handle
@@ -96,8 +84,23 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 					return null;
 				}
 			}
-		} else if (o instanceof IFile) {
+		} else if (object instanceof PluginNode) {
+			PluginNode parent = (PluginNode) ((PluginNode) object).getParentNode();
+			if (parent != null) {
+				return getHandleIdentifier(parent);
+			} else {
+				// the parent is the plugin.xml file, so return that handle
+				int delimeterIndex = handle.indexOf(";");
+				if (delimeterIndex != -1) {
+					String parentHandle = handle.substring(0, delimeterIndex);
+					return parentHandle;
+				} else {
+					return null;
+				}
+			}
+		} else if (object instanceof IFile) {
 			// String fileHandle = parentBridge.getParentHandle(handle);
+			AbstractContextStructureBridge parentBridge = ContextCorePlugin.getDefault().getStructureBridge(parentContentType);
 			return parentBridge.getParentHandle(handle);
 		} else {
 			return null;
@@ -105,22 +108,17 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 	}
 
 	/**
-	 * @see org.eclipse.mylar.context.core.IMylarStructureBridge#getObjectForHandle(java.lang.String)
+	 * @see org.eclipse.mylar.context.core.AbstractContextStructureBridge#getObjectForHandle(java.lang.String)
 	 */
+	@Override
 	public Object getObjectForHandle(String handle) {
 		if (handle == null)
 			return null;
 		int first = handle.indexOf(";");
 		String filename = "";
 		if (first == -1) {
+			AbstractContextStructureBridge parentBridge = ContextCorePlugin.getDefault().getStructureBridge(parentContentType);
 			return parentBridge.getObjectForHandle(handle);
-			// the handle is for the plugin.xml file, so just return the File
-			// filename = handle;
-			// IPath path = new Path(filename);
-			// IFile f =
-			// (IFile)((Workspace)ResourcesPlugin.getWorkspace()).newResource(path,
-			// IResource.FILE);
-			// return f;
 		} else {
 			// extract the filename from the handle since it represents a node
 			filename = handle.substring(0, first);
@@ -172,8 +170,9 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 	/**
 	 * Handle is filename;hashcodeOfElementAndAttributes
 	 * 
-	 * @see org.eclipse.mylar.context.core.IMylarStructureBridge#getHandleIdentifier(java.lang.Object)
+	 * @see org.eclipse.mylar.context.core.AbstractContextStructureBridge#getHandleIdentifier(java.lang.Object)
 	 */
+	@Override
 	public String getHandleIdentifier(Object object) {
 		// we can only create handles for PluginObjectNodes and plugin.xml files
 		if (object instanceof XmlNodeHelper) {
@@ -182,6 +181,23 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 			PluginObjectNode node = (PluginObjectNode) object;
 			try {
 				// get the handle for the PluginObjectNode
+				if (node.getModel() == null || node.getModel().getUnderlyingResource() == null
+						|| node.getModel().getUnderlyingResource().getFullPath() == null) {
+					// ContextCorePlugin.log("PDE xml node's resource or model is
+					// null: " + node.getName(), this);
+					return null;
+				}
+				IPath path = new Path(node.getModel().getUnderlyingResource().getFullPath().toString());
+				IFile file = (IFile) ((Workspace) ResourcesPlugin.getWorkspace()).newResource(path, IResource.FILE);
+				String handle = new XmlNodeHelper(file.getFullPath().toString(), PdeEditingMonitor
+						.getStringOfNode(node).hashCode()).getHandle();
+				return handle;
+			} catch (Exception e) {
+				MylarStatusHandler.log(e, "pde handle failed");
+			}
+		} else if (object instanceof PluginNode) {
+			PluginNode node = (PluginNode) object;
+			try {
 				if (node.getModel() == null || node.getModel().getUnderlyingResource() == null
 						|| node.getModel().getUnderlyingResource().getFullPath() == null) {
 					// ContextCorePlugin.log("PDE xml node's resource or model is
@@ -206,6 +222,7 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 		return null;
 	}
 
+	@Override
 	public String getName(Object object) {
 		if (object instanceof PluginObjectNode) {
 			PluginObjectNode node = (PluginObjectNode) object;
@@ -225,6 +242,7 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 	/**
 	 * TODO: make a non-handle based test
 	 */
+	@Override
 	public boolean canBeLandmark(String handle) {
 		if (handle == null) {
 			return false;
@@ -233,9 +251,10 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 		}
 	}
 
+	@Override
 	public boolean acceptsObject(Object object) {
 		// we only accept PluginObjectNodes and plugin.xml Files
-		if (object instanceof PluginObjectNode || object instanceof BuildEntry || object instanceof PDEFormPage) {
+		if (object instanceof PluginNode || object instanceof PluginObjectNode || object instanceof BuildEntry || object instanceof PDEFormPage) {
 			return true;
 		} else if (object instanceof XmlNodeHelper) {
 			if (((XmlNodeHelper) object).getFilename().endsWith("plugin.xml"))
@@ -248,14 +267,17 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 		return false;
 	}
 
+	@Override
 	public boolean canFilter(Object element) {
 		return true;
 	}
 
+	@Override
 	public boolean isDocument(String handle) {
 		return handle.indexOf(';') == -1;
 	}
 
+	@Override
 	public String getHandleForOffsetInObject(Object resource, int offset) {
 		if (resource == null)
 			return null;
@@ -310,30 +332,6 @@ public class PdeStructureBridge implements IMylarStructureBridge {
 //		}
 //		return null;
 //	}
-
-	/**
-	 * HACK: This is weird that the relationship provider is only here. There
-	 * are relly 3 different bridges, 2 specific and 1 generic
-	 */
-	public List<AbstractRelationProvider> getRelationshipProviders() {
-		return providers;
-	}
-
-	public List<IDegreeOfSeparation> getDegreesOfSeparation() {
-		List<IDegreeOfSeparation> separations = new ArrayList<IDegreeOfSeparation>();
-		separations.add(new DegreeOfSeparation(DOS_0_LABEL, 0));
-		separations.add(new DegreeOfSeparation(DOS_1_LABEL, 1));
-		separations.add(new DegreeOfSeparation(DOS_2_LABEL, 2));
-		separations.add(new DegreeOfSeparation(DOS_3_LABEL, 3));
-		separations.add(new DegreeOfSeparation(DOS_4_LABEL, 4));
-		separations.add(new DegreeOfSeparation(DOS_5_LABEL, 5));
-
-		return separations;
-	}
-
-	public void setParentBridge(IMylarStructureBridge bridge) {
-		parentBridge = bridge;
-	}
 
 	public boolean containsProblem(IMylarElement node) {
 		// TODO Auto-generated method stub

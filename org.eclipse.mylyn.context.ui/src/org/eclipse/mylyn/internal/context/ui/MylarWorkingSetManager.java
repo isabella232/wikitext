@@ -18,7 +18,7 @@ import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.mylar.context.core.IMylarContext;
 import org.eclipse.mylar.context.core.IMylarContextListener;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.ui.ContextUiPlugin;
 import org.eclipse.swt.widgets.Display;
@@ -55,22 +55,16 @@ public class MylarWorkingSetManager implements IWorkingSetUpdater, IMylarContext
 		// nothing to do here
 	}
 
-	public void contextActivated(IMylarContext taskscape) {
+	public void contextActivated(IMylarContext context) {
 		updateWorkingSet();
 	}
 
-	public void contextDeactivated(IMylarContext taskscape) {
+	public void contextDeactivated(IMylarContext context) {
 		updateWorkingSet();
 	}
-
-	public void presentationSettingsChanging(UpdateKind kind) {
-		// don't care about this event
-
-	}
-
-	public void presentationSettingsChanged(UpdateKind kind) {
-		// don't care about this event
-
+	
+	public void contextCleared(IMylarContext context) {
+		updateWorkingSet();
 	}
 
 	public void interestChanged(List<IMylarElement> nodes) {
@@ -78,7 +72,7 @@ public class MylarWorkingSetManager implements IWorkingSetUpdater, IMylarContext
 
 	}
 
-	public void nodeDeleted(IMylarElement node) {
+	public void elementDeleted(IMylarElement node) {
 		updateWorkingSet();
 	}
 
@@ -92,7 +86,7 @@ public class MylarWorkingSetManager implements IWorkingSetUpdater, IMylarContext
 
 	}
 
-	public void edgesChanged(IMylarElement node) {
+	public void relationsChanged(IMylarElement node) {
 		// don't care about this relationship
 
 	}
@@ -114,7 +108,7 @@ public class MylarWorkingSetManager implements IWorkingSetUpdater, IMylarContext
 	public static void getElementsFromTaskscape(List<IAdaptable> elements) {
 		// IMylarContext t = ContextCorePlugin.getContextManager().getActiveContext();
 		for (IMylarElement node : ContextCorePlugin.getContextManager().getInterestingDocuments()) {
-			IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
+			AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(node.getContentType());
 
 			// HACK comparing extension to string
 			// No need to add bugzilla resources to the taskscape

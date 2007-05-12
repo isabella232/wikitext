@@ -31,8 +31,8 @@ import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreeExpansionEvent;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
-import org.eclipse.mylar.context.ui.IMylarUiBridge;
+import org.eclipse.mylar.context.ui.AbstractContextUiBridge;
+import org.eclipse.mylar.core.MylarStatusHandler;
 import org.eclipse.mylar.resources.MylarResourcesPlugin;
 import org.eclipse.pde.internal.core.text.plugin.PluginObjectNode;
 import org.eclipse.pde.internal.ui.editor.FormOutlinePage;
@@ -56,7 +56,7 @@ import org.eclipse.ui.texteditor.AbstractTextEditor;
  * @author Mik Kersten
  * @author Shawn Minto
  */
-public class PdeUiBridge implements IMylarUiBridge {
+public class PdeUiBridge extends AbstractContextUiBridge {
 	
 	private TreeViewerListener treeSelectionChangedListener;
 
@@ -65,8 +65,9 @@ public class PdeUiBridge implements IMylarUiBridge {
 	}
 
 	/**
-	 * @see org.eclipse.mylar.context.ui.IMylarUiBridge#open(org.eclipse.mylar.context.core.IMylarElement)
+	 * @see org.eclipse.mylar.context.ui.AbstractContextUiBridge#open(org.eclipse.mylar.context.core.IMylarElement)
 	 */
+	@Override
 	public void open(IMylarElement node) {
 		// get the handle of the node
 		String handle = node.getHandleIdentifier();
@@ -141,6 +142,7 @@ public class PdeUiBridge implements IMylarUiBridge {
 		return null;
 	}
 
+	@Override
 	public void close(IMylarElement node) {
 		IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 		if (page != null) {
@@ -173,6 +175,7 @@ public class PdeUiBridge implements IMylarUiBridge {
 		}
 	}
 
+	@Override
 	public boolean acceptsEditor(IEditorPart editorPart) {
 		return editorPart instanceof ManifestEditor;
 	}
@@ -180,6 +183,7 @@ public class PdeUiBridge implements IMylarUiBridge {
 	/**
 	 * HACK: use a lot of reflection to get the TreeViewer
 	 */
+	@Override
 	public List<TreeViewer> getContentOutlineViewers(IEditorPart editor) {
 		if (editor instanceof PDEFormEditor) {
 			PDESourcePage sp = null;
@@ -190,7 +194,7 @@ public class PdeUiBridge implements IMylarUiBridge {
 					try {
 						if (p != null && p instanceof SourceOutlinePage) {
 							// get the tree viewer for the outline
-							Class clazz2 = p.getClass();
+							Class<?> clazz2 = p.getClass();
 							Field field2 = clazz2.getDeclaredField("viewer");
 							field2.setAccessible(true);
 							Object f2 = field2.get(p);
@@ -207,7 +211,7 @@ public class PdeUiBridge implements IMylarUiBridge {
 
 			try {
 				// get the current page of the outline
-				Class clazz = PDEFormEditor.class;
+				Class<?> clazz = PDEFormEditor.class;
 				Field field = null;
 				try {
 					field = clazz.getDeclaredField("formOutline");
@@ -218,7 +222,7 @@ public class PdeUiBridge implements IMylarUiBridge {
 				Object f = field.get(editor);
 				if (f != null && f instanceof FormOutlinePage) {
 					// get the tree viewer for the outline
-					Class clazz2 = FormOutlinePage.class;
+					Class<?> clazz2 = FormOutlinePage.class;
 					Field field2 = null;
 					try {
 						field2 = clazz2.getDeclaredField("treeViewer");
@@ -302,18 +306,17 @@ public class PdeUiBridge implements IMylarUiBridge {
 		}
 	}
 
+	@Override
 	public Object getObjectForTextSelection(TextSelection selection, IEditorPart editor) {
 		return null;
 	}
-
-	public void restoreEditor(IMylarElement document) {
-		open(document);
-	}
 	
+	@Override
 	public IMylarElement getElement(IEditorInput input) {
 		return null;
 	}
 
+	@Override
 	public String getContentType() {
 		return PdeStructureBridge.CONTENT_TYPE;
 	}

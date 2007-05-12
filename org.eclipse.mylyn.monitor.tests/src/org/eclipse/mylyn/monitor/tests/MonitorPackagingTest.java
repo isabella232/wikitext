@@ -23,9 +23,9 @@ import java.util.zip.ZipFile;
 
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.tests.AbstractContextTest;
-import org.eclipse.mylar.internal.context.core.util.ZipFileUtil;
-import org.eclipse.mylar.monitor.MylarMonitorPlugin;
-import org.eclipse.mylar.monitor.usage.MylarUsageMonitorPlugin;
+import org.eclipse.mylar.internal.core.util.ZipFileUtil;
+import org.eclipse.mylar.internal.monitor.usage.MylarUsageMonitorPlugin;
+import org.eclipse.mylar.monitor.ui.MylarMonitorUiPlugin;
 
 /**
  * @author Mik Kersten
@@ -43,7 +43,8 @@ public class MonitorPackagingTest extends AbstractContextTest {
 		files.add(monitorFile);
 		// files.add(logFile);
 
-		File zipFile = new File(ContextCorePlugin.getDefault().getContextStore().getRootDirectory() + "/mylarUpload.zip");
+		File zipFile = new File(ContextCorePlugin.getDefault().getContextStore().getRootDirectory()
+				+ "/mylarUpload.zip");
 
 		ZipFileUtil.createZipFile(zipFile, files);
 
@@ -61,7 +62,7 @@ public class MonitorPackagingTest extends AbstractContextTest {
 		int numEntries = 0;
 
 		// Enumerate each entry
-		for (Enumeration entries = zf.entries(); entries.hasMoreElements();) {
+		for (Enumeration<? extends ZipEntry> entries = zf.entries(); entries.hasMoreElements();) {
 			numEntries++;
 			String zipEntryName = ((ZipEntry) entries.nextElement()).getName();
 			assertTrue("Unknown Entry: " + zipEntryName, zipEntryName.compareTo(monitorFile.getName()) == 0);// ||
@@ -83,7 +84,7 @@ public class MonitorPackagingTest extends AbstractContextTest {
 	public void testCreateLargeUploadPackage() throws IOException, InterruptedException {
 
 		for (int i = 0; i < 20000; i++) {
-			MylarMonitorPlugin.getDefault().notifyInteractionObserved(mockSelection());
+			MylarMonitorUiPlugin.getDefault().notifyInteractionObserved(mockSelection());
 		}
 		testCreateUploadPackage();
 	}

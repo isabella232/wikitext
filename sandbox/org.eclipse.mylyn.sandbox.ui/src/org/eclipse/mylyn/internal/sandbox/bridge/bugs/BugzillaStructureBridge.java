@@ -15,26 +15,25 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.AbstractRelationProvider;
-import org.eclipse.mylar.context.core.IDegreeOfSeparation;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
 import org.eclipse.mylar.internal.bugzilla.core.BugzillaQueryHit;
-import org.eclipse.mylar.internal.context.core.DegreeOfSeparation;
 import org.eclipse.mylar.internal.tasks.ui.editors.ContentOutlineTools;
-import org.eclipse.mylar.internal.tasks.ui.editors.RepositoryTaskOutlineNode;
-import org.eclipse.mylar.internal.tasks.ui.editors.RepositoryTaskSelection;
+import org.eclipse.mylar.tasks.ui.editors.RepositoryTaskOutlineNode;
+import org.eclipse.mylar.tasks.ui.editors.RepositoryTaskSelection;
 import org.eclipse.ui.views.markers.internal.ProblemMarker;
 
 /**
  * @author Mik Kersten
  * @author Shawn Minto
  */
-public class BugzillaStructureBridge implements IMylarStructureBridge {
+public class BugzillaStructureBridge extends AbstractContextStructureBridge {
 
 	public final static String CONTENT_TYPE = "bugzilla";
 
 	public List<AbstractRelationProvider> providers;
 
+	@Override
 	public String getContentType() {
 		return CONTENT_TYPE;
 	}
@@ -46,10 +45,11 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 	}
 
 	/**
-	 * Handle format: <server-name:port>;<bug-id>;<comment#>
+	 * Handle format: <server-name:port>;<bug-taskId>;<comment#>
 	 * 
 	 * Use: OutlineTools ???
 	 */
+	@Override
 	public String getHandleIdentifier(Object object) {
 		if (object instanceof RepositoryTaskOutlineNode) {
 			RepositoryTaskOutlineNode node = (RepositoryTaskOutlineNode) object;
@@ -66,6 +66,7 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 	/**
 	 * TODO: this will not return a non-cached handle
 	 */
+	@Override
 	public Object getObjectForHandle(final String handle) {
 //		result = null;
 //
@@ -76,9 +77,9 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 //		String[] parts = handle.split(";");
 //		if (parts.length >= 2) {
 //			String server = parts[0];
-//			final int id = Integer.parseInt(parts[1]);
+//			final int taskId = Integer.parseInt(parts[1]);
 //
-//			final String bugHandle = server + ";" + id;
+//			final String bugHandle = server + ";" + taskId;
 //
 //			int commentNumber = -1;
 //			if (parts.length == 3) {
@@ -108,11 +109,11 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 //			} else if (result == null && reportNode == null) {
 //				IRunnableWithProgress op = new IRunnableWithProgress() {
 //					public void run(IProgressMonitor monitor) {
-//						monitor.beginTask("Downloading Bug# " + id, IProgressMonitor.UNKNOWN);
+//						monitor.beginTask("Downloading Bug# " + taskId, IProgressMonitor.UNKNOWN);
 //						try {
 //							Proxy proxySettings = MylarTaskListPlugin.getDefault().getProxySettings();
 //							// XXX: move this
-//							result = BugzillaRepositoryUtil.getBug(repository.getUrl(), repository.getUserName(), repository.getPassword(), proxySettings, repository.getCharacterEncoding(), id);
+//							result = BugzillaRepositoryUtil.getBug(repository.getUrl(), repository.getUserName(), repository.getPassword(), proxySettings, repository.getCharacterEncoding(), taskId);
 //							if (result != null) {
 //								MylarBugsPlugin.getDefault().getCache().cache(bugHandle, result);
 //							}
@@ -157,6 +158,7 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 //		return null;
 //	}
 
+	@Override
 	public String getParentHandle(String handle) {
 
 		// check so that we don't need to try to get the parent if we are
@@ -182,29 +184,34 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 		// return null;
 	}
 
+	@Override
 	public String getName(Object object) {
 		if (object instanceof RepositoryTaskOutlineNode) {
 			RepositoryTaskOutlineNode b = (RepositoryTaskOutlineNode) object;
 			return ContentOutlineTools.getName(b);
 		} else if (object instanceof BugzillaReportInfo) {
 			BugzillaQueryHit hit = ((BugzillaReportInfo) object).getHit();
-			return hit.getRepositoryUrl() + ": Bug#: " + hit.getId() + ": " + hit.getDescription();
+			return hit.getRepositoryUrl() + ": Bug#: " + hit.getTaskId() + ": " + hit.getSummary();
 		}
 		return "";
 	}
 
+	@Override
 	public boolean canBeLandmark(String handle) {
 		return false;
 	}
 
+	@Override
 	public boolean acceptsObject(Object object) {
 		return object instanceof RepositoryTaskOutlineNode || object instanceof RepositoryTaskSelection;
 	}
 
+	@Override
 	public boolean canFilter(Object element) {
 		return true;
 	}
 
+	@Override
 	public boolean isDocument(String handle) {
 		return (handle.indexOf(';') == handle.lastIndexOf(';') && handle.indexOf(";") != -1);
 	}
@@ -213,33 +220,17 @@ public class BugzillaStructureBridge implements IMylarStructureBridge {
 		return null;
 	}
 
+	@Override
 	public String getContentType(String elementHandle) {
 		return getContentType();
 	}
 
-	public List<AbstractRelationProvider> getRelationshipProviders() {
-		return providers;
-	}
-
-	public List<IDegreeOfSeparation> getDegreesOfSeparation() {
-		List<IDegreeOfSeparation> separations = new ArrayList<IDegreeOfSeparation>();
-		separations.add(new DegreeOfSeparation("disabled", 0));
-		separations.add(new DegreeOfSeparation("local, fully qualified matches", 1));
-		separations.add(new DegreeOfSeparation("local, unqualified matches", 2));
-		separations.add(new DegreeOfSeparation("server, fully quaified matches", 3));
-		separations.add(new DegreeOfSeparation("server, unqualified matches", 4));
-
-		return separations;
-	}
-
+	@Override
 	public String getHandleForOffsetInObject(Object resource, int offset) {
 		return null;
 	}
 
-	public void setParentBridge(IMylarStructureBridge bridge) {
-		// ignore
-	}
-
+	@Override
 	public List<String> getChildHandles(String handle) {
 		return Collections.emptyList();
 	}

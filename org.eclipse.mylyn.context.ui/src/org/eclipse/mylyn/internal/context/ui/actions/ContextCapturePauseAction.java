@@ -56,7 +56,9 @@ public class ContextCapturePauseAction extends Action implements IViewActionDele
 
 	public void resume() {
 		ContextCorePlugin.getContextManager().setContextCapturePaused(false);
-		TaskListView.getFromActivePerspective().indicatePaused(false);
+		if (TaskListView.getFromActivePerspective() != null) {
+			TaskListView.getFromActivePerspective().indicatePaused(false);
+		}
 	}
 
 	public void contextActivated(IMylarContext context) {
@@ -67,11 +69,15 @@ public class ContextCapturePauseAction extends Action implements IViewActionDele
 		}
 	}
 
+	public void contextCleared(IMylarContext context) {
+		// ignore
+	}
+	
 	public void contextDeactivated(IMylarContext context) {
 		// ignore
 	}
 
-	public void edgesChanged(IMylarElement element) {
+	public void relationsChanged(IMylarElement element) {
 		// ignore
 	}
 
@@ -87,15 +93,7 @@ public class ContextCapturePauseAction extends Action implements IViewActionDele
 		// ignore
 	}
 
-	public void nodeDeleted(IMylarElement element) {
-		// ignore
-	}
-
-	public void presentationSettingsChanged(UpdateKind kind) {
-		// ignore
-	}
-
-	public void presentationSettingsChanging(UpdateKind kind) {
+	public void elementDeleted(IMylarElement element) {
 		// ignore
 	}
 	

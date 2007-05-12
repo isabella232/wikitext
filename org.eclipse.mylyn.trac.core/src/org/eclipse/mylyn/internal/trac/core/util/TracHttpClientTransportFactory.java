@@ -11,29 +11,24 @@
 
 package org.eclipse.mylar.internal.trac.core.util;
 
-import java.io.BufferedOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
-import java.util.zip.GZIPInputStream;
 
+import org.apache.commons.httpclient.Cookie;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpVersion;
 import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.RequestEntity;
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.XmlRpcRequest;
 import org.apache.xmlrpc.client.XmlRpcClient;
+import org.apache.xmlrpc.client.XmlRpcClientException;
 import org.apache.xmlrpc.client.XmlRpcCommonsTransport;
 import org.apache.xmlrpc.client.XmlRpcHttpClientConfig;
 import org.apache.xmlrpc.client.XmlRpcTransport;
-import org.apache.xmlrpc.client.XmlRpcTransportFactoryImpl;
-import org.apache.xmlrpc.util.XmlRpcIOException;
-import org.eclipse.mylar.internal.tasks.core.WebClientUtil;
+import org.apache.xmlrpc.client.XmlRpcTransportFactory;
+import org.eclipse.mylar.core.net.WebClientUtil;
 
 /**
  * A custom transport factory used to establish XML-RPC connections. Uses the
@@ -41,7 +36,7 @@ import org.eclipse.mylar.internal.tasks.core.WebClientUtil;
  * 
  * @author Steffen Pingel
  */
-public class TracHttpClientTransportFactory extends XmlRpcTransportFactoryImpl {
+public class TracHttpClientTransportFactory implements XmlRpcTransportFactory {
 
 	public static class TracHttpException extends XmlRpcException {
 
@@ -58,12 +53,15 @@ public class TracHttpClientTransportFactory extends XmlRpcTransportFactoryImpl {
 	 */
 	public static class TracHttpClientTransport extends XmlRpcCommonsTransport {
 
-		private int contentLength;
 		private Proxy proxy;
+		private Cookie[] cookies;
 
-		public TracHttpClientTransport(XmlRpcClient client) {
+		public TracHttpClientTransport(XmlRpcClient client, Proxy proxy, Cookie[] cookies) {
 			super(client);
 
+			this.proxy = proxy;
+			this.cookies = cookies;
+			
 			XmlRpcHttpClientConfig config = (XmlRpcHttpClientConfig) client.getConfig();
 			// this needs to be set to avoid exceptions
 			getHttpClient().getParams().setAuthenticationPreemptive(config.getBasicUserName() != null);
@@ -71,16 +69,6 @@ public class TracHttpClientTransportFactory extends XmlRpcTransportFactoryImpl {
 
 		public HttpClient getHttpClient() {
 			return (HttpClient) getValue("client");
-		}
-
-		@Override
-		protected InputStream getInputStream() throws XmlRpcException {
-			int responseCode = getMethod().getStatusCode();
-			if (responseCode != HttpURLConnection.HTTP_OK) {
-				throw new TracHttpException(responseCode);
-			}
-
-			return super.getInputStream();
 		}
 
 		public PostMethod getMethod() {
@@ -97,7 +85,7 @@ public class TracHttpClientTransportFactory extends XmlRpcTransportFactoryImpl {
 				field.setAccessible(true);
 				return field.get(this);
 			} catch (Throwable t) {
-				throw new RuntimeException("Internal error accessing HttpClient", t);
+				throw new RuntimeException("Internal error accessing field: " + name, t);
 			}
 		}
 
@@ -107,22 +95,47 @@ public class TracHttpClientTransportFactory extends XmlRpcTransportFactoryImpl {
 				field.setAccessible(true);
 				field.set(this, value);
 			} catch (Throwable t) {
-				throw new RuntimeException("Internal error accessing HttpClient", t);
+				throw new RuntimeException("Internal error accessing field: " + name, t);
 			}
 		}
-
-		/**
-		 * Based on the implementation of XmlRpcCommonsTransport and its super classes.
-		 */
+		
 		@Override
-		public Object sendRequest(XmlRpcRequest pRequest) throws XmlRpcException {
-			XmlRpcHttpClientConfig config = (XmlRpcHttpClientConfig) pRequest.getConfig();
+		protected InputStream getInputStream() throws XmlRpcException {
+			int responseCode = getMethod().getStatusCode();
+			if (responseCode != HttpURLConnection.HTTP_OK) {
+				throw new TracHttpException(responseCode);
+			}
+
+			return super.getInputStream();
+		}
+		
+		@Override
+		protected void initHttpHeaders(XmlRpcRequest request) throws XmlRpcClientException {
+			// super call needed to initialize private fields of XmlRpcCommonsTransport
+			super.initHttpHeaders(request);
+			
+			// The super method sets a private field that contains the
+			// HttpClient Method object which is initialized using the wrong url.			
+			// Since the URL can not be modified once the Method object has been
+			// constructed a new object is constructed here, initialized and
+			// assigned to the private field
+
+			XmlRpcHttpClientConfig config = (XmlRpcHttpClientConfig) request.getConfig();
 			
 			String url = config.getServerURL().toString();
-			WebClientUtil.setupHttpClient(getHttpClient(), proxy, url);
+			WebClientUtil.setupHttpClient(getHttpClient(), proxy, url, null, null);
+			if (cookies != null) {
+				getHttpClient().getState().addCookies(cookies);
+			}
 			
 			PostMethod method = new PostMethod(WebClientUtil.getRequestPath(url));
-	        
+			setMethod(method);
+
+			setRequestHeader("Content-Type", "text/xml");
+			setRequestHeader("User-Agent", getUserAgent());
+			setCredentials(config);
+			setCompressionHeaders(config);
+
 	        if (config.getConnectionTimeout() != 0)
 	            getHttpClient().getHttpConnectionManager().getParams().setConnectionTimeout(config.getConnectionTimeout());
 	        
@@ -130,105 +143,36 @@ public class TracHttpClientTransportFactory extends XmlRpcTransportFactoryImpl {
 	        	getHttpClient().getHttpConnectionManager().getParams().setSoTimeout(config.getConnectionTimeout());
 	        
 			method.getParams().setVersion(HttpVersion.HTTP_1_1);
-
-			setMethod(method);
-			
-			initHttpHeaders(pRequest);
-			
-			boolean closed = false;
-			try {
-				RequestWriter writer = newRequestWriter(pRequest);
-				writeRequest(writer);
-				InputStream istream = getInputStream();
-				if (isResponseGzipCompressed(config)) {
-					istream = new GZIPInputStream(istream);
-				}
-				Object result = readResponse(config, istream);
-				closed = true;
-				close();
-				return result;
-			} catch (IOException e) {
-				throw new XmlRpcException("Failed to read servers response: "
-						+ e.getMessage(), e);
-			} finally {
-				if (!closed) { try { close(); } catch (Throwable ignore) {} }
-			}
-		}
-
-		@Override
-		protected void writeRequest(final RequestWriter pWriter) throws XmlRpcException {
-			getMethod().setRequestEntity(new RequestEntity(){
-				public boolean isRepeatable() { return true; }
-				public void writeRequest(OutputStream pOut) throws IOException {
-					/* Make sure, that the socket is not closed by replacing it with our
-					 * own BufferedOutputStream.
-					 */
-					BufferedOutputStream bos = new BufferedOutputStream(pOut){
-						public void close() throws IOException {
-							flush();
-						}
-					};
-					try {
-						Method m = RequestWriter.class.getDeclaredMethod("write", new Class[] { OutputStream.class });
-						m.setAccessible(true);
-						m.invoke(pWriter, bos);
-					} catch (Exception e) {
-						throw new XmlRpcIOException(e);
-					}
-				}
-				public long getContentLength() { return contentLength; }
-				public String getContentType() { return "text/xml"; }
-			});
-			
-			try {
-				getHttpClient().executeMethod(getMethod());
-			} catch (XmlRpcIOException e) {
-				Throwable t = e.getLinkedException();
-				if (t instanceof XmlRpcException) {
-					throw (XmlRpcException) t;
-				} else {
-					throw new XmlRpcException("Unexpected exception: " + t.getMessage(), t);
-				}
-			} catch (IOException e) {
-				throw new XmlRpcException("I/O error while communicating with HTTP server: " + e.getMessage(), e);
-			}
-		}
-
-		@Override
-		protected void setContentLength(int pLength) {
-			super.setContentLength(pLength);
-			
-			this.contentLength = pLength;
-		}
-
-		public void setProxy(Proxy proxy) {
-			this.proxy = proxy;
-		}
-		
-		public Proxy getProxy() {
-			return this.proxy;
 		}
 
 	}
 
-	private final TracHttpClientTransport transport;
+	private XmlRpcClient client;
+	private Proxy proxy;
+	private Cookie[] cookies;
 
 	public TracHttpClientTransportFactory(XmlRpcClient client) {
-		super(client);
-
-		transport = new TracHttpClientTransport(client);
+		this.client = client;
 	}
 
 	public XmlRpcTransport getTransport() {
-		return transport;
-	}
-	
-	public void setProxy(Proxy proxy) {
-		transport.setProxy(proxy);
+		return new TracHttpClientTransport(client, proxy, cookies);
 	}
 	
 	public Proxy getProxy() {
-		return transport.getProxy();
+		return proxy;
 	}
-
+	
+	public void setProxy(Proxy proxy) {
+		this.proxy = proxy;
+	}
+	
+	public Cookie[] getCookies() {
+		return cookies;
+	}
+	
+	public void setCookies(Cookie[] cookies) {
+		this.cookies = cookies;
+	}
+	
 }

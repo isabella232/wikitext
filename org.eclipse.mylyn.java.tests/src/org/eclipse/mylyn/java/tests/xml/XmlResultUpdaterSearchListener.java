@@ -19,12 +19,12 @@ import org.eclipse.core.internal.resources.File;
 import org.eclipse.mylar.context.core.AbstractRelationProvider;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
-import org.eclipse.mylar.context.core.InteractionEvent;
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.tests.support.search.TestActiveSearchListener;
 import org.eclipse.mylar.internal.ide.xml.XmlNodeHelper;
-import org.eclipse.mylar.internal.ide.xml.XmlReferencesProvider;
 import org.eclipse.mylar.internal.ide.xml.pde.PdeStructureBridge;
+import org.eclipse.mylar.internal.java.search.XmlJavaRelationProvider;
+import org.eclipse.mylar.monitor.core.InteractionEvent;
 import org.eclipse.search.internal.ui.text.FileSearchResult;
 import org.eclipse.search.ui.text.Match;
 import org.eclipse.ui.part.FileEditorInput;
@@ -73,7 +73,7 @@ public class XmlResultUpdaterSearchListener extends TestActiveSearchListener {
 						try {
 							XmlNodeHelper xnode = new XmlNodeHelper(fei.getFile().getFullPath().toString(), m
 									.getOffset());
-							IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(f.getName());
+							AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(f.getName());
 							String handle = xnode.getHandle();
 							Object o = bridge.getObjectForHandle(handle);
 							String name = bridge.getName(o);
@@ -100,7 +100,7 @@ public class XmlResultUpdaterSearchListener extends TestActiveSearchListener {
 		int predictedInterest = 1;// (7-degreeOfSeparation) *
 									// TaskscapeManager.getScalingFactors().getDegreeOfSeparationScale();
 		InteractionEvent event = new InteractionEvent(InteractionEvent.Kind.PREDICTION, elementKind, elementHandle,
-				XmlReferencesProvider.SOURCE_ID, XmlReferencesProvider.SOURCE_ID, null, predictedInterest);
+				XmlJavaRelationProvider.SOURCE_ID, XmlJavaRelationProvider.SOURCE_ID, null, predictedInterest);
 		ContextCorePlugin.getContextManager().handleInteractionEvent(event);
 
 	}

@@ -13,10 +13,13 @@ import java.util.List;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.mylar.internal.tasks.core.WebQueryHit;
+import org.eclipse.mylar.internal.tasks.ui.actions.ClearOutgoingAction;
 import org.eclipse.mylar.internal.tasks.ui.actions.MarkTaskCompleteAction;
 import org.eclipse.mylar.internal.tasks.ui.actions.MarkTaskIncompleteAction;
 import org.eclipse.mylar.internal.tasks.ui.actions.MarkTaskReadAction;
 import org.eclipse.mylar.internal.tasks.ui.actions.MarkTaskUnreadAction;
+import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListElement;
 
 /**
@@ -28,14 +31,32 @@ public class TaskStatusMenuContributor implements IDynamicSubMenuContributor {
 
 	public MenuManager getSubMenuManager(final List<ITaskListElement> selectedElements) {
 		final MenuManager subMenuManager = new MenuManager(LABEL);
+		ITask singleTask = null;
+		if (selectedElements.size() == 1) {
+			if (selectedElements.get(0) instanceof ITask) {
+				singleTask = (ITask)selectedElements.get(0);
+			} else if (selectedElements.get(0) instanceof WebQueryHit) {
+				singleTask = ((WebQueryHit)selectedElements.get(0)).getCorrespondingTask();
+			}
+		}
+		
 		Action action = new MarkTaskCompleteAction(selectedElements);
+		if (singleTask != null && singleTask.isCompleted()) {
+			action.setEnabled(false);
+		}
 		subMenuManager.add(action);
 		action = new MarkTaskIncompleteAction(selectedElements);
 		subMenuManager.add(action);
+		if (singleTask != null && !singleTask.isCompleted()) {
+			action.setEnabled(false);
+		}		
+		
 		subMenuManager.add(new Separator());
 		action = new MarkTaskReadAction(selectedElements);
 		subMenuManager.add(action);
 		action = new MarkTaskUnreadAction(selectedElements);
+		subMenuManager.add(action);
+		action = new ClearOutgoingAction(selectedElements);
 		subMenuManager.add(action);
 		return subMenuManager;
 	}

@@ -17,6 +17,7 @@ import org.eclipse.mylar.internal.tasks.ui.views.TaskActivationHistory;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskElementLabelProvider;
 import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 import org.eclipse.mylar.tasks.core.ITask;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Menu;
@@ -36,7 +37,7 @@ public abstract class TaskNavigateDropDownAction extends Action implements IMenu
 
 	protected Menu dropDownMenu = null;
 
-	protected TaskElementLabelProvider labelProvider = new TaskElementLabelProvider();
+	protected TaskElementLabelProvider labelProvider = new TaskElementLabelProvider(true);
 
 	/** Maximum number of items to appear in the drop-down menu */
 	protected final static int MAX_ITEMS_TO_DISPLAY = 12;
@@ -60,17 +61,20 @@ public abstract class TaskNavigateDropDownAction extends Action implements IMenu
 
 		public TaskNavigateAction(ITask task) {
 			targetTask = task;
-			String taskDescription = task.getDescription();
+			String taskDescription = task.getSummary();
 			if (taskDescription.length() > MAX_LABEL_LENGTH) {
 				taskDescription = taskDescription.subSequence(0, MAX_LABEL_LENGTH - 3) + "...";
 			}
 			setText(taskDescription);
 			setEnabled(true);
-			setToolTipText(task.getDescription());
-			Image image = labelProvider.getImage(task);
-			setImageDescriptor(ImageDescriptor.createFromImage(image));
+			setToolTipText(task.getSummary());
+			if (task != null) {
+				Image image = labelProvider.getImage(task);
+				setImageDescriptor(ImageDescriptor.createFromImage(image));
+			}
 		}
 
+		@Override
 		public void run() {
 			if (targetTask.isActive()) {
 				return;
@@ -80,6 +84,7 @@ public abstract class TaskNavigateDropDownAction extends Action implements IMenu
 			taskHistory.addTask(targetTask);
 			setButtonStatus();
 			view.refreshAndFocus(false);
+			TasksUiUtil.refreshAndOpenTaskListElement(targetTask);
 		}
 	}
 

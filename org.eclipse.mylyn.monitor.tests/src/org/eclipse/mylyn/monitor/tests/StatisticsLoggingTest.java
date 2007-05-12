@@ -15,12 +15,14 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.runtime.jobs.IJobChangeEvent;
+import org.eclipse.core.runtime.jobs.JobChangeAdapter;
 import org.eclipse.mylar.context.tests.ContextTest;
-import org.eclipse.mylar.internal.monitor.reports.InteractionEventSummary;
-import org.eclipse.mylar.internal.monitor.reports.ReportGenerator;
-import org.eclipse.mylar.internal.monitor.reports.collectors.SummaryCollector;
+import org.eclipse.mylar.internal.monitor.core.collection.IUsageCollector;
+import org.eclipse.mylar.internal.monitor.core.collection.InteractionEventSummary;
+import org.eclipse.mylar.internal.monitor.core.collection.SummaryCollector;
 import org.eclipse.mylar.internal.monitor.usage.InteractionEventLogger;
-import org.eclipse.mylar.monitor.reports.IUsageCollector;
+import org.eclipse.mylar.monitor.usage.ReportGenerator;
 
 /**
  * @author Mik Kersten
@@ -43,6 +45,7 @@ public class StatisticsLoggingTest extends ContextTest {
 		List<IUsageCollector> collectors = new ArrayList<IUsageCollector>();
 		collectors.add(new SummaryCollector());
 		report = new ReportGenerator(logger, collectors);
+		report.forceSyncForTesting(true);
 	}
 
 	@Override
@@ -57,11 +60,15 @@ public class StatisticsLoggingTest extends ContextTest {
 		logger.interactionObserved(mockSelection());
 		logger.stopMonitoring();
 
-		List<InteractionEventSummary> summary = report.getStatisticsFromInteractionHistory(logFile)
-				.getSingleSummaries();
-		assertEquals(1, summary.size());
-		InteractionEventSummary first = (InteractionEventSummary) summary.get(0);
-		assertEquals(2, first.getUsageCount());
+		report.getStatisticsFromInteractionHistory(logFile, new JobChangeAdapter() {
+			public void done(IJobChangeEvent event) {
+				List<InteractionEventSummary> summary = report.getLastParsedSummary().getSingleSummaries();
+				assertEquals(1, summary.size());
+				InteractionEventSummary first = summary.get(0);
+				assertEquals(2, first.getUsageCount());
+			}
+		});
+
 	}
 
 	/**

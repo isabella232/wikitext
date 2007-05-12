@@ -11,14 +11,13 @@
 
 package org.eclipse.mylar.internal.ide.xml.ant;
 
+import org.eclipse.mylar.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylar.context.core.ContextCorePlugin;
 import org.eclipse.mylar.context.core.IMylarElement;
 import org.eclipse.mylar.context.core.IMylarRelation;
-import org.eclipse.mylar.context.core.IMylarStructureBridge;
 import org.eclipse.mylar.internal.context.ui.AbstractContextLabelProvider;
 import org.eclipse.mylar.internal.context.ui.ContextUiImages;
 import org.eclipse.mylar.internal.ide.MylarIdePlugin;
-import org.eclipse.mylar.internal.ide.xml.XmlReferencesProvider;
 import org.eclipse.swt.graphics.Image;
 
 /**
@@ -26,6 +25,8 @@ import org.eclipse.swt.graphics.Image;
  */
 public class AntContextLabelProvider extends AbstractContextLabelProvider {
 
+	public static final String LABEL_RELATION = "referenced by";
+	
 	@Override
 	protected Image getImage(IMylarElement node) {
 		return ContextUiImages.getImage(ContextUiImages.FILE_XML);
@@ -38,13 +39,13 @@ public class AntContextLabelProvider extends AbstractContextLabelProvider {
 
 	@Override
 	protected String getText(IMylarElement node) {
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(AntStructureBridge.CONTENT_TYPE);
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(AntStructureBridge.CONTENT_TYPE);
 		return bridge.getName(bridge.getObjectForHandle(node.getHandleIdentifier()));
 	}
 
 	@Override
 	protected String getText(IMylarRelation edge) {
-		return XmlReferencesProvider.NAME;
+		return LABEL_RELATION;
 	}
 
 	@Override
@@ -54,7 +55,7 @@ public class AntContextLabelProvider extends AbstractContextLabelProvider {
 
 	@Override
 	protected String getTextForObject(Object object) {
-		IMylarStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(AntStructureBridge.CONTENT_TYPE);
+		AbstractContextStructureBridge bridge = ContextCorePlugin.getDefault().getStructureBridge(AntStructureBridge.CONTENT_TYPE);
 		return bridge.getName(object);
 	}
 

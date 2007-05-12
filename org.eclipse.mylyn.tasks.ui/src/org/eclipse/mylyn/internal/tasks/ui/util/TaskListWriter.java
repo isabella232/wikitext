@@ -16,7 +16,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -36,7 +38,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.mylar.context.core.MylarStatusHandler;
+import org.eclipse.mylar.core.MylarStatusHandler;
+import org.eclipse.mylar.internal.tasks.core.TaskDataManager;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.AbstractTaskContainer;
 import org.eclipse.mylar.tasks.core.DelegatingTaskExternalizer;
@@ -44,7 +48,6 @@ import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.core.ITaskListExternalizer;
 import org.eclipse.mylar.tasks.core.TaskExternalizationException;
 import org.eclipse.mylar.tasks.core.TaskList;
-import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -54,8 +57,15 @@ import org.xml.sax.SAXException;
 /**
  * @author Mik Kersten
  * @author Ken Sueda
+ * @author Rob Elves
  */
 public class TaskListWriter {
+
+	private static final String TRANSFORM_PROPERTY_VERSION = "version";
+
+	// May 2007: There was a bug when reading in 1.1
+	// Result was an infinite loop within the parser
+	private static final String XML_VERSION = "1.0";
 
 	public static final String ATTRIBUTE_VERSION = "Version";
 
@@ -69,13 +79,19 @@ public class TaskListWriter {
 
 	private List<ITaskListExternalizer> externalizers;
 
-	private DelegatingTaskExternalizer delagatingExternalizer = new DelegatingTaskExternalizer();
+	private DelegatingTaskExternalizer delagatingExternalizer;
 
 	private List<Node> orphanedTaskNodes = new ArrayList<Node>();
+
+	private List<Node> orphanedQueryNodes = new ArrayList<Node>();
 
 	private String readVersion = "";
 
 	private boolean hasCaughtException = false;
+
+	public TaskListWriter() {
+		this.delagatingExternalizer = new DelegatingTaskExternalizer();
+	}
 
 	public void setDelegateExternalizers(List<ITaskListExternalizer> externalizers) {
 		this.externalizers = externalizers;
@@ -115,7 +131,7 @@ public class TaskListWriter {
 					delagatingExternalizer.createQueryElement(query, doc, root);
 				}
 			} catch (Throwable t) {
-				MylarStatusHandler.fail(t, "Did not externalize: " + query.getDescription(), true);
+				MylarStatusHandler.fail(t, "Did not externalize: " + query.getSummary(), true);
 			}
 			if (element == null) {
 				MylarStatusHandler.log("Did not externalize: " + query, this);
@@ -124,12 +140,21 @@ public class TaskListWriter {
 		// Collection<ITask> allTasks =
 		// Collections.synchronizedCollection(taskList.getAllTasks());
 		// synchronized (allTasks) {
-		for (ITask task : new ArrayList<ITask>(taskList.getAllTasks())) {
+		for (ITask task : taskList.getAllTasks()) {
 			createTaskElement(doc, root, task);
 		}
 
+		// Persist orphaned tasks...
 		for (Node orphanedTaskNode : orphanedTaskNodes) {
 			Node tempNode = doc.importNode(orphanedTaskNode, true);
+			if (tempNode != null) {
+				root.appendChild(tempNode);
+			}
+		}
+
+		// Persist orphaned queries....
+		for (Node orphanedQueryNode : orphanedQueryNodes) {
+			Node tempNode = doc.importNode(orphanedQueryNode, true);
 			if (tempNode != null) {
 				root.appendChild(tempNode);
 			}
@@ -149,7 +174,9 @@ public class TaskListWriter {
 					break;
 				}
 			}
-			if (element == null && delagatingExternalizer.canCreateElementFor(task)) {
+			if (element == null) {// &&
+				// delagatingExternalizer.canCreateElementFor(task))
+				// {
 				delagatingExternalizer.createTaskElement(task, doc, root);
 			} else if (element == null) {
 				MylarStatusHandler.log("Did not externalize: " + task, this);
@@ -167,7 +194,7 @@ public class TaskListWriter {
 	private void writeDOMtoFile(Document doc, File file) {
 		try {
 			ZipOutputStream outputStream = new ZipOutputStream(new FileOutputStream(file));
-			ZipEntry zipEntry = new ZipEntry(TasksUiPlugin.OLD_TASK_LIST_FILE);
+			ZipEntry zipEntry = new ZipEntry(ITasksUiConstants.OLD_TASK_LIST_FILE);
 			outputStream.putNextEntry(zipEntry);
 			outputStream.setMethod(ZipOutputStream.DEFLATED);
 			// OutputStream outputStream = new FileOutputStream(file);
@@ -202,10 +229,9 @@ public class TaskListWriter {
 		// the transformation output to a variety of sinks
 
 		Transformer xformer = null;
-		try {
+		try {			
 			xformer = TransformerFactory.newInstance().newTransformer();
-			// Transform the XML Source to a Result
-			//
+			xformer.setOutputProperty(TRANSFORM_PROPERTY_VERSION, XML_VERSION);
 			xformer.transform(source, result);
 		} catch (TransformerConfigurationException e) {
 			e.printStackTrace();
@@ -219,9 +245,10 @@ public class TaskListWriter {
 	/**
 	 * TODO: fix this old mess
 	 */
-	public void readTaskList(TaskList taskList, File inFile) {
+	public void readTaskList(TaskList taskList, File inFile, TaskDataManager taskDataManager) {
 		hasCaughtException = false;
 		orphanedTaskNodes.clear();
+		orphanedQueryNodes.clear();
 		try {
 			if (!inFile.exists())
 				return;
@@ -254,22 +281,11 @@ public class TaskListWriter {
 				for (int i = 0; i < list.getLength(); i++) {
 					Node child = list.item(i);
 					try {
-						boolean wasRead = false;
 						if (!child.getNodeName().endsWith(DelegatingTaskExternalizer.KEY_CATEGORY)
 								&& !child.getNodeName().endsWith(DelegatingTaskExternalizer.KEY_QUERY)) {
-							for (ITaskListExternalizer externalizer : externalizers) {
-								if (!wasRead && externalizer.canReadTask(child)) {
-									externalizer.readTask(child, taskList, null, null);
-									wasRead = true;
-								}
-							}
-
-							if (!wasRead && delagatingExternalizer.canReadTask(child)) {
-								delagatingExternalizer.readTask(child, taskList, null, null);
-								wasRead = true;
-							}
-
-							if (!wasRead) {
+							
+							ITask task = delagatingExternalizer.readTask(child, taskList, null, null);
+							if (task == null) {
 								orphanedTaskNodes.add(child);
 							}
 						}
@@ -285,25 +301,46 @@ public class TaskListWriter {
 					}
 				}
 
-				// then query hits hits, which get corresponded to tasks
+				// then queries and hits which get linked to tasks
 				for (int i = 0; i < list.getLength(); i++) {
 					Node child = list.item(i);
 					try {
+						boolean wasRead = false;
 						if (child.getNodeName().endsWith(DelegatingTaskExternalizer.KEY_QUERY)) {
 							for (ITaskListExternalizer externalizer : externalizers) {
 								if (externalizer.canReadQuery(child)) {
 									AbstractRepositoryQuery query = externalizer.readQuery(child, taskList);
 									if (query != null) {
+										wasRead = true;
 										taskList.internalAddQuery(query);
+									}
+									NodeList queryChildren = child.getChildNodes();
+									for (int ii = 0; ii < queryChildren.getLength(); ii++) {
+										Node queryNode = queryChildren.item(ii);
+										try {
+											delagatingExternalizer.readQueryHit((Element)queryNode, taskList, query);
+										} catch (TaskExternalizationException e) {
+											hasCaughtException = true;
+										}
 									}
 									break;
 								}
+							}
+							if (!wasRead) {
+								orphanedQueryNodes.add(child);
 							}
 						}
 					} catch (Exception e) {
 						handleException(inFile, child, e);
 					}
 				}
+
+				// bug#173710 - task number incorrect resulting in invalid task
+				// list
+				// Doing count each time
+				int largest = taskList.findLargestTaskHandle();
+				taskList.setLastTaskNum(largest);
+
 			}
 		} catch (Exception e) {
 			handleException(inFile, null, e);
@@ -312,12 +349,6 @@ public class TaskListWriter {
 			// if exception was caught, write out the new task file, so that it
 			// doesn't happen again.
 			// this is OK, since the original (corrupt) tasklist is saved.
-			// TODO: The problem with this is that if the orignal tasklist has
-			// tasks and bug reports, but a
-			// task is corrupted, the new tasklist that is written will not
-			// include the bug reports (since the
-			// bugzilla externalizer is not loaded. So there is a potentila that
-			// we can lose bug reports.
 			writeTaskList(taskList, inFile);
 		}
 	}
@@ -349,7 +380,7 @@ public class TaskListWriter {
 			// Parse the content of the given file as an XML document
 			// and return a new DOM Document object. Also throws IOException
 			InputStream inputStream = null;
-			if (inputFile.getName().endsWith(TasksUiPlugin.DEFAULT_TASK_LIST_FILE)) {
+			if (inputFile.getName().endsWith(ITasksUiConstants.DEFAULT_TASK_LIST_FILE)) {
 				// is zipped context
 				inputStream = new ZipInputStream(new FileInputStream(inputFile));
 				((ZipInputStream) inputStream).getNextEntry();
@@ -359,20 +390,28 @@ public class TaskListWriter {
 			document = builder.parse(inputStream);
 			// document = builder.parse(inputFile);
 		} catch (SAXException se) {
-			File backup = new File(TasksUiPlugin.getDefault().getTaskListSaveManager().getBackupFilePath());
-			String message = "Restoring the tasklist failed.  Would you like to attempt to restore from the backup?\n\nTasklist XML File location: "
-					+ inputFile.getAbsolutePath()
-					+ "\n\nBackup tasklist XML file location: "
-					+ backup.getAbsolutePath();
-			if (backup.exists() && MessageDialog.openQuestion(null, "Restore From Backup", message)) {
-				try {
-					document = builder.parse(backup);
-					TasksUiPlugin.getDefault().getTaskListSaveManager().reverseBackup();
-				} catch (SAXException s) {
-					inputFile.renameTo(new File(inputFile.getName() + FILE_SUFFIX_SAVE));
-					MylarStatusHandler.log(s, "Failed to recover from backup restore");
-				}
-			}
+			// TODO: Use TaskListBackupManager to attempt restore from backup
+			MessageDialog
+					.openWarning(null, "Mylar task list corrupt",
+							"Unable to read the Mylar task list. Please restore from previous backup via File > Import > Mylar Task Data");
+			// String message = "Restoring the tasklist failed. Would you like
+			// to attempt to restore from the backup?\n\nTasklist XML File
+			// location: "
+			// + inputFile.getAbsolutePath()
+			// + "\n\nBackup tasklist XML file location: "
+			// + backup.getAbsolutePath();
+			// if (backup.exists() && MessageDialog.openQuestion(null, "Unable
+			// to read Restore From Backup", message)) {
+			// try {
+			// document = builder.parse(backup);
+			// TasksUiPlugin.getDefault().getTaskListSaveManager().reverseBackup();
+			// } catch (SAXException s) {
+			// inputFile.renameTo(new File(inputFile.getName() +
+			// FILE_SUFFIX_SAVE));
+			// MylarStatusHandler.log(s, "Failed to recover from backup
+			// restore");
+			// }
+			// }
 		}
 		return document;
 	}
@@ -380,20 +419,24 @@ public class TaskListWriter {
 	private void handleException(File inFile, Node child, Exception e) {
 		hasCaughtException = true;
 		String name = inFile.getAbsolutePath();
-		name = name.substring(0, name.lastIndexOf('.')) + "-save1.xml";
+		Date date = new Date();
+		SimpleDateFormat sdf = new SimpleDateFormat();
+		sdf.applyPattern("yy-MM-dd-ss");		
+		name = name.substring(0, name.lastIndexOf('.')) + "-failed-"+sdf.format(date)+".zip";
 		File save = new File(name);
-		int i = 2;
-		while (save.exists()) {
-			name = name.substring(0, name.lastIndexOf('.') - 1) + i + ".xml";
-			save = new File(name);
-			i++;
+		if (save.exists()) {
+			if (!save.delete()) {
+				MylarStatusHandler.log("Unable to delete old backup tasklist file", this);
+				return;
+			}
 		}
 		if (!copy(inFile, save)) {
 			inFile.renameTo(new File(name));
 		}
 		if (child == null) {
-			MylarStatusHandler.log(e, "Could not read task list");
+			MylarStatusHandler.log(e, ITasksUiConstants.MESSAGE_RESTORE);
 		} else {
+			e.printStackTrace(); // in case logging plug-in has not yet started
 			MylarStatusHandler.log(e, "Tasks may have been lost from " + child.getNodeName());
 		}
 	}
@@ -578,7 +621,7 @@ public class TaskListWriter {
 	public void setDelegatingExternalizer(DelegatingTaskExternalizer delagatingExternalizer) {
 		this.delagatingExternalizer = delagatingExternalizer;
 	}
-	
+
 	public List<ITaskListExternalizer> getExternalizers() {
 		return externalizers;
 	}

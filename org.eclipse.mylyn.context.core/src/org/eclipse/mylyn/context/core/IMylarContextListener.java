@@ -16,38 +16,23 @@ import java.util.List;
 
 /**
  * @author Mik Kersten
- * 
- * TODO: refactor this interface, it's too cumbersome
  */
 public interface IMylarContextListener {
 
 	/**
-	 * TODO: refactor
+	 * The context is now active, e.g. as a result of a task activation.
 	 */
-	public enum UpdateKind {
-		HIGHLIGHTER, SCALING, UPDATE
-	}
-
 	public void contextActivated(IMylarContext context);
 
+	/**
+	 * The context has been deactivated, e.g. as a result of a task deactivation.
+	 */
 	public void contextDeactivated(IMylarContext context);
-
+	
 	/**
-	 * E.g. highlighters or scaling factors are being actively modified (for
-	 * active updating).
-	 * 
-	 * @param kind
-	 *            TODO
+	 * The context has been cleared, typically done by the user.
 	 */
-	public void presentationSettingsChanging(UpdateKind kind);
-
-	/**
-	 * Modification completed (for slow updating).
-	 * 
-	 * @param kind
-	 *            TODO
-	 */
-	public void presentationSettingsChanged(UpdateKind kind);
+	public void contextCleared(IMylarContext context);
 
 	/**
 	 * Called when the interest level for multiple elements changes, sorted
@@ -55,8 +40,6 @@ public interface IMylarContextListener {
 	 * invoking the change.
 	 */
 	public void interestChanged(List<IMylarElement> elements);
-
-	public void nodeDeleted(IMylarElement element);
 
 	/**
 	 * @param newLandmarks
@@ -70,5 +53,7 @@ public interface IMylarContextListener {
 	 */
 	public void landmarkRemoved(IMylarElement element);
 
-	public void edgesChanged(IMylarElement element);
+	public void elementDeleted(IMylarElement element);
+	
+	public void relationsChanged(IMylarElement element);
 }

@@ -12,11 +12,11 @@
 package org.eclipse.mylar.tasks.tests;
 
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
-import org.eclipse.mylar.internal.tasks.ui.editors.MylarTaskEditor;
 import org.eclipse.mylar.internal.tasks.ui.editors.TaskPlanningEditor;
 import org.eclipse.mylar.tasks.core.Task;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
+import org.eclipse.mylar.tasks.ui.editors.TaskEditor;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
 
@@ -31,9 +31,9 @@ public class TaskPlanningEditorTest extends TestCase {
 
 	private static final String MOCK_HANDLE = "handle";
 
-	private static final String DESCRIPTION = "description";
+	private static final String DESCRIPTION = "summary";
 
-	private static final String NEW_DESCRIPTION = "new description";
+	private static final String NEW_DESCRIPTION = "new summary";
 
 	@Override
 	protected void setUp() throws Exception {
@@ -45,19 +45,19 @@ public class TaskPlanningEditorTest extends TestCase {
 		PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().closeAllEditors(false);
 		TasksUiPlugin.getRepositoryManager().clearRepositories(TasksUiPlugin.getDefault().getRepositoriesFilePath());
 		TasksUiPlugin.getTaskListManager().resetTaskList();		
-		TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
+		TasksUiPlugin.getTaskListManager().saveTaskList();
 		super.tearDown();
 	}
 
 
 	public void testDirtyOnEdit() {
 		Task task = new Task(MOCK_HANDLE, MOCK_LABEL, true);
-		task.setDescription(DESCRIPTION);
+		task.setSummary(DESCRIPTION);
 		TasksUiPlugin.getTaskListManager().getTaskList().addTask(task);
-		TaskUiUtil.openEditor(task, false, true);
+		TasksUiUtil.openEditor(task, false, true);
 		IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-		assertTrue(page.getActiveEditor() instanceof MylarTaskEditor);
-		MylarTaskEditor taskEditor = (MylarTaskEditor) page.getActiveEditor();
+		assertTrue(page.getActiveEditor() instanceof TaskEditor);
+		TaskEditor taskEditor = (TaskEditor) page.getActiveEditor();
 		assertTrue(taskEditor.getActivePageInstance() instanceof TaskPlanningEditor);
 		TaskPlanningEditor editor = (TaskPlanningEditor) taskEditor.getActivePageInstance();
 		assertFalse(editor.isDirty());
@@ -68,26 +68,26 @@ public class TaskPlanningEditorTest extends TestCase {
 		editor.setDescription(NEW_DESCRIPTION);
 		assertTrue(editor.isDirty());
 		editor.doSave(new NullProgressMonitor());
-		assertEquals(NEW_DESCRIPTION, task.getDescription());
+		assertEquals(NEW_DESCRIPTION, task.getSummary());
 		assertFalse(editor.isDirty());
 	}
 
 	public void testNotDirtyOnRename() {
 		Task task = new Task(MOCK_HANDLE, MOCK_LABEL, true);
-		task.setDescription(DESCRIPTION);
+		task.setSummary(DESCRIPTION);
 		TasksUiPlugin.getTaskListManager().getTaskList().addTask(task);
-		TaskUiUtil.openEditor(task, false, true);
+		TasksUiUtil.openEditor(task, false, true);
 		IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-		assertTrue(page.getActiveEditor() instanceof MylarTaskEditor);
-		MylarTaskEditor taskEditor = (MylarTaskEditor) page.getActiveEditor();
+		assertTrue(page.getActiveEditor() instanceof TaskEditor);
+		TaskEditor taskEditor = (TaskEditor) page.getActiveEditor();
 		assertTrue(taskEditor.getActivePageInstance() instanceof TaskPlanningEditor);
 		TaskPlanningEditor editor = (TaskPlanningEditor) taskEditor.getActivePageInstance();
 		assertFalse(editor.isDirty());
 		assertEquals(DESCRIPTION, editor.getDescription());
 		TasksUiPlugin.getTaskListManager().getTaskList().renameTask(task, NEW_DESCRIPTION);
-		assertEquals(NEW_DESCRIPTION, task.getDescription());
+		assertEquals(NEW_DESCRIPTION, task.getSummary());
 		editor.updateTaskData(task);
-		assertEquals(NEW_DESCRIPTION, editor.getFormTitle());
+		//assertEquals(NEW_DESCRIPTION, editor.getFormTitle());
 		assertEquals(NEW_DESCRIPTION, editor.getDescription());
 		assertFalse(editor.isDirty());
 	}
@@ -98,21 +98,21 @@ public class TaskPlanningEditorTest extends TestCase {
 	 */
 	public void testRenameInDirtyState() {		
 		Task task = new Task(MOCK_HANDLE, MOCK_LABEL, true);
-		task.setDescription(DESCRIPTION);
+		task.setSummary(DESCRIPTION);
 		TasksUiPlugin.getTaskListManager().getTaskList().addTask(task);
-		TaskUiUtil.openEditor(task, false, true);
+		TasksUiUtil.openEditor(task, false, true);
 		IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-		assertTrue(page.getActiveEditor() instanceof MylarTaskEditor);
-		MylarTaskEditor taskEditor = (MylarTaskEditor) page.getActiveEditor();
+		assertTrue(page.getActiveEditor() instanceof TaskEditor);
+		TaskEditor taskEditor = (TaskEditor) page.getActiveEditor();
 		assertTrue(taskEditor.getActivePageInstance() instanceof TaskPlanningEditor);
 		TaskPlanningEditor editor = (TaskPlanningEditor) taskEditor.getActivePageInstance();
 		assertFalse(editor.isDirty());
 		editor.setDescription(NEW_DESCRIPTION);
 		assertTrue(editor.isDirty());
 		TasksUiPlugin.getTaskListManager().getTaskList().renameTask(task, NEW_DESCRIPTION+"2");
-		assertEquals(NEW_DESCRIPTION+"2", task.getDescription());
+		assertEquals(NEW_DESCRIPTION+"2", task.getSummary());
 		editor.updateTaskData(task);
-		assertEquals(NEW_DESCRIPTION+"2", editor.getFormTitle());
+		//assertEquals(NEW_DESCRIPTION+"2", editor.getFormTitle());
 		assertEquals(NEW_DESCRIPTION+"2", editor.getDescription());
 		assertTrue(editor.isDirty());
 	}

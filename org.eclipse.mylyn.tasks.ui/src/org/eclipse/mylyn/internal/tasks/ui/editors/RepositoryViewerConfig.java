@@ -68,6 +68,7 @@ public class RepositoryViewerConfig extends SourceViewerConfiguration {
 		}
 	}
 
+	@Override
 	public IPresentationReconciler getPresentationReconciler(ISourceViewer sourceViewer) {
 		PresentationReconciler reconciler = new PresentationReconciler();
 		reconciler.setDocumentPartitioning(getConfiguredDocumentPartitioning(sourceViewer));
@@ -86,20 +87,24 @@ public class RepositoryViewerConfig extends SourceViewerConfiguration {
 		return scanner;
 	}
 
+	@Override
 	public IHyperlinkDetector[] getHyperlinkDetectors(ISourceViewer sourceViewer) {
-		List<IHyperlinkDetector> detectors = new ArrayList<IHyperlinkDetector>();
+		List<IHyperlinkDetector> detectors = new ArrayList<IHyperlinkDetector>();		
 		detectors.addAll(Arrays.asList(TasksUiPlugin.getDefault().getTaskHyperlinkDetectors()));
 		return detectors.toArray(new IHyperlinkDetector[detectors.size()]);
 	}
 
+	@Override
 	public IHyperlinkPresenter getHyperlinkPresenter(ISourceViewer sourceViewer) {
 		return new DefaultHyperlinkPresenter(new RGB(0, 0, 200));
 	}
 
+	@Override
 	public int getHyperlinkStateMask(ISourceViewer sourceViewer) {
 		return SWT.NONE;
 	}
 
+	@Override
 	public IReconciler getReconciler(ISourceViewer sourceViewer) {
 		if (spellcheck) {
 			MonoReconciler reconciler = new MonoReconciler(strategy, false);
@@ -119,12 +124,15 @@ public class RepositoryViewerConfig extends SourceViewerConfiguration {
 			IRule[] rules = new IRule[15];
 			rules[0] = (new SingleLineRule("http://", " ", bugToken));
 			rules[1] = (new SingleLineRule("https://", " ", bugToken));
-			rules[2] = (new MultiLineRule("bug#", " ", bugToken));
-			rules[3] = (new MultiLineRule("bug #", " ", bugToken));
-			rules[4] = (new SingleLineRule("bug #", "\n", bugToken));
+			rules[2] = (new SingleLineRule("bug#", " ", bugToken));
+			rules[3] = (new SingleLineRule("bug#", "", bugToken));
+			rules[4] = (new SingleLineRule("bug #", "", bugToken));
+//			rules[2] = (new MultiLineRule("bug#", " ", bugToken));
+//			rules[3] = (new MultiLineRule("bug #", " ", bugToken));
+//			rules[4] = (new SingleLineRule("bug #", "\n", bugToken));
 			rules[5] = (new SingleLineRule("http://", "\n", bugToken));
 			rules[6] = (new SingleLineRule("https://", "\n", bugToken));
-			rules[7] = (new MultiLineRule("task#", " ", bugToken));
+			rules[7] = (new SingleLineRule("task#", " ", bugToken));
 			rules[8] = (new MultiLineRule("task#", "\n", bugToken));
 			rules[9] = (new MultiLineRule("task# ", " ", bugToken));
 			rules[10] = (new SingleLineRule("task #", "\n", bugToken));

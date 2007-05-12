@@ -16,7 +16,9 @@ import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.preference.PreferencePage;
+import org.eclipse.mylar.internal.tasks.ui.ITasksUiConstants;
 import org.eclipse.mylar.internal.tasks.ui.TaskListPreferenceConstants;
+import org.eclipse.mylar.internal.tasks.ui.views.TaskListView;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
@@ -47,6 +49,8 @@ import org.eclipse.ui.preferences.IWorkbenchPreferenceContainer;
  */
 public class TasksPreferencePage extends PreferencePage implements IWorkbenchPreferencePage {
 
+	public static final String ID = "org.eclipse.mylar.tasks.ui.preferences";
+	
 	private static final int OVERWRITE = 0;
 
 	private static final int LOAD_EXISTING = 1;
@@ -87,6 +91,8 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 
 	private Button notificationEnabledButton = null;
 
+	private Button incomingOverlaysButton = null;
+	
 	private Text backupScheduleTimeText;
 
 	private Text backupFolderText;
@@ -107,11 +113,13 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 		Composite container = new Composite(parent, SWT.NULL);
 		GridLayout layout = new GridLayout(1, false);
 		container.setLayout(layout);
-
-		String message = "See <a>''{0}''</a> for configuring Task List colors.";
-		new PreferenceLinkArea(container, SWT.NONE, "org.eclipse.ui.preferencePages.ColorsAndFonts", message,
-				(IWorkbenchPreferenceContainer) getContainer(), null);
-
+		
+		if (getContainer() instanceof IWorkbenchPreferenceContainer) {
+			String message = "See <a>''{0}''</a> for configuring Task List colors.";
+				new PreferenceLinkArea(container, SWT.NONE, "org.eclipse.ui.preferencePages.ColorsAndFonts", 
+						message, (IWorkbenchPreferenceContainer) getContainer(), null);
+		}
+		
 		createTaskRefreshScheduleGroup(container);
 		createNotificationsGroup(container);
 		createSchedulingGroup(container);
@@ -133,8 +141,8 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 
 		if (!taskDirectory.equals(TasksUiPlugin.getDefault().getDataDirectory())) {
 			if (taskDataDirectoryAction == OVERWRITE) {
-				TasksUiPlugin.getDefault().getTaskListSaveManager().saveTaskList(true);
-				TasksUiPlugin.getDefault().getTaskListSaveManager().copyDataDirContentsTo(taskDirectory);
+//				TasksUiPlugin.getTaskListManager().saveTaskList();
+				TasksUiPlugin.getTaskListManager().copyDataDirContentsTo(taskDirectory);
 				TasksUiPlugin.getDefault().setDataDirectory(taskDirectory);
 			} else if (taskDataDirectoryAction == LOAD_EXISTING) {
 				TasksUiPlugin.getDefault().setDataDirectory(taskDirectory);
@@ -163,6 +171,14 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 		getPreferenceStore().setValue(TaskListPreferenceConstants.PLANNING_STARTHOUR, hourDayStart.getSelection());
 		getPreferenceStore().setValue(TaskListPreferenceConstants.PLANNING_ENDHOUR, hourDayEnd.getSelection());
 		backupNow.setEnabled(true);
+		
+		getPreferenceStore().setValue(TaskListPreferenceConstants.INCOMING_OVERLAID,
+				incomingOverlaysButton.getSelection());
+		TaskListView view = TaskListView.getFromActivePerspective();
+		if (view != null) {
+			view.setSynchronizationOverlaid(incomingOverlaysButton.getSelection());
+		}
+		
 		return true;
 	}
 
@@ -191,6 +207,7 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 		return true;
 	}
 
+	@Override
 	public void performDefaults() {
 		super.performDefaults();
 		String taskDirectory = TasksUiPlugin.getDefault().getDefaultDataDirectory();				
@@ -199,13 +216,13 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 			if (taskDataDirectoryAction != CANCEL) {
 				taskDirectoryText.setText(taskDirectory);				
 				backupFolderText.setText(taskDirectory + FORWARDSLASH
-						+ TasksUiPlugin.DEFAULT_BACKUP_FOLDER_NAME);
+						+ ITasksUiConstants.DEFAULT_BACKUP_FOLDER_NAME);
 				backupNow.setEnabled(false);
 			}
 		} else {
 			taskDirectoryText.setText(taskDirectory);				
 			backupFolderText.setText(taskDirectory + FORWARDSLASH
-					+ TasksUiPlugin.DEFAULT_BACKUP_FOLDER_NAME);
+					+ ITasksUiConstants.DEFAULT_BACKUP_FOLDER_NAME);
 			backupNow.setEnabled(true);
 		}
 
@@ -241,31 +258,15 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 		Group group = new Group(parent, SWT.SHADOW_ETCHED_IN);
 		group.setText("Synchronization");
 		GridLayout gridLayout = new GridLayout(1, false);
-		// gridLayout.marginLeft = 0;
 		group.setLayout(gridLayout);
+		
 		group.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-		// userRefreshOnly = new Button(group, SWT.RADIO);
-		// GridData gridData = new GridData();
-		// gridData.horizontalSpan = 2;
-		// userRefreshOnly.setLayoutData(gridData);
-		// userRefreshOnly.setText("Disabled");
-		// userRefreshOnly.setSelection(!getPreferenceStore().getBoolean(
-		// TaskListPreferenceConstants.REPOSITORY_SYNCH_SCHEDULE_ENABLED));
-		// userRefreshOnly.addSelectionListener(new SelectionListener() {
-		// public void widgetSelected(SelectionEvent e) {
-		// updateRefreshGroupEnablements();
-		// }
-		//
-		// public void widgetDefaultSelected(SelectionEvent e) {
-		// }
-		// });
 		Composite enableSynch = new Composite(group, SWT.NULL);
 		gridLayout = new GridLayout(4, false);
 		gridLayout.marginWidth = 0;
 		gridLayout.marginHeight = 0;
 		enableSynch.setLayout(gridLayout);
 		enableBackgroundSynch = new Button(enableSynch, SWT.CHECK);
-		// enableBackgroundSynch.setLayoutData(gridData);
 		enableBackgroundSynch.setText("Synchronize with repositories every");
 		enableBackgroundSynch.setSelection(getPreferenceStore().getBoolean(
 				TaskListPreferenceConstants.REPOSITORY_SYNCH_SCHEDULE_ENABLED));
@@ -290,6 +291,11 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 		Label label = new Label(enableSynch, SWT.NONE);
 		label.setText("minutes");
 
+		notificationEnabledButton = new Button(group, SWT.CHECK);
+		notificationEnabledButton.setText("Display notifications for overdue tasks and incoming changes");
+		notificationEnabledButton.setSelection(getPreferenceStore().getBoolean(
+				TaskListPreferenceConstants.NOTIFICATIONS_ENABLED));
+		
 		// synchQueries = new Button(group, SWT.CHECK);
 		// synchQueries.setText("Synchronize on startup");
 		// synchQueries.setSelection(getPreferenceStore().getBoolean(
@@ -317,7 +323,7 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 				TaskListPreferenceConstants.REPORT_DISABLE_INTERNAL));
 
 		activateOnOpen = new Button(container, SWT.CHECK);
-		activateOnOpen.setText("Active on open (Experimental)");
+		activateOnOpen.setText("Active on double-click");
 		activateOnOpen.setEnabled(!reportInternal.getSelection());
 		activateOnOpen.setSelection(getPreferenceStore().getBoolean(TaskListPreferenceConstants.ACTIVATE_ON_OPEN));
 
@@ -381,7 +387,7 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 
 				if (taskDataDirectoryAction != CANCEL) {
 					taskDirectoryText.setText(dir);
-					backupFolderText.setText(dir + FORWARDSLASH + TasksUiPlugin.DEFAULT_BACKUP_FOLDER_NAME);
+					backupFolderText.setText(dir + FORWARDSLASH + ITasksUiConstants.DEFAULT_BACKUP_FOLDER_NAME);
 					backupNow.setEnabled(false);
 				}
 			}
@@ -433,13 +439,13 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 
 	private void createNotificationsGroup(Composite parent) {
 		Group group = new Group(parent, SWT.SHADOW_ETCHED_IN);
-		group.setText("Notifications");
+		group.setText("Layout");
 		group.setLayout(new GridLayout(1, false));
 		group.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-		notificationEnabledButton = new Button(group, SWT.CHECK);
-		notificationEnabledButton.setText("Display notifications for overdue tasks and incoming changes");
-		notificationEnabledButton.setSelection(getPreferenceStore().getBoolean(
-				TaskListPreferenceConstants.NOTIFICATIONS_ENABLED));
+		incomingOverlaysButton = new Button(group, SWT.CHECK);
+		incomingOverlaysButton.setText("Overlay synchronization state on task icons (for wide view)");
+		incomingOverlaysButton.setSelection(getPreferenceStore().getBoolean(
+				TaskListPreferenceConstants.INCOMING_OVERLAID));
 	}
 
 	private void createSchedulingGroup(Composite container) {
@@ -576,7 +582,7 @@ public class TasksPreferencePage extends PreferencePage implements IWorkbenchPre
 		File newDataFolder = new File(dir);
 		if (newDataFolder.exists()) {
 			for (String filename : newDataFolder.list()) {
-				if (filename.equals(TasksUiPlugin.DEFAULT_TASK_LIST_FILE)) {
+				if (filename.equals(ITasksUiConstants.DEFAULT_TASK_LIST_FILE)) {
 
 					MessageDialog dialogConfirm = new MessageDialog(
 							null,

@@ -20,14 +20,14 @@ import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.mylar.context.core.IMylarElement;
-import org.eclipse.mylar.context.ui.IMylarUiBridge;
-import org.eclipse.mylar.internal.bugzilla.core.BugzillaServerFacade;
-import org.eclipse.mylar.internal.bugzilla.ui.tasklist.BugzillaTaskEditor;
-import org.eclipse.mylar.internal.tasks.ui.TaskUiUtil;
-import org.eclipse.mylar.internal.tasks.ui.editors.AbstractRepositoryTaskEditor;
+import org.eclipse.mylar.context.ui.AbstractContextUiBridge;
+import org.eclipse.mylar.internal.bugzilla.core.BugzillaClient;
 import org.eclipse.mylar.internal.tasks.ui.editors.RepositoryTaskOutlinePage;
 import org.eclipse.mylar.tasks.core.ITask;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
+import org.eclipse.mylar.tasks.ui.TasksUiUtil;
+import org.eclipse.mylar.tasks.ui.editors.AbstractRepositoryTaskEditor;
+import org.eclipse.mylar.tasks.ui.editors.TaskEditor;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IEditorReference;
@@ -38,7 +38,7 @@ import org.eclipse.ui.PlatformUI;
  * @author Mik Kersten
  * @author Shawn Minto
  */
-public class BugzillaUiBridge implements IMylarUiBridge {
+public class BugzillaUiBridge extends AbstractContextUiBridge {
 
 	protected BugzillaContextLabelProvider labelProvider = new BugzillaContextLabelProvider();
 
@@ -60,10 +60,10 @@ public class BugzillaUiBridge implements IMylarUiBridge {
 
 		ITask task = TasksUiPlugin.getTaskListManager().getTaskList().getTask(handle);
 		if (task != null) {
-			TaskUiUtil.openEditor(task, false);
+			TasksUiUtil.openEditor(task, false);
 		} else {
-			String bugUrl = BugzillaServerFacade.getBugUrlWithoutLogin(server, bugId);
-			TaskUiUtil.openRepositoryTask(server, "" + bugId, bugUrl);
+			String bugUrl = BugzillaClient.getBugUrlWithoutLogin(server, ""+bugId);
+			TasksUiUtil.openRepositoryTask(server, "" + bugId, bugUrl);
 		}
 	}
 
@@ -80,8 +80,8 @@ public class BugzillaUiBridge implements IMylarUiBridge {
 				if (part != null) {
 					if (part instanceof AbstractRepositoryTaskEditor) {
 						((AbstractRepositoryTaskEditor) part).close();
-					} else if (part instanceof BugzillaTaskEditor) {
-						((BugzillaTaskEditor) part).close();
+					} else if (part instanceof TaskEditor) {
+						((TaskEditor) part).close(true);
 					}
 				}
 			}

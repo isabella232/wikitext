@@ -8,6 +8,10 @@
 
 package org.eclipse.mylar.internal.jira.ui;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.text.Region;
 import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -21,6 +25,8 @@ import org.eclipse.mylar.internal.jira.ui.wizards.NewJiraTaskWizard;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryQuery;
 import org.eclipse.mylar.tasks.core.AbstractRepositoryTask;
+import org.eclipse.mylar.tasks.core.ITaskListElement;
+import org.eclipse.mylar.tasks.core.RepositoryTaskData;
 import org.eclipse.mylar.tasks.core.TaskRepository;
 import org.eclipse.mylar.tasks.ui.AbstractRepositoryConnectorUi;
 import org.eclipse.mylar.tasks.ui.TasksUiPlugin;
@@ -35,6 +41,52 @@ public class JiraRepositoryUi extends AbstractRepositoryConnectorUi {
 
 	public String getTaskKindLabel(AbstractRepositoryTask repositoryTask) {
 		return "Issue";
+	}
+	
+	@Override
+	public String getTaskKindLabel(RepositoryTaskData taskData) {
+		return "Issue";
+	}
+	
+	@Override
+	public List<ITaskListElement> getLegendItems() {
+		List<ITaskListElement> legendItems = new ArrayList<ITaskListElement>();
+		
+		JiraTask bug = new JiraTask("", "bug", "Bug", false);
+		bug.setKind(JiraTask.Kind.BUG.toString());
+		legendItems.add(bug);
+
+		JiraTask feature = new JiraTask("", "feature", "Feature", false);
+		feature.setKind(JiraTask.Kind.FEATURE.toString());
+		legendItems.add(feature);
+
+		JiraTask improvement = new JiraTask("", "improvement", "Improvement", false);
+		improvement.setKind(JiraTask.Kind.IMPROVEMENT.toString());
+		legendItems.add(improvement);
+
+		JiraTask task = new JiraTask("", "task", "Task", false);
+		task.setKind(JiraTask.Kind.TASK.toString());
+		legendItems.add(task);
+		
+		return legendItems;
+	}
+
+	
+	@Override
+	public ImageDescriptor getTaskKindOverlay(AbstractRepositoryTask repositoryTask) {
+		if (repositoryTask instanceof JiraTask) {
+			JiraTask task = (JiraTask) repositoryTask;
+			if (JiraTask.Kind.BUG.toString().equals(task.getTaskKind())) {
+				return JiraImages.OVERLAY_BUG;
+			} else if (JiraTask.Kind.FEATURE.toString().equals(task.getTaskKind())) {
+				return JiraImages.OVERLAY_FEATURE;
+			} else if (JiraTask.Kind.IMPROVEMENT.toString().equals(task.getTaskKind())) {
+				return JiraImages.OVERLAY_IMPROVEMENT;
+			} else if (JiraTask.Kind.TASK.toString().equals(task.getTaskKind())) {
+				return JiraImages.OVERLAY_TASK;
+			}
+		}
+		return super.getTaskKindOverlay(repositoryTask);
 	}
 	
 	@Override
@@ -59,6 +111,7 @@ public class JiraRepositoryUi extends AbstractRepositoryConnectorUi {
 	public IWizard getNewTaskWizard(TaskRepository taskRepository) {
 		return new NewJiraTaskWizard(taskRepository);
 	}
+
 
 	@Override
 	public boolean hasRichEditor() {

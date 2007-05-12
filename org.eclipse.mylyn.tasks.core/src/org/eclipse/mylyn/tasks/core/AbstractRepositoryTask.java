@@ -11,9 +11,8 @@
 
 package org.eclipse.mylar.tasks.core;
 
-import java.util.Date;
-
-import org.eclipse.mylar.internal.tasks.core.HtmlStreamTokenizer;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.mylar.internal.tasks.core.RepositoryTaskHandleUtil;
 
 /**
  * Virtual proxy for a repository task.
@@ -23,24 +22,16 @@ import org.eclipse.mylar.internal.tasks.core.HtmlStreamTokenizer;
  */
 public abstract class AbstractRepositoryTask extends Task {
 
-	private static final String CONTEXT_HANDLE_DELIM = "-";
-	
-	private static final String MISSING_REPOSITORY_HANDLE = "norepository" + CONTEXT_HANDLE_DELIM;
-	
 	/** The last time this task's bug report was in a synchronized (read?) state. */
 	protected String lastSynchronizedDateStamp;
 
-	protected transient RepositoryTaskData taskData;
+	protected String repositoryUrl;
 
-	protected boolean currentlySynchronizing;
-
+	protected String taskId;
+	
+	protected String owner;
+		
 	protected boolean isNotifiedIncoming = true;
-
-	/**
-	 * Value is <code>true</code> if the bug report has saved changes that
-	 * need synchronizing with the repository.
-	 */
-	protected boolean isDirty;
 
 	public enum RepositoryTaskSyncState {
 		OUTGOING, SYNCHRONIZED, INCOMING, CONFLICT
@@ -48,17 +39,29 @@ public abstract class AbstractRepositoryTask extends Task {
 
 	protected RepositoryTaskSyncState syncState = RepositoryTaskSyncState.SYNCHRONIZED;
 
-	public static final String HANDLE_DELIM = "-";
+	// transient
+	protected IStatus errorStatus = null;
 
-	public AbstractRepositoryTask(String handle, String label, boolean newTask) {
-		super(handle, label, newTask);
+	// transient
+	protected boolean currentlySynchronizing;
+
+	// transient
+	protected boolean submitting;
+	
+	public AbstractRepositoryTask(String repositoryUrl, String taskId, String summary, boolean newTask) {
+		// NOTE: Repository tasks specify their own handle format.
+		super(null, summary, newTask);
+		this.repositoryUrl = repositoryUrl;
+		this.taskId = taskId;
 	}
 
+	@Override
+	public final String getHandleIdentifier() {
+		return RepositoryTaskHandleUtil.getHandle(repositoryUrl, taskId);
+	}
+
+	@Override
 	public abstract String getRepositoryKind();
-
-	public boolean isDownloaded() {
-		return taskData != null;
-	}
 
 	public String getLastSyncDateStamp() {
 		return lastSynchronizedDateStamp;
@@ -76,21 +79,12 @@ public abstract class AbstractRepositoryTask extends Task {
 		return syncState;
 	}
 
-	public String getRepositoryUrl() {
-		return AbstractRepositoryTask.getRepositoryUrl(getHandleIdentifier());
-	}
-
+	/**
+	 * TODO: remove
+	 */
 	@Override
-	public boolean isLocal() {
+	public final boolean isLocal() {
 		return false;
-	}
-
-	public static long getLastRefreshTimeInMinutes(Date lastRefresh) {
-		Date timeNow = new Date();
-		if (lastRefresh == null)
-			lastRefresh = new Date();
-		long timeDifference = (timeNow.getTime() - lastRefresh.getTime()) / 60000;
-		return timeDifference;
 	}
 
 	public boolean isSynchronizing() {
@@ -101,59 +95,6 @@ public abstract class AbstractRepositoryTask extends Task {
 		this.currentlySynchronizing = currentlySychronizing;
 	}
 
-	public static String getTaskId(String taskHandle) {
-		int index = taskHandle.lastIndexOf(AbstractRepositoryTask.HANDLE_DELIM);
-		if (index != -1) {
-			String id = taskHandle.substring(index + 1);
-			return id;
-		}
-		return null;
-	}
-
-	public static String getRepositoryUrl(String taskHandle) {
-		int index = taskHandle.lastIndexOf(AbstractRepositoryTask.HANDLE_DELIM);
-		String url = null;
-		if (index != -1) {
-			url = taskHandle.substring(0, index);
-		}
-		return url;
-	}
-
-	public static String getHandle(String repositoryUrl, String taskId) {
-		if (repositoryUrl == null) {
-			return MISSING_REPOSITORY_HANDLE + taskId;
-		} else if (taskId.contains(CONTEXT_HANDLE_DELIM)) {
-			throw new RuntimeException("invalid handle for task, can not contain: " + CONTEXT_HANDLE_DELIM + ", was: " + taskId);
-		} else {
-			return repositoryUrl + CONTEXT_HANDLE_DELIM + taskId;
-		}
-	}
-
-	public static String getHandle(String repositoryUrl, int taskId) {
-		return AbstractRepositoryTask.getHandle(repositoryUrl, "" + taskId);
-	}
-
-	public boolean isDirty() {
-		return isDirty;
-	}
-
-	public void setDirty(boolean isDirty) {
-		this.isDirty = isDirty;
-	}
-
-	public RepositoryTaskData getTaskData() {
-		return taskData;
-	}
-
-	public void setTaskData(RepositoryTaskData taskData) {
-		this.taskData = taskData;
-		// TODO: remove?
-		if (taskData != null) {
-			setDescription(HtmlStreamTokenizer.unescape(AbstractRepositoryTask.getTaskId(getHandleIdentifier())
-					+ ": " + taskData.getSummary()));
-		}
-	}
-
 	public boolean isNotified() {
 		return isNotifiedIncoming;
 	}
@@ -162,8 +103,49 @@ public abstract class AbstractRepositoryTask extends Task {
 		isNotifiedIncoming = notified;
 	}
 
-	
 	public String getOwner() {
-		return "<unknown>";
+		return owner;
+	}
+
+	public void setOwner(String owner) {
+		this.owner = owner;
+	}
+
+	public IStatus getStatus() {
+		return errorStatus;
+	}
+
+	public void setStatus(IStatus status) {
+		this.errorStatus = status;
+	}
+
+	public final String getTaskId() {
+		return taskId;
+	}
+
+	public final String getRepositoryUrl() {
+		return repositoryUrl;
+	}
+
+	public final void setRepositoryUrl(String repositoryUrl) {
+		this.repositoryUrl = repositoryUrl;
+	}
+
+	/**
+	 * User identifiable key for the task to be used in UI facilities such as
+	 * label displays and hyperlinked references. Can return the same as the ID
+	 * (e.g. in the case of Bugzilla). Can return null if no such label exists.
+	 */
+	public String getTaskKey() {
+		return taskId;
+	}
+
+	
+	public boolean isSubmitting() {
+		return submitting;
+	}
+
+	public void setSubmitting(boolean submitting) {
+		this.submitting = submitting;
 	}
 }

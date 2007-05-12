@@ -29,8 +29,8 @@ import org.eclipse.mylar.internal.context.core.CompositeContext;
 import org.eclipse.mylar.internal.context.core.IMylarSearchOperation;
 import org.eclipse.mylar.internal.context.core.MylarContext;
 import org.eclipse.mylar.internal.context.core.MylarContextRelation;
-import org.eclipse.mylar.internal.ide.xml.XmlReferencesProvider;
 import org.eclipse.mylar.internal.java.JavaStructureBridge;
+import org.eclipse.mylar.internal.java.search.XmlJavaRelationProvider;
 import org.eclipse.mylar.java.tests.search.ActiveSearchNotifier;
 import org.eclipse.mylar.java.tests.search.SearchPluginTestHelper;
 import org.eclipse.mylar.java.tests.search.WorkspaceSetupHelper;
@@ -119,7 +119,7 @@ public class ResultUpdaterTest extends TestCase implements ISearchPluginTest {
 			return null;
 
 		// test with each of the sepatations
-		XmlReferencesProvider prov = new XmlReferencesProvider();
+		XmlJavaRelationProvider prov = new XmlJavaRelationProvider();
 
 		IMylarSearchOperation o = prov.getSearchOperation(node, 0, dos);
 		if (o == null)
