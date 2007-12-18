@@ -79,7 +79,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 	public JiraRepositoryConnector(TasksFacade mylynFacade) {
 		this.mylynFacade = mylynFacade;
 
-		offlineHandler = new JiraTaskDataHandler(JiraClientFactory.getDefault());
+		offlineHandler = new JiraTaskDataHandler(JiraClientFacade.getDefault());
 		attachmentHandler = new JiraAttachmentHandler();
 	}
 
@@ -118,7 +118,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 		monitor.beginTask("Running query", IProgressMonitor.UNKNOWN);
 		try {
 
-			JiraClient client = JiraClientFactory.getDefault().getJiraClient(repository);
+			JiraClient client = JiraClientFacade.getDefault().getJiraClient(repository);
 
 			boolean isSearch = false;
 			Query filter;
@@ -193,7 +193,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 		}
 
 		List<Issue> issues = new ArrayList<Issue>();
-		JiraClient client = JiraClientFactory.getDefault().getJiraClient(repository);
+		JiraClient client = JiraClientFacade.getDefault().getJiraClient(repository);
 		// unlimited maxHits can create crazy amounts of traffic
 		JiraIssueCollector issueCollector = new JiraIssueCollector(new NullProgressMonitor(), issues,
 				MAX_MARK_STALE_QUERY_HITS);
@@ -218,17 +218,17 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 			}
 
 			repository.setSynchronizationTimeStamp(JiraUtils.dateToString(now));
-
+			
 			Date lastUpdate = issues.get(0).getUpdated();
 			Date repositoryUpdateTimeStamp = JiraUtils.getLastUpdate(repository);
-			if (repositoryUpdateTimeStamp != null && repositoryUpdateTimeStamp.equals(lastUpdate)) {
+			if (repositoryUpdateTimeStamp != null && repositoryUpdateTimeStamp.equals(lastUpdate)) { 
 				// didn't see any new changes
 				return false;
 			} else {
 				if (lastUpdate != null) {
 					JiraUtils.setLastUpdate(repository, lastUpdate);
 				}
-
+				
 				// updates may have caused tasks to match/not match a query therefore we need to rerun all queries  			
 				return true;
 			}
@@ -239,13 +239,13 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 		}
 	}
 
-	/* Public for testing. */
+	/* Public for testing. */ 
 	public FilterDefinition getSynchronizationFilter(TaskRepository repository, Set<AbstractTask> tasks, Date now) {
 		// there are no JIRA tasks in the task list, skip contacting the repository
 		if (tasks.isEmpty()) {
 			return null;
 		}
-
+		
 		Date lastSyncDate = JiraUtils.stringToDate(repository.getSynchronizationTimeStamp());
 
 		// repository was never synchronized, update all tasks
@@ -267,7 +267,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 							+ " >= " + now, null));
 
 			// use the timestamp on the task that was modified last
-			lastSyncDate = null;
+			lastSyncDate = null; 
 			for (AbstractTask task : tasks) {
 				Date date = JiraUtils.stringToDate(task.getLastReadTimeStamp());
 				if (lastSyncDate == null || (date != null && date.after(lastSyncDate))) {
@@ -279,7 +279,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 				// could not determine last synchronization point
 				return null;
 			}
-
+			
 			// get all tasks that were changed after the last known task modification
 			FilterDefinition changedFilter = new FilterDefinition("Changed Tasks");
 			changedFilter.setUpdatedDateFilter(new DateRangeFilter(lastSyncDate, null));
@@ -287,6 +287,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 			changedFilter.setOrdering(new Order[] { new Order(Order.Field.UPDATED, false) });
 			return changedFilter;
 		}
+
 
 		FilterDefinition changedFilter = new FilterDefinition("Changed Tasks");
 		// need to use RelativeDateRangeFilter since the granularity of DateRangeFilter is days
@@ -339,7 +340,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 
 	@Override
 	public String[] getTaskIdsFromComment(TaskRepository repository, String comment) {
-		JiraClient client = JiraClientFactory.getDefault().getJiraClient(repository);
+		JiraClient client = JiraClientFacade.getDefault().getJiraClient(repository);
 		Project[] projects = client.getProjects();
 		if (projects != null && projects.length > 0) {
 			// (?:(MNGECLIPSE-\d+?)|(SPR-\d+?))\D
@@ -435,7 +436,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 			jiraTask.setCreationDate(JiraUtils.stringToDate(taskData.getAttributeValue(RepositoryTaskAttribute.DATE_CREATION)));
 			jiraTask.setDueDate(JiraUtils.stringToDate(taskData.getAttributeValue(JiraAttributeFactory.ATTRIBUTE_DUE_DATE)));
 
-			JiraClient client = JiraClientFactory.getDefault().getJiraClient(repository);
+			JiraClient client = JiraClientFacade.getDefault().getJiraClient(repository);
 			jiraTask.setPriority(getPriorityLevel(client, taskData.getAttributeValue(RepositoryTaskAttribute.PRIORITY)).toString());
 			for (org.eclipse.mylyn.internal.jira.core.model.Status status : client.getStatuses()) {
 				if (status.getName().equals(taskData.getAttributeValue(RepositoryTaskAttribute.STATUS))) {
@@ -497,7 +498,7 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 	@Override
 	public void updateAttributes(TaskRepository repository, IProgressMonitor monitor) throws CoreException {
 		try {
-			JiraClient client = JiraClientFactory.getDefault().getJiraClient(repository);
+			JiraClient client = JiraClientFacade.getDefault().getJiraClient(repository);
 			client.refreshDetails(monitor);
 		} catch (JiraException e) {
 			IStatus status = JiraCorePlugin.toStatus(repository, e);
@@ -521,16 +522,6 @@ public class JiraRepositoryConnector extends AbstractRepositoryConnector {
 		}
 	}
 
-	@Override
-	public boolean isRepositoryConfigurationStale(TaskRepository repository) throws CoreException {
-		return JiraUtils.getAutoRefreshConfiguration(repository);
-	}
-
-	@Override
-	public boolean hasCredentialsManagement() {
-		return true;
-	}
-	
 	public static class TasksFacade {
 
 		public AbstractTask getTask(String repositoryUrl, String taskId) {
