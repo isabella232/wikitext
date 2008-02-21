@@ -8,7 +8,9 @@
 package org.eclipse.mylyn.internal.ide.ui;
 
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.mylyn.context.ui.IContextUiStartup;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
+import org.osgi.framework.BundleContext;
 
 /**
  * @author Mik Kersten
@@ -21,10 +23,28 @@ public class IdeUiBridgePlugin extends AbstractUIPlugin {
 
 	public static final ImageDescriptor EDGE_REF_XML = getImageDescriptor("icons/elcl16/edge-ref-xml.gif");
 
+	public static class IdeUiBridgeStartup implements IContextUiStartup {
+
+		public void lazyStartup() {
+			// ignore, it is sufficient that the bundle is activated on context ui startup
+		}
+		
+	}
+	
 	public IdeUiBridgePlugin() {
 		INSTANCE = this;
 	}
 
+	@Override
+	public void start(BundleContext context) throws Exception {
+		super.start(context);
+	}
+	
+	@Override
+	public void stop(BundleContext context) throws Exception {
+		super.stop(context);
+	}
+	
 	public static IdeUiBridgePlugin getDefault() {
 		return INSTANCE;
 	}
@@ -39,4 +59,5 @@ public class IdeUiBridgePlugin extends AbstractUIPlugin {
 	public static ImageDescriptor getImageDescriptor(String path) {
 		return AbstractUIPlugin.imageDescriptorFromPlugin("org.eclipse.mylyn.ide", path);
 	}
+
 }
