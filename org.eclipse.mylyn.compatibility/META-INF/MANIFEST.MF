@@ -1,7 +1,13 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Mylyn Compatibility Plug-in
-Bundle-SymbolicName: org.eclipse.mylyn.compatibility
-Bundle-Version: 1.0.0
+Bundle-Name: Java 5 Compatibility Checker
+Bundle-SymbolicName: org.eclipse.mylyn.compatibility;singleton:=true
+Bundle-Version: 2.3.1.qualifier
 Bundle-Vendor: Eclipse.org
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.ui
+Eclipse-LazyStart: true
+Bundle-Activator: org.eclipse.mylyn.internal.compatibility.JavaRuntimeVersionChecker
+Bundle-ClassPath: .
+Export-Package: org.eclipse.mylyn.internal.compatibility
 Bundle-RequiredExecutionEnvironment: J2SE-1.3

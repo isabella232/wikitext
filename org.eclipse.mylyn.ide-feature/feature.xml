@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
       id="org.eclipse.mylyn.ide_feature"
-      label="Mylar Focused UI (Recommended)"
-      version="2.0.0.v20070607-1200"
+      label="Mylyn Bridge: Eclipse IDE"
+      version="2.3.1.qualifier"
       provider-name="Eclipse.org"
-      plugin="org.eclipse.mylar">
+      plugin="org.eclipse.mylyn">
 
-   <description url="http://eclipse.org/mylar">
-      Mylar Focused UI for reducing information overload when working with tasks. Filters and decorates views and editors to focus on the task context.
+   <description url="http://eclipse.org/mylyn">
+      Mylyn Task-Focused UI extensions for the Eclipse IDE.  Provides focusing of common IDE views and editors.
    </description>
 
    <copyright>
-      Copyright (c) 2004 - 2006 Mylar project committers and others.
+      Copyright (c) 2004, 2007 Mylyn project committers and others.
    </copyright>
 
    <license url="http://www.eclipse.org/legal/epl-v10.html">
@@ -214,46 +214,30 @@ litigation.
    </license>
 
    <url>
-      <update label="Mylar for Eclipse 3.3" url="http://download.eclipse.org/technology/mylar/update-site/e3.3"/>
+      <update label="Mylyn for Eclipse 3.4" url="http://download.eclipse.org/tools/mylyn/update/e3.4"/>
    </url>
 
    <requires>
-      <import feature="org.eclipse.mylar_feature" version="2.0.0.v20070513-1500" match="greaterOrEqual"/>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.core.resources"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.jface.text"/>
+      <import plugin="org.eclipse.ui.navigator"/>
+      <import plugin="org.eclipse.ui.ide"/>
+      <import plugin="org.eclipse.ui.forms"/>
+      <import plugin="org.eclipse.mylyn.context.core"/>
+      <import plugin="org.eclipse.mylyn.tasks.ui"/>
+      <import plugin="org.eclipse.mylyn.resources.ui"/>
+      <import plugin="org.eclipse.mylyn.context.ui"/>
+      <import plugin="org.eclipse.mylyn.monitor.core"/>
+      <import feature="org.eclipse.mylyn.context_feature" version="2.3.1.qualifier"/>
    </requires>
-
-   <plugin
-         id="org.eclipse.mylyn.context.ui"
-         download-size="0"
-         install-size="0"
-         version="2.0.0.v20070607-1200"
-         unpack="false"/>
 
    <plugin
          id="org.eclipse.mylyn.ide.ui"
          download-size="0"
          install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="org.eclipse.mylyn.web.tasks"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="org.eclipse.mylyn.resources.ui"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="org.eclipse.mylyn.team.ui"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
+         version="2.3.1.qualifier"
          unpack="false"/>
 
 </feature>

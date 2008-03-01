@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="org.eclipse.mylyn.sandbox_feature"
-      label="Developer and Experimental Tools"
-      version="2.0.0.v20070607-1200"
+      id="org.eclipse.mylyn.sandbox.dev_feature"
+      label="Mylyn Developer Extras (for Contributors)"
+      version="2.3.1.qualifier"
       provider-name="Eclipse.org"
       plugin="org.eclipse.mylyn">
 
    <description>
-      Mylar Sandbox Tools: http://wiki.eclipse.org/index.php/Mylar_Contributor_Reference#Sandbox
+      Mylyn Sandbox Tools: http://wiki.eclipse.org/index.php/Mylyn_Contributor_Reference#Sandbox
    </description>
 
    <copyright>
-      Copyright (c) 2004 - 2006 Mylar project committers and others.
+      Copyright (c) 2004, 2007 Mylyn project committers and others.
    </copyright>
 
    <license>
@@ -214,18 +214,26 @@ litigation.
    </license>
 
    <url>
-      <update label="Mylar for Eclipse 3.3" url="http://download.eclipse.org/technology/mylar/update-site/e3.3"/>
+      <update label="Mylyn Experimental Features" url="http://download.eclipse.org/tools/mylyn/update/experimental"/>
    </url>
 
    <requires>
-      <import feature="org.eclipse.mylyn_feature" version="2.0.0.v20070513-1500" match="greaterOrEqual"/>
+      <import feature="org.eclipse.mylyn_feature" version="2.0.0" match="greaterOrEqual"/>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.mylyn.context.core"/>
+      <import plugin="org.eclipse.mylyn.tasks.core"/>
+      <import plugin="org.eclipse.core.resources"/>
+      <import plugin="org.eclipse.mylyn.monitor.core"/>
+      <import plugin="org.eclipse.mylyn.context.ui"/>
+      <import plugin="org.eclipse.mylyn.tasks.ui"/>
    </requires>
 
    <plugin
          id="org.eclipse.mylyn.sandbox.dev"
          download-size="0"
          install-size="0"
-         version="0.0.0"
+         version="2.3.1.qualifier"
          unpack="false"/>
 
 </feature>

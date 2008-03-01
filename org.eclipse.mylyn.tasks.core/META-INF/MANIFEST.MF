@@ -1,15 +1,15 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Mylar Tasks Core Plug-in
+Bundle-Name: Mylyn Tasks Core
 Bundle-SymbolicName: org.eclipse.mylyn.tasks.core;singleton:=true
-Bundle-Version: 2.0.0.v20070607-1200
+Bundle-Version: 2.3.1.qualifier
 Eclipse-AutoStart: true 
 Bundle-Vendor: Eclipse.org
 Bundle-RequiredExecutionEnvironment: J2SE-1.5
 Require-Bundle: org.eclipse.core.runtime,
- org.eclipse.mylyn.context.core,
- org.eclipse.mylyn,
- org.eclipse.mylyn.monitor.core,
- org.eclipse.mylyn.web.core
+ org.eclipse.core.net,
+ org.eclipse.mylyn.context.core;bundle-version="[2.3.0,3.0.0)",
+ org.eclipse.mylyn.monitor.core;bundle-version="[2.3.0,3.0.0)",
+ org.eclipse.mylyn.web.core;bundle-version="[2.3.0,3.0.0)"
 Export-Package: org.eclipse.mylyn.internal.tasks.core,
  org.eclipse.mylyn.tasks.core

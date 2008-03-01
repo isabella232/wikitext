@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004 - 2006 Mylar committers and others.
+ * Copyright (c) 2004, 2007 Mylyn project committers and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,7 +12,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.eclipse.core.commands.IHandler;
 import org.eclipse.core.resources.IMarker;
+import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.MenuManager;
+import org.eclipse.jface.commands.ActionHandler;
 import org.eclipse.jface.text.DefaultInformationControl;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IInformationControl;
@@ -27,22 +31,21 @@ import org.eclipse.jface.text.TextEvent;
 import org.eclipse.jface.text.TextViewer;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
-import org.eclipse.jface.text.source.AnnotationPainter;
-import org.eclipse.jface.text.source.AnnotationRulerColumn;
-import org.eclipse.jface.text.source.CompositeRuler;
 import org.eclipse.jface.text.source.IAnnotationAccess;
 import org.eclipse.jface.text.source.IAnnotationAccessExtension;
 import org.eclipse.jface.text.source.IAnnotationHover;
 import org.eclipse.jface.text.source.ISharedTextColors;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.ImageUtilities;
-import org.eclipse.jface.text.source.OverviewRuler;
+import org.eclipse.jface.text.source.SourceViewer;
 import org.eclipse.mylyn.internal.tasks.ui.TaskListColorsAndFonts;
-import org.eclipse.mylyn.internal.tasks.ui.editors.RepositoryViewerConfig;
+import org.eclipse.mylyn.internal.tasks.ui.editors.RepositoryTextViewer;
 import org.eclipse.mylyn.internal.tasks.ui.editors.TaskEditorActionContributor;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.events.DisposeEvent;
+import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.FocusListener;
 import org.eclipse.swt.graphics.Color;
@@ -56,38 +59,59 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.ActiveShellExpression;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.actions.ActionFactory;
+import org.eclipse.ui.editors.text.EditorsUI;
+import org.eclipse.ui.editors.text.TextSourceViewerConfiguration;
 import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.editor.FormEditor;
 import org.eclipse.ui.forms.editor.FormPage;
+import org.eclipse.ui.handlers.IHandlerActivation;
+import org.eclipse.ui.handlers.IHandlerService;
+import org.eclipse.ui.texteditor.AnnotationPreference;
+import org.eclipse.ui.texteditor.DefaultMarkerAnnotationAccess;
+import org.eclipse.ui.texteditor.ITextEditorActionDefinitionIds;
+import org.eclipse.ui.texteditor.MarkerAnnotationPreferences;
+import org.eclipse.ui.texteditor.SourceViewerDecorationSupport;
 import org.eclipse.ui.themes.IThemeManager;
 
 /**
+ * Used by the task editor. Not recommended to extend.
+ * 
+ * NOTE: likely to change for 3.0.
+ * 
  * @author Rob Elves
+ * @author Eugene Kuleshov (spelling correction)
+ * 
  * @ref: PDEFormPage.class ref:
  * @ref: http://dev.eclipse.org/newslists/news.eclipse.platform.swt/msg19676.html
  */
+// API 3.0 deprecate class
 public class TaskFormPage extends FormPage {
 
 	protected boolean isDirty;
 
+	private TaskEditor taskEditor = null;
+	
 	protected TaskEditorActionContributor actionContributor;
 
 	protected List<TextViewer> textViewers = new ArrayList<TextViewer>();
 
-	private static final ISharedTextColors sharedTextColors = new SharedTextColors();
+	private IHandlerActivation handlerActivation;
 
+	private IHandlerActivation handlerCompletion;
+	
 	private void addTextViewer(TextViewer viewer) {
 		textViewers.add(viewer);
 	}
 
 	public TaskFormPage(FormEditor editor, String id, String title) {
 		super(editor, id, title);
+		taskEditor = (TaskEditor)editor;
 	}
 
-	/* GLOBAL ACTIONS (CUT/COPY/PASTE/ etc) */
-
-	public boolean canDoAction(String actionId) {
+	public boolean canPerformAction(String actionId) {
 		Control focusControl = getFocusControl();
 		if (focusControl instanceof StyledText) {
 			StyledText text = (StyledText) focusControl;
@@ -235,13 +259,13 @@ public class TaskFormPage extends FormPage {
 	}
 
 	/**
-	 * Text viewer generally used for displaying non-editable text. No
-	 * annotation model or spell checking support. Supports cut/copy/paste/etc..
+	 * Text viewer generally used for displaying non-editable text. No annotation model or spell checking support.
+	 * Supports cut/copy/paste/etc..
 	 */
 	protected TextViewer addTextViewer(TaskRepository repository, Composite composite, String text, int style) {
 
 		if (actionContributor == null) {
-			actionContributor = ((TaskEditor) getEditor()).getContributor();
+			actionContributor = taskEditor.getContributor();
 		}
 
 		final RepositoryTextViewer commentViewer = new RepositoryTextViewer(repository, composite, style);
@@ -250,7 +274,7 @@ public class TaskFormPage extends FormPage {
 		// order for
 		// Hyperlink colouring to work. (Presenter needs document object up
 		// front)
-		RepositoryViewerConfig repositoryViewerConfig = new RepositoryViewerConfig(false);
+		TaskTextViewerConfiguration repositoryViewerConfig = new TaskTextViewerConfiguration(false);
 		commentViewer.configure(repositoryViewerConfig);
 
 		IThemeManager themeManager = getSite().getWorkbenchWindow().getWorkbench().getThemeManager();
@@ -282,7 +306,9 @@ public class TaskFormPage extends FormPage {
 		});
 
 		commentViewer.setEditable(false);
-		commentViewer.getTextWidget().setMenu(getManagedForm().getForm().getMenu());
+		MenuManager manager = commentViewer.getMenuManager();
+		taskEditor.configureContextMenuManager(manager);
+		commentViewer.setMenu(manager.createContextMenu(commentViewer.getTextWidget()));
 		Document document = new Document(text);
 		commentViewer.setDocument(document);
 
@@ -291,60 +317,43 @@ public class TaskFormPage extends FormPage {
 	}
 
 	/**
-	 * For viewing and editing text. Spell checking w/ annotations supported One
-	 * or two max per editor, any more and the spell checker will bring the
-	 * editor to a grinding halt.
+	 * For viewing and editing text. Spell checking w/ annotations supported One or two max per editor, any more and the
+	 * spell checker will bring the editor to a grinding halt.
 	 */
 	protected TextViewer addTextEditor(TaskRepository repository, Composite composite, String text, boolean spellCheck,
 			int style) {
 
 		if (actionContributor == null) {
-			actionContributor = ((TaskEditor) getEditor()).getContributor();
+			actionContributor = taskEditor.getContributor();
 		}
 
-		CompositeRuler fCompositeRuler = null;
-		OverviewRuler fOverviewRuler = null;
-		IAnnotationAccess fAnnotationAccess = null;
-		AnnotationRulerColumn annotationRuler = null;
-
-		AnnotationModel fAnnotationModel = null;
-
-		if (true) {
-			fAnnotationModel = new AnnotationModel();
-			fAnnotationAccess = new AnnotationMarkerAccess();
-
-			fCompositeRuler = new CompositeRuler();
-			fOverviewRuler = new OverviewRuler(fAnnotationAccess, 12, sharedTextColors);
-			annotationRuler = new AnnotationRulerColumn(fAnnotationModel, 16, fAnnotationAccess);
-			fCompositeRuler.setModel(fAnnotationModel);
-			fOverviewRuler.setModel(fAnnotationModel);
-
-			// annotation ruler is decorating our composite ruler
-			fCompositeRuler.addDecorator(0, annotationRuler);
-
-			// what types are show on the different rulers
-			annotationRuler.addAnnotationType(ErrorAnnotation.ERROR_TYPE);
-			fOverviewRuler.addAnnotationType(ErrorAnnotation.ERROR_TYPE);
-
-			fOverviewRuler.addHeaderAnnotationType(ErrorAnnotation.ERROR_TYPE);
-			fOverviewRuler.setAnnotationTypeLayer(ErrorAnnotation.ERROR_TYPE, 3);
-
-			fOverviewRuler.setAnnotationTypeColor(ErrorAnnotation.ERROR_TYPE,
-					TaskListColorsAndFonts.COLOR_SPELLING_ERROR);
-
-		}
-		final RepositoryTextViewer commentViewer = new RepositoryTextViewer(fCompositeRuler, fOverviewRuler,
-				repository, composite, style);
+		AnnotationModel annotationModel = new AnnotationModel();
+		final RepositoryTextViewer commentViewer = new RepositoryTextViewer(null, null, repository, composite, style);
 		commentViewer.showAnnotations(false);
 		commentViewer.showAnnotationsOverview(false);
 
-		// to paint the annotations
-		final AnnotationPainter ap = new AnnotationPainter(commentViewer, fAnnotationAccess);
-		ap.addAnnotationType(ErrorAnnotation.ERROR_TYPE);
-		ap.setAnnotationTypeColor(ErrorAnnotation.ERROR_TYPE, TaskListColorsAndFonts.COLOR_SPELLING_ERROR);
+		IAnnotationAccess annotationAccess = new DefaultMarkerAnnotationAccess();
 
-		// this will draw the squigglies under the text
-		commentViewer.addPainter(ap);
+		final SourceViewerDecorationSupport support = new SourceViewerDecorationSupport(commentViewer, null,
+				annotationAccess, EditorsUI.getSharedTextColors());
+
+		@SuppressWarnings("unchecked")
+		Iterator e = new MarkerAnnotationPreferences().getAnnotationPreferences().iterator();
+		while (e.hasNext()) {
+			support.setAnnotationPreference((AnnotationPreference) e.next());
+		}
+
+		support.install(EditorsUI.getPreferenceStore());
+
+		commentViewer.getTextWidget().setIndent(2);
+		commentViewer.getTextWidget().addDisposeListener(new DisposeListener() {
+			public void widgetDisposed(DisposeEvent e) {
+				support.uninstall();
+			}
+		});
+
+		final IHandlerService handlerService = (IHandlerService) PlatformUI.getWorkbench().getService(
+				IHandlerService.class);
 
 		IThemeManager themeManager = getSite().getWorkbenchWindow().getWorkbench().getThemeManager();
 
@@ -356,18 +365,45 @@ public class TaskFormPage extends FormPage {
 		commentViewer.getTextWidget().addFocusListener(new FocusListener() {
 
 			public void focusGained(FocusEvent e) {
-
 				actionContributor.updateSelectableActions(commentViewer.getSelection());
-
+				activate();
 			}
 
 			public void focusLost(FocusEvent e) {
 				StyledText st = (StyledText) e.widget;
 				st.setSelectionRange(st.getCaretOffset(), 0);
 				actionContributor.forceActionsEnabled();
+
+				deactivate();
+			}
+			
+			private void activate() {
+				deactivate();
+				if (handlerActivation == null) {
+					handlerActivation = handlerService.activateHandler(ITextEditorActionDefinitionIds.QUICK_ASSIST,
+							createQuickFixActionHandler(commentViewer), new ActiveShellExpression(
+									commentViewer.getTextWidget().getShell()));
+				}
+				if (handlerCompletion == null) {
+					handlerCompletion = handlerService.activateHandler(
+							ITextEditorActionDefinitionIds.CONTENT_ASSIST_PROPOSALS, //
+							createContentAssistActionHandler(commentViewer), //
+									new ActiveShellExpression(commentViewer.getTextWidget().getShell()));
+				}
+			}
+
+			private void deactivate() {
+				if (handlerActivation != null) {
+					handlerService.deactivateHandler(handlerActivation);
+					handlerActivation = null;
+				}
+				if (handlerCompletion != null) {
+					handlerService.deactivateHandler(handlerCompletion);
+					handlerCompletion = null;
+				}
 			}
 		});
-
+ 
 		commentViewer.addTextListener(new ITextListener() {
 			public void textChanged(TextEvent event) {
 				actionContributor.updateSelectableActions(commentViewer.getSelection());
@@ -375,44 +411,64 @@ public class TaskFormPage extends FormPage {
 		});
 
 		commentViewer.setEditable(false);
-		commentViewer.getTextWidget().setMenu(getManagedForm().getForm().getMenu());
+		MenuManager manager = commentViewer.getMenuManager();
+		taskEditor.configureContextMenuManager(manager);
+		commentViewer.setMenu(manager.createContextMenu(commentViewer.getTextWidget()));
 		Document document = new Document(text);
 
-		// NOTE: Configuration must be applied before the document is set in
-		// order for
-		// Hyperlink colouring to work. (Presenter needs document object up
-		// front)
-		RepositoryViewerConfig repositoryViewerConfig = new RepositoryViewerConfig(spellCheck);
-		repositoryViewerConfig.setAnnotationModel(fAnnotationModel, document);
-		commentViewer.configure(repositoryViewerConfig);
+		// NOTE: Configuration must be applied before the document is set in order for
+		// Hyperlink coloring to work. (Presenter needs document object up front)
+		TextSourceViewerConfiguration viewerConfig = new TaskTextViewerConfiguration(spellCheck);
+		commentViewer.configure(viewerConfig);
 
-		commentViewer.setDocument(document, fAnnotationModel);
+		commentViewer.setDocument(document, annotationModel);
 
-		// !DND! hover manager that shows text when we hover
-		// AnnotationBarHoverManager fAnnotationHoverManager = new
-		// AnnotationBarHoverManager(fCompositeRuler,
-		// commentViewer, new AnnotationHover(fAnnotationModel), new
-		// AnnotationConfiguration());
+		// !Do Not Delete! hover manager that shows text when we hover
+		// AnnotationBarHoverManager fAnnotationHoverManager = new AnnotationBarHoverManager(fCompositeRuler,
+		//     commentViewer, new AnnotationHover(fAnnotationModel), new AnnotationConfiguration());
 		// fAnnotationHoverManager.install(annotationRuler.getControl());
 
-		// !DND! Sample debugging code
-		// document.set("Here's some texst so that we have somewhere to show an
-		// error");
+		// !Do Not Delete! Sample debugging code
+		// document.set("Here's some texst so that we have somewhere to show an error");
 		//
 		// // // add an annotation
 		// ErrorAnnotation errorAnnotation = new ErrorAnnotation(1, "");
 		// // lets underline the word "texst"
 		// fAnnotationModel.addAnnotation(errorAnnotation, new Position(12, 5));
 
-		// CoreSpellingProblem iProblem = new CoreSpellingProblem(12, 5, 1,
-		// "problem message", "theword", false, false,
-		// document, "task editor");// editorInput.getName()
+		// CoreSpellingProblem iProblem = new CoreSpellingProblem(12, 5, 1, 
+		//    "problem message", "theword", false, false, document, "task editor");
+		// editorInput.getName()
 		//
-		// fAnnotationModel.addAnnotation(new ProblemAnnotation(iProblem, null),
-		// new Position(12, 5));
+		// fAnnotationModel.addAnnotation(new ProblemAnnotation(iProblem, null), new Position(12, 5));
 
 		addTextViewer(commentViewer);
 		return commentViewer;
+	}
+
+	private IHandler createQuickFixActionHandler(final SourceViewer viewer) {
+		Action quickFixAction = new Action() {
+			public void run() {
+				if (viewer.canDoOperation(ISourceViewer.QUICK_ASSIST)) {
+					viewer.doOperation(ISourceViewer.QUICK_ASSIST);
+				}
+			}
+		};
+		quickFixAction.setActionDefinitionId(ITextEditorActionDefinitionIds.QUICK_ASSIST);
+		return new ActionHandler(quickFixAction);
+	}
+
+
+	private IHandler createContentAssistActionHandler(final SourceViewer viewer) {
+		Action quickFixAction = new Action() {
+			public void run() {
+				if (viewer.canDoOperation(ISourceViewer.CONTENTASSIST_PROPOSALS)) {
+					viewer.doOperation(ISourceViewer.CONTENTASSIST_PROPOSALS);
+				}
+			}
+		};
+		quickFixAction.setActionDefinitionId(ITextEditorActionDefinitionIds.CONTENT_ASSIST_PROPOSALS);
+		return new ActionHandler(quickFixAction);
 	}
 
 	@Override
@@ -421,7 +477,7 @@ public class TaskFormPage extends FormPage {
 	}
 
 	public void markDirty(boolean dirty) {
-		isDirty = dirty;	
+		isDirty = dirty;
 		getManagedForm().dirtyStateChanged();
 		return;
 	}
@@ -454,8 +510,7 @@ public class TaskFormPage extends FormPage {
 		}
 
 		public void paint(Annotation annotation, GC gc, Canvas canvas, Rectangle bounds) {
-			ImageUtilities
-					.drawImage(((ErrorAnnotation) annotation).getImage(), gc, canvas, bounds, SWT.CENTER, SWT.TOP);
+			ImageUtilities.drawImage(((ErrorAnnotation) annotation).getImage(), gc, canvas, bounds, SWT.CENTER, SWT.TOP);
 		}
 
 		public boolean isPaintable(Annotation annotation) {
@@ -627,7 +682,7 @@ public class TaskFormPage extends FormPage {
 	//
 	// Color color = (Color) colorTable.get(rgb);
 	// if (color == null) {
-	// color = new Color(display, rgb);
+	// color = new Clr(display, rgb);
 	// colorTable.put(rgb, color);
 	// }
 	//
@@ -655,5 +710,26 @@ public class TaskFormPage extends FormPage {
 			return new DefaultInformationControl(shell);
 		}
 	}
+
+	/**
+	 * @since 2.2
+	 */
+	// API 3.0 remove method
+	public String getSelectionText() {
+		Control focusControl = getFocusControl();
+		if (focusControl == null) {
+			return null;
+		}
+		if (focusControl instanceof StyledText) {
+			StyledText text = (StyledText) focusControl;
+			for (TextViewer viewer : textViewers) {
+				if (viewer.getTextWidget() == text) {
+					return text.getSelectionText();
+				}
+			}
+		}
+		return null;
+	}
+
 
 }

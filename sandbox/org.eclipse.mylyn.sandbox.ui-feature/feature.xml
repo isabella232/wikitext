@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="org.eclipse.mylyn.sandbox_feature"
-      label="Developer and Experimental Tools"
-      version="2.0.0.v20070607-1200"
+      id="org.eclipse.mylyn.sandbox.ui_feature"
+      label="Mylyn UI Experimentation (Not Recommended)"
+      version="2.3.1.qualifier"
       provider-name="Eclipse.org"
       plugin="org.eclipse.mylyn">
 
-   <description>
-      Mylar Sandbox Tools: http://wiki.eclipse.org/index.php/Mylar_Contributor_Reference#Sandbox
+   <description url="http://wiki.eclipse.org/index.php/Mylyn_Contributor_Reference#Sandbox">
+      Experimental tools and UI Tweaks.  Not intended for day-to-day work and not supported.
    </description>
 
    <copyright>
-      Copyright (c) 2004 - 2006 Mylar project committers and others.
+      Copyright (c) 2004, 2007 Mylyn project committers and others.
    </copyright>
 
-   <license>
+   <license url="http://www.eclipse.org/legal/epl-v10.html">
       Eclipse Public License - v 1.0
 THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS
 ECLIPSE PUBLIC LICENSE (&quot;AGREEMENT&quot;). ANY USE, REPRODUCTION OR
@@ -214,18 +214,36 @@ litigation.
    </license>
 
    <url>
-      <update label="Mylar for Eclipse 3.3" url="http://download.eclipse.org/technology/mylar/update-site/e3.3"/>
+      <update label="Mylyn Experimental Features" url="http://download.eclipse.org/tools/mylyn/update/experimental"/>
    </url>
 
    <requires>
-      <import feature="org.eclipse.mylyn_feature" version="2.0.0.v20070513-1500" match="greaterOrEqual"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.ui.ide"/>
+      <import plugin="org.eclipse.jdt.core"/>
+      <import plugin="org.eclipse.ui.forms"/>
+      <import plugin="org.eclipse.core.resources"/>
+      <import plugin="org.eclipse.search"/>
+      <import plugin="org.eclipse.jface.text"/>
+      <import plugin="org.eclipse.mylyn.context.core"/>
+      <import plugin="org.eclipse.mylyn.context.ui"/>
+      <import plugin="org.eclipse.mylyn.tasks.ui"/>
+      <import plugin="org.eclipse.mylyn.bugzilla.core"/>
+      <import plugin="org.eclipse.mylyn.bugzilla.ui"/>
+      <import plugin="org.eclipse.mylyn.tasks.core"/>
+      <import plugin="org.eclipse.mylyn.monitor.ui"/>
+      <import plugin="org.eclipse.mylyn.java.ui"/>
+      <import plugin="org.eclipse.mylyn.monitor.core"/>
+      <import plugin="org.eclipse.mylyn"/>
+      <import feature="org.eclipse.mylyn_feature" version="2.0.0" match="greaterOrEqual"/>
    </requires>
 
    <plugin
-         id="org.eclipse.mylyn.sandbox"
+         id="org.eclipse.mylyn.sandbox.ui"
          download-size="0"
          install-size="0"
-         version="2.0.0.v20070607-1200"
+         version="2.3.1.qualifier"
          unpack="false"/>
 
 </feature>
