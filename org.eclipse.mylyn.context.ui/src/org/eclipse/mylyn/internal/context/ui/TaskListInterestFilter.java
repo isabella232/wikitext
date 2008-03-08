@@ -1,117 +1,136 @@
 /*******************************************************************************
- * Copyright (c) 2004 - 2006 University Of British Columbia and others.
+ * Copyright (c) 2004, 2007 Mylyn project committers and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
 
 package org.eclipse.mylyn.internal.context.ui;
 
 import java.util.Calendar;
+import java.util.Set;
 
-import org.eclipse.mylyn.core.MylarStatusHandler;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.mylyn.context.ui.ContextUiPlugin;
+import org.eclipse.mylyn.internal.tasks.core.ITasksCoreConstants;
+import org.eclipse.mylyn.internal.tasks.core.LocalRepositoryConnector;
+import org.eclipse.mylyn.internal.tasks.core.ScheduledTaskContainer;
+import org.eclipse.mylyn.internal.tasks.core.TaskActivityManager;
 import org.eclipse.mylyn.internal.tasks.ui.AbstractTaskListFilter;
-import org.eclipse.mylyn.internal.tasks.ui.TasksUiPreferenceConstants;
-import org.eclipse.mylyn.internal.tasks.ui.actions.NewLocalTaskAction;
-import org.eclipse.mylyn.tasks.core.AbstractRepositoryTask;
-import org.eclipse.mylyn.tasks.core.DateRangeContainer;
-import org.eclipse.mylyn.tasks.core.ITask;
-import org.eclipse.mylyn.tasks.core.AbstractRepositoryTask.RepositoryTaskSyncState;
+import org.eclipse.mylyn.monitor.core.StatusHandler;
+import org.eclipse.mylyn.tasks.core.AbstractTask;
+import org.eclipse.mylyn.tasks.core.AbstractTaskContainer;
+import org.eclipse.mylyn.tasks.core.AbstractTask.RepositoryTaskSyncState;
 import org.eclipse.mylyn.tasks.ui.TasksUiPlugin;
 
 /**
  * Goal is to have this reuse as much of the super as possible.
  * 
  * @author Mik Kersten
+ * @author Rob Elves
  */
 public class TaskListInterestFilter extends AbstractTaskListFilter {
 
 	@Override
-	public boolean select(Object parent, Object object) {
+	public boolean select(Object parent, Object child) {
 		try {
-			if (object instanceof DateRangeContainer) {
-				DateRangeContainer dateRangeTaskContainer = (DateRangeContainer) object;
+			if (child instanceof ScheduledTaskContainer) {
+				ScheduledTaskContainer dateRangeTaskContainer = (ScheduledTaskContainer) child;
 				return isDateRangeInteresting(dateRangeTaskContainer);
 			}
-			if (object instanceof ITask) {
-				ITask task = null;
-				if (object instanceof ITask) {
-					task = (ITask) object;
+			if (child instanceof AbstractTask) {
+				AbstractTask task = null;
+				if (child instanceof AbstractTask) {
+					task = (AbstractTask) child;
 				}
 				if (task != null) {
-					if (isUninteresting(parent, task)) {
+					if (isInteresting(parent, task)) {
+						return true;
+					} else {
 						return false;
-					} else if (isInteresting(parent, task)) {
+					}
+				}
+			} else if (child instanceof AbstractTaskContainer) {
+				Set<AbstractTask> children = ((AbstractTaskContainer) child).getChildren();
+				// Always display empty containers
+				if (children.size() == 0) {
+					return false;
+				}
+
+				for (AbstractTask task : children) {
+					if (shouldAlwaysShow(child, task, ITasksCoreConstants.MAX_SUBTASK_DEPTH)) {
 						return true;
 					}
 				}
 			}
 		} catch (Throwable t) {
-			MylarStatusHandler.fail(t, "interest filter failed", false);
+			StatusHandler.log(new Status(IStatus.ERROR, ContextUiPlugin.ID_PLUGIN, "Interest filter failed", t));
 		}
 		return false;
 	}
 
-	private boolean isDateRangeInteresting(DateRangeContainer container) {
-		return (TasksUiPlugin.getTaskListManager().isWeekDay(container));// ||dateRangeTaskContainer.isFuture();
-	}
-
-	protected boolean isUninteresting(Object parent, ITask task) {
-		return !task.isActive()
-				&& !hasInterestingSubTasks(parent, task, true)
-				&& ((task.isCompleted() && !TasksUiPlugin.getTaskListManager().isCompletedToday(task) && !hasChanges(
-						parent, task)) || (TasksUiPlugin.getTaskListManager().isScheduledAfterThisWeek(task))
-						&& !hasChanges(parent, task));
+	private boolean isDateRangeInteresting(ScheduledTaskContainer scheduleContainer) {
+		if (TasksUiPlugin.getTaskActivityManager().isWeekDay(scheduleContainer)
+				&& (scheduleContainer.isPresent() || scheduleContainer.isFuture())) {
+			return true;
+		}
+		if (scheduleContainer.isPresent() && scheduleContainer.isCaptureFloating()) {
+			return true;
+		}
+		return false;
+		//return TasksUiPlugin.getTaskActivityManager().isWeekDay(container);
 	}
 
 	// TODO: make meta-context more explicit
-	protected boolean isInteresting(Object parent, ITask task) {
-		return shouldAlwaysShow(parent, task, !TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(
-				TasksUiPreferenceConstants.FILTER_SUBTASKS));
+	protected boolean isInteresting(Object parent, AbstractTask task) {
+		return shouldAlwaysShow(parent, task, ITasksCoreConstants.MAX_SUBTASK_DEPTH);
 	}
 
-	@Override
-	public boolean shouldAlwaysShow(Object parent, ITask task, boolean checkSubTasks) {
-		return super.shouldAlwaysShow(parent, task, checkSubTasks) || hasChanges(parent, task)
-				|| (TasksUiPlugin.getTaskListManager().isCompletedToday(task))
-				|| shouldShowInFocusedWorkweekDateContainer(parent, task)
-				|| (isInterestingForThisWeek(parent, task) && !task.isCompleted())
-				|| (TasksUiPlugin.getTaskListManager().isOverdue(task))
-				|| hasInterestingSubTasks(parent, task, checkSubTasks)
-				|| NewLocalTaskAction.DESCRIPTION_DEFAULT.equals(task.getSummary());
-		// || isCurrentlySelectedInEditor(task);
+	public boolean shouldAlwaysShow(Object parent, AbstractTask task, int depth) {
+
+		return task.isActive()
+				|| TaskActivityManager.getInstance().isCompletedToday(task)
+				|| hasChanges(parent, task)
+				|| !task.isCompleted()
+				&& (LocalRepositoryConnector.DEFAULT_SUMMARY.equals(task.getSummary())
+						|| shouldShowInFocusedWorkweekDateContainer(parent, task)
+						|| TaskActivityManager.getInstance().isOverdue(task) || isInterestingForThisWeek(parent, task) || hasInterestingSubTasks(
+						parent, task, depth));
 	}
 
-	private boolean hasInterestingSubTasks(Object parent, ITask task, boolean checkSubTasks) {
-		if (!checkSubTasks) {
-			return false;
-		}
-		if (TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(TasksUiPreferenceConstants.FILTER_SUBTASKS)) {
-			return false;
-		}
-		if (task.getChildren() != null && task.getChildren().size() > 0) {
-			for (ITask subTask : task.getChildren()) {
-				if (shouldAlwaysShow(parent, subTask, false)) {
-					return true;
+	private boolean hasInterestingSubTasks(Object parent, AbstractTask task, int depth) {
+		if (depth > 0) {
+			if (!TasksUiPlugin.getDefault().groupSubtasks(task)) {
+				return false;
+			}
+			if (task.getChildren() != null && task.getChildren().size() > 0) {
+				for (AbstractTask subTask : task.getChildren()) {
+					if (shouldAlwaysShow(parent, subTask, depth - 1)) {
+						return true;
+					}
 				}
 			}
 		}
 		return false;
 	}
 
-	private static boolean shouldShowInFocusedWorkweekDateContainer(Object parent, ITask task) {
-		if (parent instanceof DateRangeContainer) {
-
-			if (TasksUiPlugin.getTaskListManager().isOverdue(task) || task.isPastReminder())
+	private static boolean shouldShowInFocusedWorkweekDateContainer(Object parent, AbstractTask task) {
+		if (parent instanceof ScheduledTaskContainer) {
+			if (((ScheduledTaskContainer) parent).isCaptureFloating()) {
 				return true;
+			}
+			if (!TasksUiPlugin.getTaskActivityManager().isWeekDay((ScheduledTaskContainer) parent)) {
+				return false;
+			}
+			if (TaskActivityManager.getInstance().isOverdue(task) || task.isPastReminder()) {
+				return true;
+			}
 
-			DateRangeContainer container = (DateRangeContainer) parent;
-			Calendar previousCal = TasksUiPlugin.getTaskListManager().getActivityPrevious().getEnd();
-			Calendar nextCal = TasksUiPlugin.getTaskListManager().getActivityNextWeek().getStart();
+			ScheduledTaskContainer container = (ScheduledTaskContainer) parent;
+			Calendar previousCal = TasksUiPlugin.getTaskActivityManager().getActivityPrevious().getEnd();
+			Calendar nextCal = TasksUiPlugin.getTaskActivityManager().getActivityNextWeek().getStart();
 			if (container.getEnd().compareTo(previousCal) > 0 && container.getStart().compareTo(nextCal) < 0) {
 				// within workweek
 				return true;
@@ -121,32 +140,54 @@ public class TaskListInterestFilter extends AbstractTaskListFilter {
 		return false;
 	}
 
-	public static boolean isInterestingForThisWeek(Object parent, ITask task) {
-		if (parent instanceof DateRangeContainer) {
+	public static boolean isInterestingForThisWeek(Object parent, AbstractTask task) {
+		if (parent instanceof ScheduledTaskContainer) {
 			return shouldShowInFocusedWorkweekDateContainer(parent, task);
 		} else {
-			return TasksUiPlugin.getTaskListManager().isScheduledForThisWeek(task)
-					|| TasksUiPlugin.getTaskListManager().isScheduledForToday(task) || task.isPastReminder();
+			return task.isPastReminder() || TasksUiPlugin.getTaskActivityManager().isScheduledForThisWeek(task)
+					|| TasksUiPlugin.getTaskActivityManager().isDueThisWeek(task)
+					|| TasksUiPlugin.getTaskActivityManager().isScheduledForToday(task);
 		}
 	}
 
-	public static boolean hasChanges(Object parent, ITask task) {
-		if (parent instanceof DateRangeContainer) {
+	public static boolean hasChanges(Object parent, AbstractTask task) {
+		if (parent instanceof ScheduledTaskContainer) {
 			if (!shouldShowInFocusedWorkweekDateContainer(parent, task)) {
 				return false;
 			}
 		}
-		if (task instanceof AbstractRepositoryTask) {
-			AbstractRepositoryTask repositoryTask = (AbstractRepositoryTask) task;
-			if (repositoryTask.getSyncState() == RepositoryTaskSyncState.OUTGOING) {
+
+		boolean result = false;
+		if (task != null) {
+			if (task.getSynchronizationState() == RepositoryTaskSyncState.OUTGOING) {
 				return true;
-			} else if (repositoryTask.getSyncState() == RepositoryTaskSyncState.INCOMING
-					&& !(parent instanceof DateRangeContainer)) {
+			} else if (task.getSynchronizationState() == RepositoryTaskSyncState.INCOMING
+					&& !(parent instanceof ScheduledTaskContainer)) {
 				return true;
-			} else if (repositoryTask.getSyncState() == RepositoryTaskSyncState.CONFLICT) {
+			} else if (task.getSynchronizationState() == RepositoryTaskSyncState.CONFLICT) {
 				return true;
 			}
+			return hasChangesHelper(parent, task);
 		}
-		return false;
+		return result;
+	}
+
+	private static boolean hasChangesHelper(Object parent, AbstractTaskContainer container) {
+		boolean result = false;
+		for (AbstractTask task : container.getChildren()) {
+			if (task != null) {
+				if (task.getSynchronizationState() == RepositoryTaskSyncState.OUTGOING) {
+					result = true;
+				} else if (task.getSynchronizationState() == RepositoryTaskSyncState.INCOMING
+						&& !(parent instanceof ScheduledTaskContainer)) {
+					result = true;
+				} else if (task.getSynchronizationState() == RepositoryTaskSyncState.CONFLICT) {
+					result = true;
+				} else if (task.getChildren() != null && task.getChildren().size() > 0) {
+					result = hasChangesHelper(parent, task);
+				}
+			}
+		}
+		return result;
 	}
 }
