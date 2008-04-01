@@ -1,30 +1,38 @@
 /*******************************************************************************
- * Copyright (c) 2004 - 2006 University Of British Columbia and others.
+ * Copyright (c) 2004, 2007 Mylyn project committers and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *     University Of British Columbia - initial API and implementation
  *******************************************************************************/
 
 package org.eclipse.mylyn.web.core;
 
+import org.eclipse.core.net.proxy.IProxyChangeListener;
+import org.eclipse.core.net.proxy.IProxyData;
 import org.eclipse.core.net.proxy.IProxyService;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Plugin;
+import org.eclipse.core.runtime.Status;
 import org.osgi.framework.BundleContext;
 import org.osgi.util.tracker.ServiceTracker;
 
 /**
+ * Provides an entry point for the proxy service and potentially other web facilities
+ * 
  * @author Mik Kersten
  * @author Michael Valenta
+ * @author Steffen Pingel
+ * @since 2.0
  */
 public class WebCorePlugin extends Plugin {
 
 	public static final String ID_PLUGIN = "org.eclipse.mylyn.web.core";
-	
+
 	private static WebCorePlugin INSTANCE;
+
+	private static IProxyService proxyService;
 
 	private ServiceTracker tracker;
 
@@ -50,13 +58,108 @@ public class WebCorePlugin extends Plugin {
 	}
 
 	/**
-	 * Return the {@link IProxyService} or <code>null</code> if the service is
-	 * not available.
+	 * Return the {@link IProxyService} or <code>null</code> if the service is not available.
 	 * 
 	 * @return the {@link IProxyService} or <code>null</code>
 	 */
-	public IProxyService getProxyService() {
-		return (IProxyService) tracker.getService();
+	public static IProxyService getProxyService() {
+		// headless support
+		if (proxyService == null) {
+			if (INSTANCE != null) {
+				return (IProxyService) INSTANCE.tracker.getService();
+			} else {
+				proxyService = new NullProxyService();
+			}
+		}
+		return proxyService;
+	}
+
+	/**
+	 * @since 2.2
+	 */
+	public static void setProxyService(IProxyService proxyService) {
+		WebCorePlugin.proxyService = proxyService;
+	}
+
+	private static class NullProxyService implements IProxyService {
+
+		public void addProxyChangeListener(IProxyChangeListener listener) {
+			// ignore
+		}
+
+		public String[] getNonProxiedHosts() {
+			// ignore
+			return null;
+		}
+
+		public IProxyData[] getProxyData() {
+			// ignore
+			return null;
+		}
+
+		public IProxyData getProxyData(String type) {
+			// ignore
+			return null;
+		}
+
+		public IProxyData[] getProxyDataForHost(String host) {
+			// ignore
+			return null;
+		}
+
+		public IProxyData getProxyDataForHost(String host, String type) {
+			// ignore
+			return null;
+		}
+
+		public boolean isProxiesEnabled() {
+			// ignore
+			return false;
+		}
+
+		public void removeProxyChangeListener(IProxyChangeListener listener) {
+			// ignore
+
+		}
+
+		public void setNonProxiedHosts(String[] hosts) throws CoreException {
+			// ignore
+
+		}
+
+		public void setProxiesEnabled(boolean enabled) {
+			// ignore
+
+		}
+
+		public void setProxyData(IProxyData[] proxies) throws CoreException {
+			// ignore
+
+		}
+
+		public boolean hasSystemProxies() {
+			// ignore
+			return false;
+		}
+
+		public boolean isSystemProxiesEnabled() {
+			// ignore
+			return false;
+		}
+
+		public void setSystemProxiesEnabled(boolean enabled) {
+			// ignore
+		}
+
+	}
+
+	/**
+	 * @since 2.3
+	 */
+	public static void log(int error, String message, Throwable e) {
+		if (getDefault() != null) {
+			getDefault().getLog().log(new Status(IStatus.ERROR, ID_PLUGIN, error, message, e));
+		}
 	}
 
 }
