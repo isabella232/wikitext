@@ -2,7 +2,7 @@
 <feature
       id="org.eclipse.mylyn.jira_feature"
       label="Mylyn Connector: Jira (Incubation)"
-      version="2.3.1.qualifier"
+      version="2.3.2.qualifier"
       provider-name="Eclipse.org"
       plugin="org.eclipse.mylyn">
 
@@ -86,14 +86,14 @@ Java and all Java-based trademarks are trademarks of Sun Microsystems, Inc. in t
          id="org.eclipse.mylyn.jira.ui"
          download-size="0"
          install-size="0"
-         version="2.3.1.qualifier"
+         version="2.3.2.qualifier"
          unpack="false"/>
 
    <plugin
          id="org.eclipse.mylyn.jira.core"
          download-size="0"
          install-size="0"
-         version="2.3.1.qualifier"
+         version="2.3.2.qualifier"
          unpack="false"/>
 
 </feature>
