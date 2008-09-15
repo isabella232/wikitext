@@ -1,13 +1,14 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2007 Mylyn project committers and others.
+* Copyright (c) 2004, 2008 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Tasktop Technologies - initial API and implementation
  *******************************************************************************/
-/*
- * Created on Apr 6, 2005
- */
+
 package org.eclipse.mylyn.internal.pde.ui;
 
 import java.lang.reflect.Field;
@@ -29,10 +30,9 @@ import org.eclipse.jface.viewers.ITreeViewerListener;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreeExpansionEvent;
 import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.mylyn.commons.core.StatusHandler;
 import org.eclipse.mylyn.context.core.IInteractionElement;
 import org.eclipse.mylyn.context.ui.AbstractContextUiBridge;
-import org.eclipse.mylyn.monitor.core.StatusHandler;
-import org.eclipse.mylyn.resources.ResourcesUiBridgePlugin;
 import org.eclipse.pde.internal.core.text.plugin.PluginObjectNode;
 import org.eclipse.pde.internal.ui.editor.FormOutlinePage;
 import org.eclipse.pde.internal.ui.editor.ISortableContentOutlinePage;
@@ -57,7 +57,7 @@ import org.eclipse.ui.texteditor.AbstractTextEditor;
  */
 public class PdeUiBridge extends AbstractContextUiBridge {
 
-	private TreeViewerListener treeSelectionChangedListener;
+	private final TreeViewerListener treeSelectionChangedListener;
 
 	public PdeUiBridge() {
 		treeSelectionChangedListener = new TreeViewerListener();
@@ -73,10 +73,11 @@ public class PdeUiBridge extends AbstractContextUiBridge {
 
 		int first = handle.indexOf(";");
 		String filename = "";
-		if (first == -1)
+		if (first == -1) {
 			filename = handle;
-		else
+		} else {
 			filename = handle.substring(0, first);
+		}
 
 		try {
 			// get the file
@@ -88,7 +89,8 @@ public class PdeUiBridge extends AbstractContextUiBridge {
 
 			// if the editor is null, we had a problem and should return
 			if (editor == null) {
-				StatusHandler.log(new Status(IStatus.WARNING, PdeUiBridgePlugin.ID_PLUGIN, "Unable to open editor for file: " + filename));
+				StatusHandler.log(new Status(IStatus.WARNING, PdeUiBridgePlugin.ID_PLUGIN,
+						"Unable to open editor for file: " + filename));
 				return;
 			}
 
@@ -131,10 +133,7 @@ public class PdeUiBridge extends AbstractContextUiBridge {
 	 */
 	private IEditorPart openInEditor(IFile file, boolean activate) throws PartInitException {
 		if (file != null) {
-			IWorkbenchPage p = ResourcesUiBridgePlugin.getDefault()
-					.getWorkbench()
-					.getActiveWorkbenchWindow()
-					.getActivePage();
+			IWorkbenchPage p = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 			if (p != null && file.exists()) {
 				IEditorPart editorPart = IDE.openEditor(p, file, activate);
 				// initializeHighlightRange(editorPart);
@@ -149,8 +148,8 @@ public class PdeUiBridge extends AbstractContextUiBridge {
 		IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 		if (page != null) {
 			IEditorReference[] references = page.getEditorReferences();
-			for (int i = 0; i < references.length; i++) {
-				IEditorPart part = references[i].getEditor(false);
+			for (IEditorReference reference : references) {
+				IEditorPart part = reference.getEditor(false);
 				if (part != null) {
 					// HACK: find better way to get the filename other than the tooltip
 					if (("/" + part.getTitleToolTip()).equals(node.getHandleIdentifier())) {
@@ -193,7 +192,8 @@ public class PdeUiBridge extends AbstractContextUiBridge {
 							}
 						}
 					} catch (Exception e) {
-						StatusHandler.log(new Status(IStatus.ERROR, PdeUiBridgePlugin.ID_PLUGIN, "Failed to get tree viewers", e));
+						StatusHandler.log(new Status(IStatus.ERROR, PdeUiBridgePlugin.ID_PLUGIN,
+								"Failed to get tree viewers", e));
 						return null;
 					}
 				}
