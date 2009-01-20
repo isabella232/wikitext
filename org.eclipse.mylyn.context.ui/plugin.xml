@@ -28,7 +28,7 @@
      <objectContribution
         id="org.eclipse.mylyn.context.ui.actions.interest.contribution"
         objectClass="org.eclipse.mylyn.context.core.IInteractionElement">
-        <!-- TODO 3.1: remove? -->
+        <!-- API-3.0: remove? -->
      	<action  
   		  	label="Mark Less Interesting" 
 	  		tooltip="Mark selected element as uninteresting"
@@ -470,7 +470,7 @@
                       value="org.eclipse.mylyn.tasks.core.ITask">
                 </instanceof>
                 <test
-                      property="org.eclipse.mylyn.task.canPostAttachment"
+                      property="org.eclipse.mylyn.task.canGetAttachment"
                       value="true">
                 </test>
                 <test
