@@ -75,8 +75,6 @@ public class CommonImages {
 
 	public static final ImageDescriptor CALENDAR_SMALL = create(T_OBJ, "calendar-small.gif"); //$NON-NLS-1$
 
-	public static final ImageDescriptor SCHEDULE = create(T_TOOL, "schedule.png"); //$NON-NLS-1$
-
 	public static final ImageDescriptor SCHEDULE_DAY = create(T_TOOL, "schedule-day.png"); //$NON-NLS-1$
 
 	public static final ImageDescriptor SCHEDULE_WEEK = create(T_TOOL, "schedule-week.png"); //$NON-NLS-1$
@@ -126,9 +124,14 @@ public class CommonImages {
 
 	// Wizard banners
 
-	public static final ImageDescriptor BANNER_SCREENSHOT = create(T_WIZBAN, "banner-discovery.png"); //$NON-NLS-1$
+	public static final ImageDescriptor BANNER_SCREENSHOT = create(T_WIZBAN, "banner-screenshot.png"); //$NON-NLS-1$
 
-	public static final ImageDescriptor BANNER_IMPORT = create(T_TOOL, "discovery.gif"); //$NON-NLS-1$
+	public static final ImageDescriptor BANNER_IMPORT = create(T_WIZBAN, "banner-import.gif"); //$NON-NLS-1$
+
+	/**
+	 * @since 3.2.1
+	 */
+	public static final ImageDescriptor BANNER_EXPORT = create(T_WIZBAN, "banner-export.gif"); //$NON-NLS-1$
 
 	// Discovery
 
