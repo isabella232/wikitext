@@ -11,15 +11,12 @@
 
 package org.eclipse.mylyn.internal.compatibility;
 
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.dialogs.MessageDialogWithToggle;
 import org.eclipse.jface.preference.IPersistentPreferenceStore;
 import org.eclipse.ui.IStartup;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
-import org.eclipse.ui.statushandlers.StatusManager;
 
 /**
  * Checks the JRE version and show a dialog if an incompatible version is found.
@@ -28,6 +25,8 @@ import org.eclipse.ui.statushandlers.StatusManager;
  * @author Steffen Pingel
  */
 public class JavaRuntimeVersionChecker implements IStartup {
+
+	private static final Float UNKNOWN_VERSION = new Float(0.0f);
 
 	private static final String ID_PLUGIN = "org.eclipse.mylyn.compatibility"; //$NON-NLS-1$
 
@@ -39,32 +38,57 @@ public class JavaRuntimeVersionChecker implements IStartup {
 		PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
 			public void run() {
 				try {
-					String versionString = System.getProperty("java.runtime.version"); //$NON-NLS-1$
-					int minorMinorIndex = versionString.lastIndexOf('.');
-					if (minorMinorIndex != -1) {
-						String minorString = versionString.substring(0, minorMinorIndex);
-						Float versionFloat = new Float(minorString);
-						if (versionFloat.compareTo(new Float(JRE_MIN_VERSION)) < 0) {
-							IPersistentPreferenceStore preferenceStore = new ScopedPreferenceStore(new InstanceScope(),
-									ID_PLUGIN);
-							if (!preferenceStore.getBoolean(PREF_WARN_DISABLED)) {
-								MessageDialogWithToggle dialog = MessageDialogWithToggle.openWarning(
-										PlatformUI.getWorkbench().getDisplay().getActiveShell(),
-										Messages.JavaRuntimeVersionChecker_JDK_Version_Check,
-										Messages.JavaRuntimeVersionChecker_Mylyn_was_installed_but_requires_Java_5_or_later_to_run,
-										Messages.JavaRuntimeVersionChecker_Do_not_warn_again, false, preferenceStore,
-										PREF_WARN_DISABLED);
-								preferenceStore.setValue(PREF_WARN_DISABLED, dialog.getToggleState());
-								preferenceStore.save();
-							}
+					if (isJavaVersionSmallerThan(JRE_MIN_VERSION)) {
+						IPersistentPreferenceStore preferenceStore = new ScopedPreferenceStore(new InstanceScope(),
+								ID_PLUGIN);
+						if (!preferenceStore.getBoolean(PREF_WARN_DISABLED)) {
+							MessageDialogWithToggle dialog = MessageDialogWithToggle.openWarning(
+									PlatformUI.getWorkbench().getDisplay().getActiveShell(),
+									Messages.JavaRuntimeVersionChecker_JDK_Version_Check,
+									Messages.JavaRuntimeVersionChecker_Mylyn_was_installed_but_requires_Java_5_or_later_to_run,
+									Messages.JavaRuntimeVersionChecker_Do_not_warn_again, false, preferenceStore,
+									PREF_WARN_DISABLED);
+							preferenceStore.setValue(PREF_WARN_DISABLED, dialog.getToggleState());
+							preferenceStore.save();
 						}
 					}
 				} catch (Throwable t) {
-					StatusManager.getManager().handle(
-							new Status(IStatus.INFO, ID_PLUGIN, "Could determine JRE version.", t), StatusManager.LOG); //$NON-NLS-1$
+					// ignore, error does not provide any value to the user but gets logged on every start
+//					StatusManager.getManager().handle(
+//							new Status(IStatus.INFO, ID_PLUGIN, "Could determine JRE version.", t), StatusManager.LOG); //$NON-NLS-1$
 				}
 			}
 		});
+	}
+
+	public static boolean isJavaVersionSmallerThan(float minVersion) {
+		Float result = parseVersion(System.getProperty("java.runtime.version")); //$NON-NLS-1$
+		if (result == UNKNOWN_VERSION) {
+			result = parseVersion(System.getProperty("java.version")); //$NON-NLS-1$
+		}
+		if (result != UNKNOWN_VERSION && result.compareTo(new Float(minVersion)) < 0) {
+			return true;
+		}
+		return false;
+	}
+
+	public static Float parseVersion(String versionString) {
+		if (versionString != null) {
+			int minorIndex = versionString.indexOf('.');
+			if (minorIndex != -1) {
+				try {
+					// look for the second dot
+					int minorMinorIndex = versionString.indexOf('.', minorIndex + 1);
+					if (minorMinorIndex != -1) {
+						return new Float(versionString.substring(0, minorMinorIndex));
+					}
+					return new Float(versionString);
+				} catch (NumberFormatException e) {
+					// ignore
+				}
+			}
+		}
+		return UNKNOWN_VERSION;
 	}
 
 }
