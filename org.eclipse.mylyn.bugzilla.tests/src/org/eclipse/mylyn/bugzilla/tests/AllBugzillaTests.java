@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -33,8 +33,6 @@ public class AllBugzillaTests {
 			fixture.createSuite(suite);
 			// only run certain tests against head to avoid spurious failures 
 			if (fixture != BugzillaFixture.BUGS_HEAD) {
-				fixture.add(BugzillaTaskCompletionTest.class);
-				fixture.add(BugzillaTaskCompletionTest.class);
 				fixture.add(BugzillaTaskDataHandlerTest.class);
 				fixture.add(TaskEditorTest.class);
 				fixture.add(BugzillaRepositorySettingsPageTest.class);
