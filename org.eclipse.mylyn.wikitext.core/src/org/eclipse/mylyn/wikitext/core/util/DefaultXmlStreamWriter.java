@@ -80,6 +80,11 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 	}
 
 	@Override
+	public int getElementNestLevel() {
+		return (elements != null) ? elements.size() : 0;
+	}
+
+	@Override
 	public String getPrefix(String uri) {
 		return uriToPrefix.get(uri);
 	}
@@ -173,10 +178,7 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 		//       \u0085 is next-line character
 		//       \u2028 is line-separator character
 		//       \u2029 is paragraph-separator character
-		String normalized = text.replaceAll(
-				"(\r\n|\n|\r|\u0085|\u2028|\u2029)",
-				STANDARD_LINE_TERMINATOR
-				);
+		String normalized = text.replaceAll("(\r\n|\n|\r|\u0085|\u2028|\u2029)", STANDARD_LINE_TERMINATOR);
 		encode(normalized);
 	}
 
@@ -206,10 +208,7 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 
 	@Override
 	public void writeDTD(String dtd) {
-		String normalized = dtd.replaceAll(
-				"(\r\n|\n|\r|\u0085|\u2028|\u2029)",
-				STANDARD_LINE_TERMINATOR
-				);
+		String normalized = dtd.replaceAll("(\r\n|\n|\r|\u0085|\u2028|\u2029)", STANDARD_LINE_TERMINATOR);
 		out.write(normalized);
 	}
 
@@ -401,15 +400,15 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 					// Look ahead in s to see if you can match an entity, &\w+;
 					char ch_in_entity = 0;
 					int w;
-					for (w=1; x+w < length; ++w) {
-						ch_in_entity = s.charAt(x+w);
+					for (w = 1; x + w < length; ++w) {
+						ch_in_entity = s.charAt(x + w);
 						if (!Character.isLetter(ch_in_entity)) {
 							break;
 						}
 					}
-					if ((ch_in_entity == ';') && (w>1)) {
-						writer.write(s.subSequence(x, x+w+1).toString());
-						x += w+1;
+					if ((ch_in_entity == ';') && (w > 1)) {
+						writer.write(s.subSequence(x, x + w + 1).toString());
+						x += w + 1;
 						continue;
 					}
 				}
@@ -428,7 +427,6 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 	 *            The writer to which the character should be printed.
 	 * @param ch
 	 *            the character to print.
-	 * 
 	 * @throws IOException
 	 */
 	private static void printEscaped(PrintWriter writer, int ch, boolean attribute) throws IOException {

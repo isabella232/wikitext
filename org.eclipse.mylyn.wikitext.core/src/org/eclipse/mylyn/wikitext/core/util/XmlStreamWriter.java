@@ -26,6 +26,8 @@ public abstract class XmlStreamWriter {
 
 	public abstract void flush();
 
+	public abstract int getElementNestLevel();
+
 	public abstract String getPrefix(String uri);
 
 	public abstract void setDefaultNamespace(String uri);

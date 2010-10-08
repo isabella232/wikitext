@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.mylyn.wikitext.core.parser.Attributes;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
+import org.eclipse.mylyn.wikitext.core.parser.builder.AbstractXmlDocumentBuilder;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 
 /**
@@ -30,6 +31,8 @@ public class ListBlock extends Block {
 	static final Pattern startPattern = Pattern.compile("((?:(?:\\*)|(?:#)|(?:-))+)\\s(.*+)"); //$NON-NLS-1$
 
 	private int blockLineCount = 0;
+
+	protected int builderLevel = -1;
 
 	private Matcher matcher;
 
@@ -70,8 +73,10 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
-		}
-		else if ((matcher = startPattern.matcher(line)).matches()) {
+			if (builder instanceof AbstractXmlDocumentBuilder) {
+				builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
+			}
+		} else if ((matcher = startPattern.matcher(line)).matches()) {
 			String listSpec = matcher.group(1);
 			int level = calculateLevel(listSpec);
 			BlockType type = calculateType(listSpec);
@@ -86,6 +91,9 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
+			if (builder instanceof AbstractXmlDocumentBuilder) {
+				builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
+			}
 		}
 		++blockLineCount;
 
@@ -135,6 +143,7 @@ public class ListBlock extends Block {
 	@Override
 	public boolean canStart(String line, int lineOffset) {
 		blockLineCount = 0;
+		builderLevel = -1;
 		listState = null;
 		if (lineOffset == 0) {
 			matcher = startPattern.matcher(line);
@@ -162,6 +171,24 @@ public class ListBlock extends Block {
 			builder.endBlock();
 		}
 		builder.endBlock();
+	}
+
+	@Override
+	public boolean beginNesting() {
+		return (builder instanceof AbstractXmlDocumentBuilder) ? true : false;
+	}
+
+	@Override
+	public int findCloseOffset(String line, int lineOffset) {
+		int closeOffset = -1;
+		if (builderLevel != -1) {
+			if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
+				if (line.matches("\\s*") || startPattern.matcher(line).matches()) {
+					closeOffset = 0;
+				}
+			}
+		}
+		return closeOffset;
 	}
 
 	private static class ListState {

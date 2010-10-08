@@ -61,7 +61,13 @@ public abstract class AbstractConfluenceDelimitedBlock extends ParameterizedBloc
 		++blockLineCount;
 
 		final String content = line.substring(offset, segmentEnd);
-		handleBlockContent(content);
+
+		if (terminating && content.equals("")) {
+			// Do nothing in this case, otherwise you get a spurious blank line
+			// at the end of a code listing.
+		} else {
+			handleBlockContent(content);
+		}
 
 		if (terminating) {
 			setClosed(true);

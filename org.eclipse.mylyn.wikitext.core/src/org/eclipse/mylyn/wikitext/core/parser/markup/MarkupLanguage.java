@@ -165,6 +165,8 @@ public abstract class MarkupLanguage implements Cloneable {
 						if (currentBlock == null) {
 							currentBlock = startBlock(line, lineOffset);
 							if (currentBlock == null) {
+								// fbolton - If not a block, at least process whatever is there
+								emitMarkupLine(parser, state, line, lineOffset);
 								break;
 							}
 							currentBlock.setMarkupLanguage(this);

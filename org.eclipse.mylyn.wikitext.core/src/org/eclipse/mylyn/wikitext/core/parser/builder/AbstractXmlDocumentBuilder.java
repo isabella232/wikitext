@@ -44,6 +44,10 @@ public abstract class AbstractXmlDocumentBuilder extends DocumentBuilder {
 		return writer;
 	}
 
+	public int getElementNestLevel() {
+		return writer.getElementNestLevel();
+	}
+
 	@Override
 	public void characters(String text) {
 		writer.writeCharacters(text);

@@ -4,3 +4,6 @@ target
 *.iws
 *.log
 *.orig
+.classpath
+.project
+.settings
