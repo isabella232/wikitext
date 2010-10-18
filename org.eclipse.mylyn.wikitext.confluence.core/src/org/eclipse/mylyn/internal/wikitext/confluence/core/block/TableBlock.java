@@ -11,7 +11,6 @@
  *******************************************************************************/
 package org.eclipse.mylyn.internal.wikitext.confluence.core.block;
 
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -20,278 +19,278 @@ import java.util.regex.Pattern;
 import org.eclipse.mylyn.wikitext.core.parser.Attributes;
 import org.eclipse.mylyn.wikitext.core.parser.XmlTableAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
+import org.eclipse.mylyn.wikitext.core.parser.builder.AbstractXmlDocumentBuilder;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 
 /**
- * Table block, matches blocks that start with <code>table. </code> or those
- * that start with a table row.
+ * Table block, matches blocks that start with <code>table. </code> or those that start with a table row.
  * 
  * @author David Green
  */
 public class TableBlock extends Block {
-	private final Logger log = Logger.getLogger(TableBlock.class.getName());
+    private final Logger log = Logger.getLogger(TableBlock.class.getName());
 
-	static final Pattern startPattern = Pattern.compile("(\\|(.*)?(\\|\\s*$))");
+    static final Pattern startPattern = Pattern.compile("(\\|(.*)?(\\|\\s*$))");
+    static final Pattern CONT_CELL_PATTERN = Pattern.compile("^((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
+    static final Pattern NEXT_CELL_PATTERN = Pattern.compile("\\|(\\|)?" + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
 
-	static final Pattern CONT_CELL_PATTERN = Pattern
-			.compile("^((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
-	static final Pattern NEXT_CELL_PATTERN = Pattern.compile("\\|(\\|)?"
-			+ "((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
-	// + "(\\|\\|?\\s*$)?");
-	// static final Pattern END_ROW_PATTERN = Pattern.compile("(\\|\\|?\\s*$)");
+    // + "(\\|\\|?\\s*$)?");
+    // static final Pattern END_ROW_PATTERN = Pattern.compile("(\\|\\|?\\s*$)");
 
-	private int blockLineCount = 0;
-	private Matcher matcher;
+    protected int blockLineCount = -1;
+    protected int builderLevel = -1;
+    protected int rowCount = 0;
+    protected int headerColCount = 0;
+    protected int colCount;
+    protected boolean isHeaderRow = false;
 
-	private enum State {
-		IN_TABLE, IN_CELL
-	};
+    private Matcher matcher;
 
-	private State tableState;
-	private int cols;
-	private RowContent rowContent = null;
-	private CellContent currentCell = null;
+    private enum State {
+        INACTIVE, IN_TABLE, IN_ROW, IN_CELL
+    };
 
-	private static class CellContent {
-		private List<String> lines;
-		private List<Integer> lineOffsets;
+    private State tableState;
 
-		CellContent() {
-			lines = new java.util.ArrayList<String>();
-			lineOffsets = new java.util.ArrayList<Integer>();
-		}
 
-		public List<String> getLines() {
-			return lines;
-		}
+    public TableBlock() {
+        tableState = State.INACTIVE;
+        colCount = 0;
+    }
 
-		public void setLines(List<String> lines) {
-			this.lines = lines;
-		}
+    @Override
+    public int processLineContent(String line, int offset) {
+        if (tableState == State.INACTIVE) {
+            // Put code here that executes at very start of table
+            blockLineCount = 0;
+            headerColCount = 0;
+            colCount = 0;
+            rowCount = 0;
+            builderLevel = -1;
+            super.setClosed(false);
+            log.fine("Table started.");
+            builder.beginBlock(BlockType.TABLE, new XmlTableAttributes());
+            tableState = State.IN_TABLE;
+        } else if (markupLanguage.isEmptyLine(line)) {
+            // [End of Table]
+            log.fine("End of table");
+            setClosed(true);
+            return 0;
+        }
+        ++blockLineCount;
 
-		public List<Integer> getLineOffsets() {
-			return lineOffsets;
-		}
+        if (offset == line.length()) {
+            return -1;
+        }
 
-		public void setLineOffsets(List<Integer> lineOffsets) {
-			this.lineOffsets = lineOffsets;
-		}
-	}
+        String textileLine = (offset == 0) ? line : line.substring(offset);
 
-	private static class RowContent {
-		private List<CellContent> cells;
-		private boolean headerRow = false;
+        Matcher contCellMatcher = CONT_CELL_PATTERN.matcher(textileLine);
+        contCellMatcher.find();
+        String cellText = contCellMatcher.group(1);
+        if (log.isLoggable(Level.FINE)) {
+            log.fine("Matching cellText = [" + cellText + "]");
+            log.fine("offset = " + offset);
+            log.fine("textileLine = " + textileLine);
+        }
 
-		RowContent() {
-			cells = new java.util.ArrayList<CellContent>();
-		}
+        int cellOffset = offset;
+        int lineOffset = offset + ((cellText != null) ? contCellMatcher.start(1) : 0);
+        textileLine = line.substring(lineOffset);
+        Matcher nextCellMatcher = NEXT_CELL_PATTERN.matcher(textileLine);
 
-		public List<CellContent> getCells() {
-			return cells;
-		}
+        while (nextCellMatcher.find()) {
+            if (cellText != null && !cellText.equals("")) {
+                if (tableState == State.IN_CELL) {
+                    // Emit *preceding* cell text
+                	// (no nesting blocks)
+                    markupLanguage.emitMarkupLine(getParser(), state, cellOffset, cellText, 0);
+                    cellText = null;
+                } else {
+                    // [End of Table]
+                    // If we get here, it means the line started without a pipe, |,
+                    // symbol.
+                    log.fine("End of table");
+                    setClosed(true);
+                    return 0;
+                }
+            }
+            if (tableState == State.IN_CELL) {
+                // [Close current cell]
+                log.fine("End of current cell");
+                if (isHeaderRow) {
+                    headerColCount++;
+                } else {
+                    colCount++;
+                }
+                closeToLevel(State.IN_ROW);
+            } else {
+                // [Start new row]
+                log.fine("Start new row");
+                String headerIndicator = nextCellMatcher.group(1);
+                isHeaderRow = (headerIndicator != null) && "|".equals(headerIndicator);
+                if (isHeaderRow) {
+                    headerColCount = 0;
+                    colCount = 0;
+                } else {
+                    colCount = 0;
+                }
+                builder.beginBlock(BlockType.TABLE_ROW, new Attributes());
+                tableState = State.IN_ROW;
+            }
 
-		public void setCells(List<CellContent> cells) {
-			this.cells = cells;
-		}
+            // Test for end of row
+            int currOffset = nextCellMatcher.start();
+            String restOfLine = textileLine.substring(currOffset);
+            boolean foundEndRowMarker = restOfLine.matches("\\|(\\|)?\\s*$");
+            boolean reachedColLimit = (colCount != 0) ? (colCount >= headerColCount) : false;
+            log.fine("foundEndRowMarker = " + Boolean.toString(foundEndRowMarker));
+            log.fine("reachedColLimit = " + Boolean.toString(reachedColLimit));
 
-		public boolean isHeaderRow() {
-			return headerRow;
-		}
+            cellText = nextCellMatcher.group(2);
+            if (!foundEndRowMarker && !reachedColLimit) {
+                // [Start a new cell]
+                cellText = cellText.replaceFirst("\\\\\\\\\\s*$", "");
+                cellOffset = lineOffset + nextCellMatcher.start(2);
+                log.fine("Start new cell: cellText = [" + cellText + "]" + ", cellOffset = [" + cellOffset + "]");
+                builder.beginBlock(isHeaderRow ? BlockType.TABLE_CELL_HEADER : BlockType.TABLE_CELL_NORMAL, new Attributes());
+                tableState = State.IN_CELL;
+                if (builder instanceof AbstractXmlDocumentBuilder) {
+                    builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
+                }
+            }
 
-		public void setHeaderRow(boolean headerRow) {
-			this.headerRow = headerRow;
-		}
-	}
+            if (foundEndRowMarker || reachedColLimit) {
+                // [End of row]
+                log.fine("End of row");
+                closeToLevel(State.IN_TABLE);
+                rowCount++;
+                break;
+            }
+        }
 
-	public TableBlock() {
-		tableState = State.IN_TABLE;
-		cols = 0;
-	}
+        if (cellText != null && tableState == State.IN_CELL) {
+        	if (isNestingEnabled()) {
+        	    // Multi-line cell
+                // Let the parent parser process the trailing cell
+                return cellOffset;
+        	}
+        	else {
+        	    // Simple cell (no nesting blocks)
+                markupLanguage.emitMarkupLine(getParser(), state, cellOffset, cellText, 0);
+                return -1;
+        	}
+        }
+        else {
+            // Line was completely consumed
+            return -1;
+        }
+    }
 
-	@Override
-	public int processLineContent(String line, int offset) {
-		if (blockLineCount == 0) {
-			// Put code here that executes at very start of table
-			log.fine("Table started.");
-			tableState = State.IN_TABLE;
-			rowContent = null;
-			cols = 0;
-		} else if (markupLanguage.isEmptyLine(line)) {
-			// [End of Table]
-			log.fine("End of table");
-			setClosed(true);
-			return 0;
-		}
-		++blockLineCount;
+    @Override
+    public boolean canStart(String line, int lineOffset) {
+        boolean isStart = false;
+        if ((lineOffset == 0) && (tableState == State.INACTIVE)) {
+            matcher = startPattern.matcher(line);
+            isStart = matcher.matches();
+        } else {
+            matcher = null;
+            isStart = false;
+        }
+        return isStart;
+    }
 
-		if (offset == line.length()) {
-			return -1;
-		}
+    @Override
+    public void setClosed(boolean closed) {
+        if (closed && !isClosed()) {
+            closeToLevel(State.INACTIVE);
+        }
+        blockLineCount = -1;
+        builderLevel = -1;
+        super.setClosed(closed);
+    }
 
-		String textileLine = (offset == 0) ? line : line.substring(offset);
+    @Override
+    public boolean beginNesting() {
+        return isNestingEnabled();
+    }
+    
+    public boolean isNestingEnabled() {
+        return (builder instanceof AbstractXmlDocumentBuilder) ? true : false;
+    }
 
-		Matcher contCellMatcher = CONT_CELL_PATTERN.matcher(textileLine);
-		contCellMatcher.find();
-		String cellText = contCellMatcher.group(1);
-		if (log.isLoggable(Level.FINE)) {
-			log.fine("Matching cellText = [" + cellText + "]");
-			log.fine("offset = " + offset);
-			log.fine("textileLine = " + textileLine);
-		}
-		if (cellText != null && !cellText.matches("\\s*")) {
-			if (tableState == State.IN_CELL) {
-				if (currentCell != null) {
-					// Add cell line
-					// Truncate text by removing any trailing '\\<whitespace>'
-					// (line continuation)
-					cellText = cellText.replaceFirst("\\\\\\\\\\s*$", "");
-					currentCell.getLines().add(cellText);
-					currentCell.getLineOffsets().add(new Integer(offset));
-					log.fine("Adding extra line to table cell:" + cellText);
-				} else {
-					log
-							.warning("Continued table cell - CellContent should not be null!");
-				}
-			} else {
-				// [End of Table]
-				// If we get here, it means the line started without a pipe, |,
-				// symbol.
-				log.fine("End of table");
-				setClosed(true);
-				return 0;
-			}
-		}
+    @Override
+    public int findCloseOffset(String line, int lineOffset) {
+        int closeOffset = -1;
+        if (builderLevel != -1) {
+            if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
+                if (line.matches("\\s*") || NEXT_CELL_PATTERN.matcher(line.substring(lineOffset)).find()) {
+                    closeOffset = lineOffset;
+                }
+            }
+        }
+        return closeOffset;
+    }
 
-		int lineOffset = offset
-				+ ((cellText != null) ? contCellMatcher.start(1) : 0);
-		textileLine = line.substring(lineOffset);
-		Matcher nextCellMatcher = NEXT_CELL_PATTERN.matcher(textileLine);
+    @Override
+    public Block clone() {
+        return null;
+    }
 
-		while (nextCellMatcher.find()) {
-			if (tableState == State.IN_CELL && rowContent != null) {
-				// Close current cell
-				log.fine("End of current cell");
-				rowContent.getCells().add(currentCell);
-				currentCell = null;
-				tableState = State.IN_TABLE;
-			} else if (rowContent == null) {
-				// [Start new row]
-				log.fine("Start new row");
-				String headerIndicator = nextCellMatcher.group(1);
-				rowContent = new RowContent();
-				rowContent.setHeaderRow(headerIndicator != null
-						&& "|".equals(headerIndicator));
-			}
-
-			// Test for end of row
-			// Note: The following test relies on the fact that Confluence
-			// always trims white space
-			// off the end of a table row.
-			boolean foundEndRowMarker = (nextCellMatcher.start() == (textileLine
-					.length() - 1))
-					|| (rowContent.isHeaderRow() && (nextCellMatcher.start() == (textileLine
-							.length() - 2)));
-			boolean reachedColLimit = (cols != 0) ? (rowContent.getCells()
-					.size() >= cols) : false;
-			log.fine("foundEndRowMarker = "
-					+ Boolean.toString(foundEndRowMarker));
-			log.fine("reachedColLimit = " + Boolean.toString(reachedColLimit));
-
-			cellText = nextCellMatcher.group(2);
-			if (!foundEndRowMarker && !reachedColLimit) {
-				// Start a new cell
-				cellText = cellText.replaceFirst("\\\\\\\\\\s*$", "");
-				int cellLineOffset = lineOffset + nextCellMatcher.start(2);
-				log.fine("Start new cell: cellText = [" + cellText + "]"
-						+ ", cellLineOffset = [" + cellLineOffset + "]");
-				currentCell = new CellContent();
-				currentCell.getLines().add(cellText);
-				currentCell.getLineOffsets().add(new Integer(cellLineOffset));
-				tableState = State.IN_CELL;
-			}
-
-			/*
-			 * if (foundEndRowMarker) { if (rowContent != null) { // Close
-			 * current cell log.fine("End of current cell");
-			 * rowContent.getCells().add(currentCell); currentCell = null; }
-			 * else {
-			 * log.warning("RowContent was null while closing cell at end of row"
-			 * ); } tableState = State.IN_TABLE; }
-			 */
-			if (foundEndRowMarker || reachedColLimit) {
-				// [End of row]
-				log.fine("End of row");
-				if (cols == 0) {
-					// [End of *first* row]
-					log.fine("(first row)");
-					cols = rowContent.getCells().size();
-					XmlTableAttributes tableAttributes = new XmlTableAttributes();
-					tableAttributes.setCols(Integer.toString(cols));
-					builder.beginBlock(BlockType.TABLE, tableAttributes);
-				}
-				log.fine("Row length = " + rowContent.getCells().size());
-				emitRow(rowContent);
-				rowContent = null;
-				break;
-			}
-		}
-
-		return -1;
-	}
-
-	private void emitRow(RowContent row) {
-		builder.beginBlock(BlockType.TABLE_ROW, new Attributes());
-		for (CellContent cell : row.getCells()) {
-			emitCell(cell, row.isHeaderRow());
-		}
-		builder.endBlock(); // Table row
-	}
-
-	private void emitCell(CellContent cell, boolean isHeaderCell) {
-		// Emit cell
-		builder.beginBlock(isHeaderCell ? BlockType.TABLE_CELL_HEADER
-				: BlockType.TABLE_CELL_NORMAL, new Attributes());
-
-		int lineCount = cell.getLines().size();
-		if (lineCount == 1) {
-			// Emit cell line
-			markupLanguage.emitMarkupLine(getParser(), state, cell
-					.getLineOffsets().get(0).intValue(),
-					cell.getLines().get(0), 0);
-		} else if (lineCount > 1) {
-			// Join lines into a single string
-			StringBuffer cellTextBuf = new StringBuffer("");
-			for (String line : cell.getLines()) {
-				cellTextBuf.append(line);
-				cellTextBuf.append('\n');
-			}
-			String cellText = cellTextBuf.toString();
-
-			// Process all kinds of text, including blocks
-			markupLanguage.processContent(getParser(), cellText, false);
-		}
-
-		builder.endBlock(); // Table cell
-	}
-
-	@Override
-	public boolean canStart(String line, int lineOffset) {
-		blockLineCount = 0;
-		if (lineOffset == 0) {
-			matcher = startPattern.matcher(line);
-			return matcher.matches();
-		} else {
-			matcher = null;
-			return false;
-		}
-	}
-
-	@Override
-	public void setClosed(boolean closed) {
-		if (closed && !isClosed()) {
-			builder.endBlock();
-		}
-		super.setClosed(closed);
-	}
-
+    protected boolean closeToLevel(State targetState) {
+        if (targetState == State.IN_ROW) {
+            if (tableState == State.IN_CELL) {
+                builder.endBlock(); // [Close current cell]
+                tableState = State.IN_ROW;
+                return true;
+            }
+            if (tableState == State.IN_ROW) {
+                return true;
+            }
+            return false;
+        }
+        if (targetState == State.IN_TABLE) {
+            if (tableState == State.IN_CELL) {
+                builder.endBlock(); // [Close current cell]
+                builder.endBlock(); // [Close current row]
+                tableState = State.IN_TABLE;
+                return true;
+            }
+            if (tableState == State.IN_ROW) {
+                builder.endBlock(); // [Close current row]
+                tableState = State.IN_TABLE;
+                return true;
+            }
+            if (tableState == State.IN_TABLE) {
+                return true;
+            }
+            return false;
+        }
+        if (targetState == State.INACTIVE) {
+            if (tableState == State.IN_CELL) {
+                builder.endBlock(); // [Close current cell]
+                builder.endBlock(); // [Close current row]
+                builder.endBlock(); // [Close table]
+                tableState = State.INACTIVE;
+                return true;
+            }
+            if (tableState == State.IN_ROW) {
+                builder.endBlock(); // [Close current row]
+                builder.endBlock(); // [Close table]
+                tableState = State.INACTIVE;
+                return true;
+            }
+            if (tableState == State.IN_TABLE) {
+                builder.endBlock(); // [Close table]
+                tableState = State.INACTIVE;
+                return true;
+            }
+            if (tableState == State.INACTIVE) {
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
+    
 }

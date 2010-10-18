@@ -30,6 +30,11 @@ public class ListBlock extends Block {
 
 	static final Pattern startPattern = Pattern.compile("((?:(?:\\*)|(?:#)|(?:-))+)\\s(.*+)"); //$NON-NLS-1$
 
+	//static final Pattern TABLE_ROW_PATTERN = Pattern.compile(
+    //        "^((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)"
+	//        + "(\\|(?:\\|)?)"
+	//        + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
+
 	private int blockLineCount = 0;
 
 	protected int builderLevel = -1;
@@ -48,6 +53,24 @@ public class ListBlock extends Block {
 			setClosed(true);
 			return 0;
 		}
+
+        Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
+        contCellMatcher.find();
+        int tableCellOffset = contCellMatcher.end(1);
+        boolean foundTableRow = (tableCellOffset < line.length());
+		if (foundTableRow) {
+		    if (tableCellOffset == offset) {
+	            // A beginning or continuing table also terminates the list.
+	            setClosed(true);
+	            return offset;
+		    }
+		    else {
+		        // Don't terminate just yet,
+		        // First process the text preceding the table cell.
+		        line = line.substring(0, tableCellOffset);
+		    }
+		}
+		
 		if (blockLineCount == 0) {
 			listState = new Stack<ListState>();
 			Attributes attributes = new Attributes();
@@ -99,7 +122,14 @@ public class ListBlock extends Block {
 
 		markupLanguage.emitMarkupLine(getParser(), state, line, offset);
 
-		return -1;
+		if (foundTableRow) {
+		    setClosed(true);
+		    return tableCellOffset;
+		}
+		else {
+		    // The line was completely consumed
+	        return -1;
+		}
 	}
 
 	private void adjustLevel(String listSpec, int level, BlockType type) {
@@ -185,6 +215,13 @@ public class ListBlock extends Block {
 			if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
 				if (line.matches("\\s*") || startPattern.matcher(line).matches()) {
 					closeOffset = 0;
+				}
+				else {
+	                Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
+	                contCellMatcher.find();
+	                if (contCellMatcher.end(1) < line.length()) {
+	                    closeOffset = lineOffset;
+	                }
 				}
 			}
 		}

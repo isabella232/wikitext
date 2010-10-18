@@ -248,7 +248,14 @@ public abstract class MarkupLanguage implements Cloneable {
 		}
 		for (Block block : getBlocks()) {
 			if (block.canStart(line, lineOffset)) {
-				return block.clone();
+			    Block clone = block.clone();
+			    if (clone == null) {
+			        // Special case for TableBlock:
+			        // Must not be cloned because 'canStart' needs
+			        // to be aware of the table state.
+			        return block;
+			    }
+				return clone;
 			}
 		}
 		return null;
