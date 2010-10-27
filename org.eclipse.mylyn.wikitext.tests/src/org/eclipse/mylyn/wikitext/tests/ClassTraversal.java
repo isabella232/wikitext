@@ -20,7 +20,6 @@ import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.eclipse.mylyn.internal.wikitext.core.WikiTextPlugin;
 import org.osgi.framework.Bundle;
 
 /**
@@ -64,7 +63,7 @@ public class ClassTraversal {
 					host = bundle35Matcher.group(1);
 				}
 				long bundleId = Long.parseLong(host);
-				Bundle bundle = WikiTextPlugin.getDefault().getBundle().getBundleContext().getBundle(bundleId);
+				Bundle bundle = null; // WikiTextPlugin.getDefault().getBundle().getBundleContext().getBundle(bundleId);
 				if (bundle == null) {
 					throw new IllegalStateException("Cannot get bundle " + bundleId);
 				}
