@@ -30,8 +30,8 @@ import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 public class TableBlock extends Block {
     private final Logger log = Logger.getLogger(TableBlock.class.getName());
 
-    static final Pattern startPattern = Pattern.compile("(\\|(.*)?(\\|\\s*$))");
-    static final Pattern CONT_CELL_PATTERN = Pattern.compile("^((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
+    static final Pattern startPattern = Pattern.compile("(?:\\s*)(\\|(.*)?(\\|\\s*$))");
+    static final Pattern CONT_CELL_PATTERN = Pattern.compile("^(?:\\s*)((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
     static final Pattern NEXT_CELL_PATTERN = Pattern.compile("\\|(\\|)?" + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
 
     // + "(\\|\\|?\\s*$)?");
@@ -69,9 +69,14 @@ public class TableBlock extends Block {
             builderLevel = -1;
             super.setClosed(false);
             log.fine("Table started.");
-            builder.beginBlock(BlockType.TABLE, new XmlTableAttributes());
+            Attributes attr = new Attributes();
+            attr.setCssClass("table-wrap");
+            builder.beginBlock(BlockType.DIV, attr);
+            XmlTableAttributes attributes = new XmlTableAttributes();
+            attributes.setCssClass("confluenceTable");
+            builder.beginBlock(BlockType.TABLE, attributes);
             tableState = State.IN_TABLE;
-        } else if (markupLanguage.isEmptyLine(line)) {
+        } else if (markupLanguage.isEmptyLine(line) || !startPattern.matcher(line).matches()) {
             // [End of Table]
             log.fine("End of table");
             setClosed(true);
@@ -153,7 +158,9 @@ public class TableBlock extends Block {
                 cellText = cellText.replaceFirst("\\\\\\\\\\s*$", "");
                 cellOffset = lineOffset + nextCellMatcher.start(2);
                 log.fine("Start new cell: cellText = [" + cellText + "]" + ", cellOffset = [" + cellOffset + "]");
-                builder.beginBlock(isHeaderRow ? BlockType.TABLE_CELL_HEADER : BlockType.TABLE_CELL_NORMAL, new Attributes());
+                Attributes attr = new Attributes();
+                attr.setCssClass(isHeaderRow ? "confluenceTh" : "confluenceTd");
+                builder.beginBlock(isHeaderRow ? BlockType.TABLE_CELL_HEADER : BlockType.TABLE_CELL_NORMAL, attr);
                 tableState = State.IN_CELL;
                 if (builder instanceof AbstractXmlDocumentBuilder) {
                     builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
@@ -212,7 +219,7 @@ public class TableBlock extends Block {
 
     @Override
     public boolean beginNesting() {
-        return isNestingEnabled();
+        return false;
     }
     
     public boolean isNestingEnabled() {
@@ -224,8 +231,8 @@ public class TableBlock extends Block {
         int closeOffset = -1;
         if (builderLevel != -1) {
             if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
-                if (line.matches("\\s*") || NEXT_CELL_PATTERN.matcher(line.substring(lineOffset)).find()) {
-                    closeOffset = lineOffset;
+                if (!startPattern.matcher(line.substring(lineOffset)).find()) {
+                    closeOffset = 0;
                 }
             }
         }
@@ -271,17 +278,20 @@ public class TableBlock extends Block {
                 builder.endBlock(); // [Close current cell]
                 builder.endBlock(); // [Close current row]
                 builder.endBlock(); // [Close table]
+                builder.endBlock(); // [Close div wrapper]
                 tableState = State.INACTIVE;
                 return true;
             }
             if (tableState == State.IN_ROW) {
                 builder.endBlock(); // [Close current row]
                 builder.endBlock(); // [Close table]
+                builder.endBlock(); // [Close div wrapper]
                 tableState = State.INACTIVE;
                 return true;
             }
             if (tableState == State.IN_TABLE) {
                 builder.endBlock(); // [Close table]
+                builder.endBlock(); // [Close div wrapper]
                 tableState = State.INACTIVE;
                 return true;
             }

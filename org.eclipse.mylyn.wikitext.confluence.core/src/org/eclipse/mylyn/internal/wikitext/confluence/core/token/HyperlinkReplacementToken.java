@@ -24,12 +24,12 @@ public class HyperlinkReplacementToken extends PatternBasedElement {
 
 	@Override
 	protected String getPattern(int groupOffset) {
-		return "\\[([^\\]]+)\\]"; //$NON-NLS-1$
+        return "(^|[^\\{\\\\])\\{link:([^\\}]+)\\}"; //$NON-NLS-1$
 	}
 
 	@Override
 	protected int getPatternGroupCount() {
-		return 1;
+		return 2;
 	}
 
 	@Override
@@ -40,8 +40,11 @@ public class HyperlinkReplacementToken extends PatternBasedElement {
 	private static class HyperlinkReplacementTokenProcessor extends PatternBasedElementProcessor {
 		@Override
 		public void emit() {
-			String linkComposite = group(1);
-			String[] parts = linkComposite.split("\\s*\\|\\s*"); //$NON-NLS-1$
+            getBuilder().characters(group(1));
+    	    String linkComposite = group(2);
+			String[] parts = linkComposite.split("\\s*\\|\\s*(?=([^\\!]*\\![^\\!]*\\!)*[^\\!]*$)"); //$NON-NLS-1$
+                // split on '\s*\|\s*' but make sure the | is not included inside a !..! block
+                // see http://stackoverflow.com/questions/1757065/java-splitting-a-comma-separated-string-but-ignoring-commas-in-quotes/1757107#1757107
 			String text = parts.length > 1 ? parts[0] : null;
 			if (text != null) {
 				text = text.trim();

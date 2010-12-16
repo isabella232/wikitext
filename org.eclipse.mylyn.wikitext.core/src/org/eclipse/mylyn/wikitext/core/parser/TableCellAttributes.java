@@ -28,6 +28,8 @@ public class TableCellAttributes extends Attributes {
 
 	private String colspan;
 
+    private String width;
+
 	public String getBgcolor() {
 		return bgcolor;
 	}
@@ -68,4 +70,11 @@ public class TableCellAttributes extends Attributes {
 		this.colspan = colspan;
 	}
 
+    public String getWidth() {
+        return width;
+    }
+
+    public void setWidth(String width) {
+        this.width = width;
+    }
 }

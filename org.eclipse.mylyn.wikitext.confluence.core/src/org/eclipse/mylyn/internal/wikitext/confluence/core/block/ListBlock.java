@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.mylyn.internal.wikitext.confluence.core.block;
 
+import java.util.ArrayList;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,11 +31,6 @@ public class ListBlock extends Block {
 
 	static final Pattern startPattern = Pattern.compile("((?:(?:\\*)|(?:#)|(?:-))+)\\s(.*+)"); //$NON-NLS-1$
 
-	//static final Pattern TABLE_ROW_PATTERN = Pattern.compile(
-    //        "^((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)"
-	//        + "(\\|(?:\\|)?)"
-	//        + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
-
 	private int blockLineCount = 0;
 
 	protected int builderLevel = -1;
@@ -42,6 +38,8 @@ public class ListBlock extends Block {
 	private Matcher matcher;
 
 	private Stack<ListState> listState;
+
+    private boolean nesting = false;
 
 	public ListBlock() {
 	}
@@ -53,24 +51,12 @@ public class ListBlock extends Block {
 			setClosed(true);
 			return 0;
 		}
+        if (!startPattern.matcher(line).matches()) {
+            nesting = true;
+            return 0;
+        }
+        nesting = false;
 
-        Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
-        contCellMatcher.find();
-        int tableCellOffset = contCellMatcher.end(1);
-        boolean foundTableRow = (tableCellOffset < line.length());
-		if (foundTableRow) {
-		    if (tableCellOffset == offset) {
-	            // A beginning or continuing table also terminates the list.
-	            setClosed(true);
-	            return offset;
-		    }
-		    else {
-		        // Don't terminate just yet,
-		        // First process the text preceding the table cell.
-		        line = line.substring(0, tableCellOffset);
-		    }
-		}
-		
 		if (blockLineCount == 0) {
 			listState = new Stack<ListState>();
 			Attributes attributes = new Attributes();
@@ -122,14 +108,7 @@ public class ListBlock extends Block {
 
 		markupLanguage.emitMarkupLine(getParser(), state, line, offset);
 
-		if (foundTableRow) {
-		    setClosed(true);
-		    return tableCellOffset;
-		}
-		else {
-		    // The line was completely consumed
-	        return -1;
-		}
+        return -1;
 	}
 
 	private void adjustLevel(String listSpec, int level, BlockType type) {
@@ -170,18 +149,21 @@ public class ListBlock extends Block {
 		return listSpec.charAt(listSpec.length() - 1) == '#' ? BlockType.NUMERIC_LIST : BlockType.BULLETED_LIST;
 	}
 
-	@Override
+    @Override
+    public Block clone() {
+        return null;
+    }
+
+    @Override
 	public boolean canStart(String line, int lineOffset) {
-		blockLineCount = 0;
-		builderLevel = -1;
-		listState = null;
 		if (lineOffset == 0) {
 			matcher = startPattern.matcher(line);
-			return matcher.matches();
-		} else {
-			matcher = null;
-			return false;
+			if (matcher.matches()) {
+				setClosed(false);
+				return true;
+			}
 		}
+        return false;
 	}
 
 	@Override
@@ -191,6 +173,8 @@ public class ListBlock extends Block {
 				closeOne();
 			}
 			listState = null;
+            blockLineCount = 0;
+            builderLevel = -1;
 		}
 		super.setClosed(closed);
 	}
@@ -205,7 +189,7 @@ public class ListBlock extends Block {
 
 	@Override
 	public boolean beginNesting() {
-		return (builder instanceof AbstractXmlDocumentBuilder) ? true : false;
+		return nesting;
 	}
 
 	@Override
@@ -213,15 +197,8 @@ public class ListBlock extends Block {
 		int closeOffset = -1;
 		if (builderLevel != -1) {
 			if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
-				if (line.matches("\\s*") || startPattern.matcher(line).matches()) {
+				if (line.matches("\\s*")) {
 					closeOffset = 0;
-				}
-				else {
-	                Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
-	                contCellMatcher.find();
-	                if (contCellMatcher.end(1) < line.length()) {
-	                    closeOffset = lineOffset;
-	                }
 				}
 			}
 		}

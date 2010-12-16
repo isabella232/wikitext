@@ -117,6 +117,7 @@ public abstract class MarkupLanguage implements Cloneable {
 		ContentState state = createState();
 		state.setMarkupContent(markupContent);
 		LocationTrackingReader reader = new LocationTrackingReader(new StringReader(markupContent));
+        String line = null;
 
 		DocumentBuilder builder = parser.getBuilder();
 
@@ -127,7 +128,6 @@ public abstract class MarkupLanguage implements Cloneable {
 			}
 			Stack<Block> nestedBlocks = null;
 			Stack<LineState> lineStates = null;
-			String line;
 			Block currentBlock = null;
 			try {
 				line = reader.readLine();
@@ -227,6 +227,8 @@ public abstract class MarkupLanguage implements Cloneable {
 			if (asDocument) {
 				builder.endDocument();
 			}
+        } catch (Exception e) {
+            throw new RuntimeException("Parsing error at line " + reader.getLineNumber() + "\n\t" + line, e);
 		} finally {
 			builder.setLocator(null);
 		}

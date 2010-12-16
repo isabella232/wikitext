@@ -33,9 +33,11 @@ import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.SimpleWrappedP
 import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.StrangePhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.AnchorReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.EscapedCharacterReplacementToken;
+import org.eclipse.mylyn.internal.wikitext.confluence.core.token.HyperlinkReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.UnknownMacroReplacementToken;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.SpanType;
+import org.eclipse.mylyn.wikitext.core.parser.MarkupParser;
 import org.eclipse.mylyn.wikitext.core.parser.markup.AbstractMarkupLanguage;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 import org.eclipse.mylyn.wikitext.core.parser.markup.token.EntityReferenceReplacementToken;
@@ -113,7 +115,7 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 	@Override
 	protected void addStandardPhraseModifiers(PatternBasedSyntax phraseModifierSyntax) {
 		phraseModifierSyntax.beginGroup("(?:(?<=[\\s\\.,\\\"'?!;:\\)\\(\\[\\]])|^)(?:", 0); //$NON-NLS-1$
-		phraseModifierSyntax.add(new HyperlinkPhraseModifier());
+//		phraseModifierSyntax.add(new HyperlinkPhraseModifier());
 		phraseModifierSyntax.add(new StrangePhraseModifier("*", SpanType.STRONG, true)); //$NON-NLS-1$
 		phraseModifierSyntax.add(new StrangePhraseModifier("_", SpanType.EMPHASIS, true));
 		phraseModifierSyntax.add(new StrangePhraseModifier("??", SpanType.CITATION, true)); //$NON-NLS-1$
@@ -126,10 +128,16 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 		phraseModifierSyntax.add(new ImagePhraseModifier());
 		//phraseModifierSyntax.endGroup(")(?=\\W|$)", 0); // Lookahead expression causes problems!
 		phraseModifierSyntax.endGroup(")", 0); //$NON-NLS-1$
+        phraseModifierSyntax.beginGroup("(?:", 0); //$NON-NLS-1$
+		phraseModifierSyntax.add(new HyperlinkPhraseModifier());
+        phraseModifierSyntax.endGroup(")", 0); //$NON-NLS-1$
 	}
 
 	@Override
 	protected void addStandardTokens(PatternBasedSyntax tokenSyntax) {
+//        tokenSyntax.add(new ImpliedHyperlinkReplacementToken());
+        tokenSyntax.add(new HyperlinkReplacementToken());
+        tokenSyntax.add(new AnchorReplacementToken());
 		tokenSyntax.add(new PatternLineBreakReplacementToken("(\\\\\\\\)")); // line break //$NON-NLS-1$
 		tokenSyntax.add(new EscapedCharacterReplacementToken()); // ORDER DEPENDENCY must come after line break
 		tokenSyntax.add(new EntityReferenceReplacementToken("(tm)", "#8482")); //$NON-NLS-1$ //$NON-NLS-2$
@@ -141,9 +149,7 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 		tokenSyntax.add(new PatternEntityReferenceReplacementToken("(?:(?<=\\w\\s)(---)(?=\\s\\w))", "#8212")); // emdash //$NON-NLS-1$ //$NON-NLS-2$
 		tokenSyntax.add(new PatternEntityReferenceReplacementToken("(?:(?<=\\w\\s)(--)(?=\\s\\w))", "#8211")); // endash //$NON-NLS-1$ //$NON-NLS-2$
 		tokenSyntax.add(new PatternLiteralReplacementToken("(----)", "<hr/>")); // horizontal rule //$NON-NLS-1$ //$NON-NLS-2$
-		tokenSyntax.add(new ImpliedHyperlinkReplacementToken());
-		tokenSyntax.add(new AnchorReplacementToken());
-		
+
 		// Ordering - this replacement token must come last.
 		tokenSyntax.add(new UnknownMacroReplacementToken());
 	}
@@ -152,5 +158,13 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 	protected Block createParagraphBlock() {
 		return new ParagraphBlock();
 	}
+
+
+    public static void main(String[] args) {
+        MarkupParser parser = new MarkupParser();
+        parser.setMarkupLanguage(new ConfluenceLanguage());
+        String out = parser.parseToHtml("[Foo|foo]/[Bar|bar]");
+        System.err.println(out);
+    }
 
 }

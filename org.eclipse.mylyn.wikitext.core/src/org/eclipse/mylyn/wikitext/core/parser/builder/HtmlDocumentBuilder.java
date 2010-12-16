@@ -849,6 +849,9 @@ public class HtmlDocumentBuilder extends AbstractXmlDocumentBuilder {
 			if (tableCellAttributes.getColspan() != null) {
 				writer.writeAttribute("colspan", tableCellAttributes.getColspan()); //$NON-NLS-1$
 			}
+            if (tableCellAttributes.getWidth() != null) {
+                writer.writeAttribute("width", tableCellAttributes.getWidth()); //$NON-NLS-1$
+            }
 		}
 	}
 

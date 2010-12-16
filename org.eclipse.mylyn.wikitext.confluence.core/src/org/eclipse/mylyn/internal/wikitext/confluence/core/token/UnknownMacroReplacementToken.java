@@ -21,8 +21,8 @@ import org.eclipse.mylyn.wikitext.core.parser.markup.PatternBasedElementProcesso
  */
 public class UnknownMacroReplacementToken extends PatternBasedElement {
 
-	protected static final int MACRO_NAME_GROUP = 1;
-	protected static final int ATTRIBUTES_GROUP = 2;
+	protected static final int MACRO_NAME_GROUP = 2;
+	protected static final int ATTRIBUTES_GROUP = 3;
 	protected static final String UNKNOWN_MACRO_PREFIX = "wiki-unknown-";
 
 	@Override
@@ -31,12 +31,12 @@ public class UnknownMacroReplacementToken extends PatternBasedElement {
 		// E.g. \{macro} is not a match.
 		// Assume that a macro identifier consists of: alphanumeric, -, _
 		// which is represented by the regex, [\w\-]+
-		return "(?:^|[^\\{\\\\])\\{([\\w\\-]+)(?::([^\\}]*))?\\}"; //$NON-NLS-1$
+		return "(^|[^\\{\\\\])\\{([\\w\\-]+)(?::([^\\}]*))?\\}"; //$NON-NLS-1$
 	}
 
 	@Override
 	protected int getPatternGroupCount() {
-		return 2;
+		return 3;
 	}
 
 	@Override
@@ -47,9 +47,9 @@ public class UnknownMacroReplacementToken extends PatternBasedElement {
 	private static class UnknownMacroPhraseModifierProcessor extends PatternBasedElementProcessor {
 		@Override
 		public void emit() {
+            getBuilder().characters(group(1));
 			String macroName = group(MACRO_NAME_GROUP);
 			String attributes = group(ATTRIBUTES_GROUP);
-
 			builder.annotation(UNKNOWN_MACRO_PREFIX + macroName, attributes);
 		}
 	}

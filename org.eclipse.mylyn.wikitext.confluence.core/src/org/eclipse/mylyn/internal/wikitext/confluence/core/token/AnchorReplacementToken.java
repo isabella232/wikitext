@@ -24,12 +24,12 @@ public class AnchorReplacementToken extends PatternBasedElement {
 
 	@Override
 	protected String getPattern(int groupOffset) {
-		return "\\{anchor:([^\\}]+)\\}"; //$NON-NLS-1$
+		return "(^|[^\\{\\\\])\\{anchor:([^\\}]+)\\}"; //$NON-NLS-1$
 	}
 
 	@Override
 	protected int getPatternGroupCount() {
-		return 1;
+		return 2;
 	}
 
 	@Override
@@ -40,7 +40,8 @@ public class AnchorReplacementToken extends PatternBasedElement {
 	private static class AnchorReplacementTokenProcessor extends PatternBasedElementProcessor {
 		@Override
 		public void emit() {
-			String name = group(1);
+            getBuilder().characters(group(1));
+			String name = group(2);
 			name = state.getIdGenerator().getGenerationStrategy().generateId(name);
 			Attributes attributes = new Attributes();
 			attributes.setId(name);
