@@ -72,6 +72,12 @@
           <include>META-INF/**</include>
         </includes>
       </resource>
+      <resource>
+        <directory>${basedir}/src</directory>
+        <includes>
+          <include>**/*.properties</include>
+        </includes>
+      </resource>
     </resources>
 
     <plugins>
