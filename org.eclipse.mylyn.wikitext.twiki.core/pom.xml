@@ -10,7 +10,7 @@
 
   <artifactId>twiki-core</artifactId>
   <name>WikiText :: Twiki :: Core</name>
-  <packaging>jar</packaging>
+  <packaging>bundle</packaging>
 
   <dependencies>
     <dependency>

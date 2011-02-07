@@ -10,13 +10,14 @@
 
   <artifactId>wikitext-core</artifactId>
   <name>WikiText :: Core</name>
-  <packaging>jar</packaging>
+  <packaging>bundle</packaging>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.ant</groupId>
       <artifactId>ant</artifactId>
       <version>1.8.1</version>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

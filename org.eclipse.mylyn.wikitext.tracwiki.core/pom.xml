@@ -10,7 +10,7 @@
 
   <artifactId>tracwiki-core</artifactId>
   <name>WikiText :: TracWiki :: Core</name>
-  <packaging>jar</packaging>
+  <packaging>bundle</packaging>
 
   <dependencies>
     <dependency>

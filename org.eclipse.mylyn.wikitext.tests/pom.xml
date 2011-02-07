@@ -10,7 +10,7 @@
 
   <artifactId>tests</artifactId>
   <name>WikiText :: Tests </name>
-  <packaging>jar</packaging>
+  <packaging>bundle</packaging>
 
   <dependencies>
     
@@ -43,6 +43,12 @@
       <groupId>org.fusesource.wikitext</groupId>
       <artifactId>twiki-core</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.ant</groupId>
+      <artifactId>ant</artifactId>
+      <version>1.8.1</version>
+      <optional>true</optional>
     </dependency>
     
     <dependency>
