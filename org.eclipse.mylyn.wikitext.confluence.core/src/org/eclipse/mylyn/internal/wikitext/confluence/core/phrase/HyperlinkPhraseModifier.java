@@ -1,10 +1,7 @@
 package org.eclipse.mylyn.internal.wikitext.confluence.core.phrase;
 
-import java.util.Arrays;
-
-import org.eclipse.mylyn.wikitext.core.parser.Attributes;
-import org.eclipse.mylyn.wikitext.core.parser.LinkAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.SpanType;
+import org.eclipse.mylyn.wikitext.core.parser.LinkAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.markup.PatternBasedElementProcessor;
 
 public class HyperlinkPhraseModifier extends SimpleWrappedPhraseModifier {
@@ -52,6 +49,9 @@ public class HyperlinkPhraseModifier extends SimpleWrappedPhraseModifier {
                 throw new IllegalStateException("Unable to parse link: [" + linkComposite + "]");
             }
             if (href.charAt(0) == '#') {
+                if (text == href) {
+                    text = text.substring(1);
+                }
                 href = "#" + state.getIdGenerator().getGenerationStrategy().generateId(href.substring(1));
 			}
 
