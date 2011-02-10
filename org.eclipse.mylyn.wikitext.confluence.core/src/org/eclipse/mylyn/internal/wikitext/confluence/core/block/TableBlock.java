@@ -30,7 +30,7 @@ import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 public class TableBlock extends Block {
     private final Logger log = Logger.getLogger(TableBlock.class.getName());
 
-    static final Pattern startPattern = Pattern.compile("(?:\\s*)(\\|(.*)?(\\|\\s*$))");
+    static final Pattern START_PATTERN = Pattern.compile("(?:\\s*)(\\|(.*)?(\\|\\s*$))");
     static final Pattern CONT_CELL_PATTERN = Pattern.compile("^(?:\\s*)((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
     static final Pattern NEXT_CELL_PATTERN = Pattern.compile("\\|(\\|)?" + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
 
@@ -76,7 +76,7 @@ public class TableBlock extends Block {
             attributes.setCssClass("confluenceTable");
             builder.beginBlock(BlockType.TABLE, attributes);
             tableState = State.IN_TABLE;
-        } else if (markupLanguage.isEmptyLine(line) || !startPattern.matcher(line).matches()) {
+        } else if (markupLanguage.isEmptyLine(line) || !START_PATTERN.matcher(line).matches()) {
             // [End of Table]
             log.fine("End of table");
             setClosed(true);
@@ -148,7 +148,7 @@ public class TableBlock extends Block {
             int currOffset = nextCellMatcher.start();
             String restOfLine = textileLine.substring(currOffset);
             boolean foundEndRowMarker = restOfLine.matches("\\|(\\|)?\\s*$");
-            boolean reachedColLimit = (colCount != 0) ? (colCount >= headerColCount) : false;
+            boolean reachedColLimit = (colCount != 0 && headerColCount > 0) ? (colCount >= headerColCount) : false;
             log.fine("foundEndRowMarker = " + Boolean.toString(foundEndRowMarker));
             log.fine("reachedColLimit = " + Boolean.toString(reachedColLimit));
 
@@ -198,7 +198,7 @@ public class TableBlock extends Block {
     public boolean canStart(String line, int lineOffset) {
         boolean isStart = false;
         if ((lineOffset == 0) && (tableState == State.INACTIVE)) {
-            matcher = startPattern.matcher(line);
+            matcher = START_PATTERN.matcher(line);
             isStart = matcher.matches();
         } else {
             matcher = null;
@@ -231,7 +231,7 @@ public class TableBlock extends Block {
         int closeOffset = -1;
         if (builderLevel != -1) {
             if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
-                if (!startPattern.matcher(line.substring(lineOffset)).find()) {
+                if (!START_PATTERN.matcher(line.substring(lineOffset)).find()) {
                     closeOffset = 0;
                 }
             }
@@ -302,5 +302,5 @@ public class TableBlock extends Block {
         }
         return false;
     }
-    
+
 }
