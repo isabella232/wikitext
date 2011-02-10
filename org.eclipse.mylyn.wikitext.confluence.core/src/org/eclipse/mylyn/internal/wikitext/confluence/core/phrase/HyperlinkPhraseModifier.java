@@ -14,7 +14,7 @@ public class HyperlinkPhraseModifier extends SimpleWrappedPhraseModifier {
 
     @Override
     protected String getPattern(int groupOffset) {
-        return "\\[([^\\[]+)\\]";
+        return "(?<!\\\\)\\[([^\\[]*[^\\[\\\\])\\]";
     }
 
     @Override
