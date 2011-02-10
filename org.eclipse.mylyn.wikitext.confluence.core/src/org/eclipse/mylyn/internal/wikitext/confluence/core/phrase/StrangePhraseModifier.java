@@ -21,9 +21,9 @@ public class StrangePhraseModifier extends SimpleWrappedPhraseModifier {
 		String quotedStartDelimiter = quoteLite(startDelimiter);
 		String quotedDelimiter = quoteLite(endDelimiter);
 
-		return "(?:\\{" + quotedStartDelimiter + "\\}|" + quotedStartDelimiter + ")"
+		return "(?<=^|\\W)(?:\\{" + quotedStartDelimiter + "\\}|" + quotedStartDelimiter + ")"
 		    + "(\\S+?|\\S.*?\\S)"
-		    + "(?:\\{" + quotedDelimiter + "\\}|" + quotedDelimiter + ")" ;
+		    + "(?:\\{" + quotedDelimiter + "\\}|" + quotedDelimiter + ")(?=$|\\W)" ;
 	}
 
 }
