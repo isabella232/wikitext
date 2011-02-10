@@ -1,6 +1,14 @@
 WikiText Library
 ================
 
+[WikiText 1.3](http://wikitext.fusesource.org/maven/1.3/), released 2011-02-10
+----
+
+* confluence fix: when using simple anchors, make sure the pound sign is not included in the final text
+* confluence fix: fix tables with no headers row
+* confluence fix: fix phrase modifiers to be correctly delimited by non-words characters
+* confluence fix: make sure hyperlinks can be escaped
+
 [WikiText 1.2](http://wikitext.fusesource.org/maven/1.2/), released 2011-02-07
 ----
 
