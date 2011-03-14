@@ -94,11 +94,6 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
-			/*
-			if (builder instanceof AbstractXmlDocumentBuilder) {
-				builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
-			}
-			*/
 		} else if ((matcher = startPattern.matcher(line)).matches()) {
 			String listSpec = matcher.group(1);
 			int level = calculateLevel(listSpec);
@@ -114,18 +109,7 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
-			/*
-			if (builder instanceof AbstractXmlDocumentBuilder) {
-				builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
-			}
-			*/
 		}
-		/*
-		else {
-	        markupLanguage.emitMarkupLine(getParser(), state, line, offset);
-	        return -1;
-		}
-		*/
 		++blockLineCount;
 
 		if (isNestingEnabled()) {
@@ -137,17 +121,6 @@ public class ListBlock extends Block {
             markupLanguage.emitMarkupLine(getParser(), state, line, offset);
             return -1;
 		}
-
-		/*
-		if (foundTableRow) {
-		    setClosed(true);
-		    return tableCellOffset;
-		}
-		else {
-		    // The line was completely consumed
-	        return -1;
-		}
-		*/
 	}
 
 	private void adjustLevel(String listSpec, int level, BlockType type) {
