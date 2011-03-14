@@ -25,23 +25,20 @@ import org.eclipse.mylyn.internal.wikitext.confluence.core.block.TableBlock;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.block.TableOfContentsBlock;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.block.TextBoxBlock;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.ConfluenceWrappedPhraseModifier;
-import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.EmphasisPhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.HyperlinkPhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.ImagePhraseModifier;
-import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.SimplePhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.SimpleWrappedPhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.phrase.StrangePhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.AnchorReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.EscapedCharacterReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.HyperlinkReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.token.UnknownMacroReplacementToken;
+import org.eclipse.mylyn.wikitext.core.parser.MarkupParser;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.SpanType;
-import org.eclipse.mylyn.wikitext.core.parser.MarkupParser;
 import org.eclipse.mylyn.wikitext.core.parser.markup.AbstractMarkupLanguage;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 import org.eclipse.mylyn.wikitext.core.parser.markup.token.EntityReferenceReplacementToken;
-import org.eclipse.mylyn.wikitext.core.parser.markup.token.ImpliedHyperlinkReplacementToken;
 import org.eclipse.mylyn.wikitext.core.parser.markup.token.PatternEntityReferenceReplacementToken;
 import org.eclipse.mylyn.wikitext.core.parser.markup.token.PatternLineBreakReplacementToken;
 import org.eclipse.mylyn.wikitext.core.parser.markup.token.PatternLiteralReplacementToken;
@@ -58,7 +55,7 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 	 * 
 	 * @see ExtendedQuoteBlock
 	 */
-	private final List<Block> nestedBlocks = new ArrayList<Block>();
+	private final List<Block> nestingBlocks = new ArrayList<Block>();
 
 	public ConfluenceLanguage() {
 		setName("Confluence"); //$NON-NLS-1$
@@ -67,11 +64,11 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 	@Override
 	protected void clearLanguageSyntax() {
 		super.clearLanguageSyntax();
-		nestedBlocks.clear();
+		nestingBlocks.clear();
 	}
 
-	public List<Block> getNestedBlocks() {
-		return nestedBlocks;
+	public List<Block> getNestingBlocks() {
+		return nestingBlocks;
 	}
 
 	@Override
@@ -81,16 +78,16 @@ public class ConfluenceLanguage extends AbstractMarkupLanguage {
 		HeadingBlock headingBlock = new HeadingBlock();
 		blocks.add(headingBlock);
 		paragraphBreakingBlocks.add(headingBlock);
-		nestedBlocks.add(headingBlock);
+		nestingBlocks.add(headingBlock);
 		ListBlock listBlock = new ListBlock();
 		blocks.add(listBlock);
 		paragraphBreakingBlocks.add(listBlock);
-		nestedBlocks.add(listBlock);
+		nestingBlocks.add(listBlock);
 		blocks.add(new QuoteBlock());
 		TableBlock tableBlock = new TableBlock();
 		blocks.add(tableBlock);
 		paragraphBreakingBlocks.add(tableBlock);
-		nestedBlocks.add(tableBlock);
+		nestingBlocks.add(tableBlock);
 		ExtendedQuoteBlock quoteBlock = new ExtendedQuoteBlock();
 		blocks.add(quoteBlock);
 		paragraphBreakingBlocks.add(quoteBlock);

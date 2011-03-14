@@ -71,6 +71,22 @@ public class ParagraphBlock extends Block {
 			setClosed(true);
 			return end;
 		}
+		
+        Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
+        if (offset > 0) {
+            contCellMatcher.region(offset, line.length());
+        }
+		contCellMatcher.find();
+		int tableCellOffset = contCellMatcher.end(1);
+		boolean foundTableRow = (tableCellOffset < line.length());
+        if (foundTableRow) {
+            if (tableCellOffset > offset) {
+                markupLanguage.emitMarkupLine(getParser(), state, offset, line.substring(offset, tableCellOffset), 0);
+            }
+            setClosed(true);
+            return tableCellOffset;
+        }
+        
 		if (blockLineCount > 1) {
 			builder.lineBreak();
 		}
@@ -82,7 +98,9 @@ public class ParagraphBlock extends Block {
 	@Override
 	public boolean canStart(String line, int lineOffset) {
 		blockLineCount = 0;
-		return true;
+		// Never start a para on a table cell boundary
+		boolean atCellBoundary = line.substring(lineOffset).startsWith("|");
+		return !atCellBoundary;
 	}
 
 	@Override

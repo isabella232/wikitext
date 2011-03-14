@@ -45,6 +45,10 @@ public class CodeBlock extends AbstractConfluenceDelimitedBlock {
 		// block always being enclosed in a 'literallayout' element. Why is this useful?
 		//builder.beginBlock(BlockType.PREFORMATTED, preAttributes);
 		builder.beginBlock(BlockType.CODE, attributes);
+		
+		// Set a flag that signals to nesting-capable blocks (e.g. TableBlock)
+		// that they must not try to parse inside this literal layout block.
+		getMarkupLanguage().setCurrentBlockHasLiteralLayout(true);
 	}
 
 	@Override
@@ -55,6 +59,8 @@ public class CodeBlock extends AbstractConfluenceDelimitedBlock {
 
 	@Override
 	protected void endBlock() {
+        getMarkupLanguage().setCurrentBlockHasLiteralLayout(false);
+        
 		if (title != null) {
 			builder.endBlock(); // panel	
 		}

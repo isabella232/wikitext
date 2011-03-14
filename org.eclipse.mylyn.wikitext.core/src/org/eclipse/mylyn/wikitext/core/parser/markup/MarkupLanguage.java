@@ -65,6 +65,10 @@ public abstract class MarkupLanguage implements Cloneable {
 	protected MarkupLanguageConfiguration configuration;
 
 	private boolean enableMacros = true;
+	
+    protected boolean currentBlockHasLiteralLayout = false;
+    protected String blockWantsControl = null;
+	protected Stack<Block> nestedBlocks;
 
 	@Override
 	public MarkupLanguage clone() {
@@ -126,7 +130,7 @@ public abstract class MarkupLanguage implements Cloneable {
 			if (asDocument) {
 				builder.beginDocument();
 			}
-			Stack<Block> nestedBlocks = null;
+			nestedBlocks = null;
 			Stack<LineState> lineStates = null;
 			Block currentBlock = null;
 			try {
@@ -141,27 +145,32 @@ public abstract class MarkupLanguage implements Cloneable {
 					state.setLineLength(line.length());
 
 					for (;;) {
-						if (nestedBlocks != null && !nestedBlocks.isEmpty()) {
-							Block nestedParent = nestedBlocks.peek();
-							int closeOffset = nestedParent.findCloseOffset(line, lineOffset);
-							if (closeOffset != -1) {
-								if (closeOffset > lineOffset) {
-									String truncatedLine = line.substring(0, closeOffset);
-									if (lineStates == null) {
-										lineStates = new Stack<LineState>();
-									}
-									lineStates.push(new LineState(line, closeOffset));
-									line = truncatedLine;
-								} else {
-									if (currentBlock != null) {
-										currentBlock.setClosed(true);
-										currentBlock = null;
-									}
-									currentBlock = nestedBlocks.pop();
-									lineOffset = closeOffset;
-								}
-							}
-						}
+                        boolean tryMoreNestedBlocks = true;
+                        while (tryMoreNestedBlocks) {
+                            tryMoreNestedBlocks = false;
+                            if (nestedBlocks != null && !nestedBlocks.isEmpty()) {
+                                Block nestedParent = nestedBlocks.peek();
+                                int closeOffset = nestedParent.findCloseOffset(line, lineOffset);
+                                if (closeOffset != -1) {
+                                    if (closeOffset > lineOffset) {
+                                        String truncatedLine = line.substring(0, closeOffset);
+                                        if (lineStates == null) {
+                                            lineStates = new Stack<LineState>();
+                                        }
+                                        lineStates.push(new LineState(line, closeOffset));
+                                        line = truncatedLine;
+                                    } else {
+                                        if (currentBlock != null) {
+                                            currentBlock.setClosed(true);
+                                            currentBlock = null;
+                                        }
+                                        currentBlock = nestedBlocks.pop();
+                                        lineOffset = closeOffset;
+                                        tryMoreNestedBlocks = true;
+                                    }
+                                }
+                            }
+                        }
 						if (currentBlock == null) {
 							currentBlock = startBlock(line, lineOffset);
 							if (currentBlock == null) {
@@ -689,4 +698,24 @@ public abstract class MarkupLanguage implements Cloneable {
 	public void setEnableMacros(boolean enableMacros) {
 		this.enableMacros = enableMacros;
 	}
+
+    public Stack<Block> getNestedBlocks() {
+        return nestedBlocks;
+    }
+    public boolean currentBlockHasLiteralLayout() {
+        return currentBlockHasLiteralLayout;
+    }
+
+    public void setCurrentBlockHasLiteralLayout(boolean currentBlockHasLiteralLayout) {
+        this.currentBlockHasLiteralLayout = currentBlockHasLiteralLayout;
+    }
+
+    public String blockWantsControl() {
+        return blockWantsControl;
+    }
+
+    public void setBlockWantsControl(String blockWantsControl) {
+        this.blockWantsControl = blockWantsControl;
+    }
+
 }

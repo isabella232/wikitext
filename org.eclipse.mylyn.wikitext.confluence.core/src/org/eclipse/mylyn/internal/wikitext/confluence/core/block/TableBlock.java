@@ -30,8 +30,8 @@ import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 public class TableBlock extends Block {
     private final Logger log = Logger.getLogger(TableBlock.class.getName());
 
-    static final Pattern START_PATTERN = Pattern.compile("(?:\\s*)(\\|(.*)?(\\|\\s*$))");
-    static final Pattern CONT_CELL_PATTERN = Pattern.compile("^(?:\\s*)((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
+    static final Pattern START_PATTERN = Pattern.compile("(\\|(.*)?(\\|\\s*$))");
+    static final Pattern CONT_CELL_PATTERN = Pattern.compile("^((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
     static final Pattern NEXT_CELL_PATTERN = Pattern.compile("\\|(\\|)?" + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
 
     // + "(\\|\\|?\\s*$)?");
@@ -43,6 +43,7 @@ public class TableBlock extends Block {
     protected int headerColCount = 0;
     protected int colCount;
     protected boolean isHeaderRow = false;
+    protected boolean nesting = false;
 
     private Matcher matcher;
 
@@ -60,6 +61,10 @@ public class TableBlock extends Block {
 
     @Override
     public int processLineContent(String line, int offset) {
+        nesting = false;
+        cancelWantControlFlag();
+        this.getMarkupLanguage();
+        
         if (tableState == State.INACTIVE) {
             // Put code here that executes at very start of table
             blockLineCount = 0;
@@ -76,7 +81,7 @@ public class TableBlock extends Block {
             attributes.setCssClass("confluenceTable");
             builder.beginBlock(BlockType.TABLE, attributes);
             tableState = State.IN_TABLE;
-        } else if (markupLanguage.isEmptyLine(line) || !START_PATTERN.matcher(line).matches()) {
+        } else if (markupLanguage.isEmptyLine(line)) {
             // [End of Table]
             log.fine("End of table");
             setClosed(true);
@@ -179,7 +184,8 @@ public class TableBlock extends Block {
         if (cellText != null && tableState == State.IN_CELL) {
         	if (isNestingEnabled()) {
         	    // Multi-line cell
-                // Let the parent parser process the trailing cell
+                // Enable nested processing of the line remainder
+        	    nesting = true;
                 return cellOffset;
         	}
         	else {
@@ -214,29 +220,47 @@ public class TableBlock extends Block {
         }
         blockLineCount = -1;
         builderLevel = -1;
+        nesting = false;
         super.setClosed(closed);
     }
 
     @Override
     public boolean beginNesting() {
-        return false;
+        return nesting;
     }
     
     public boolean isNestingEnabled() {
-        return (builder instanceof AbstractXmlDocumentBuilder) ? true : false;
+        if (getMarkupLanguage().blockWantsControl() != null
+                && !getMarkupLanguage().blockWantsControl().equals("table")) {
+            // Disable nesting, if another block type is trying to regain control
+            return false;
+        }
+        else {
+            return true;
+        }
     }
 
     @Override
     public int findCloseOffset(String line, int lineOffset) {
         int closeOffset = -1;
-        if (builderLevel != -1) {
-            if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
-                if (!START_PATTERN.matcher(line.substring(lineOffset)).find()) {
-                    closeOffset = 0;
-                }
+        AbstractXmlDocumentBuilder absXmlBuilder = (AbstractXmlDocumentBuilder) builder;
+        if (!getMarkupLanguage().currentBlockHasLiteralLayout()) {
+            Matcher nextCellMatcher = NEXT_CELL_PATTERN.matcher(line.substring(lineOffset));
+            if (line.matches("\\s*") || nextCellMatcher.find()) {
+                closeOffset = nextCellMatcher.start() + lineOffset;
+                // Notify other nested blocks that table wants to
+                // assume control of parsing again
+                getMarkupLanguage().setBlockWantsControl("table");
             }
         }
         return closeOffset;
+    }
+    
+    protected void cancelWantControlFlag() {
+        if (getMarkupLanguage().blockWantsControl() != null
+                && getMarkupLanguage().blockWantsControl().equals("table")) {
+            getMarkupLanguage().setBlockWantsControl(null);
+        }
     }
 
     @Override

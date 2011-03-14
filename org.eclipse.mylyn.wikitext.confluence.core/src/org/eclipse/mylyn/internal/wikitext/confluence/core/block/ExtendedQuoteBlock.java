@@ -65,7 +65,7 @@ public class ExtendedQuoteBlock extends AbstractConfluenceDelimitedBlock {
 	protected void handleBlockContent(String content) {
 		if (nestedBlock == null) {
 			ConfluenceLanguage markupLanguage = (ConfluenceLanguage) getMarkupLanguage();
-			for (Block block : markupLanguage.getNestedBlocks()) {
+			for (Block block : markupLanguage.getNestingBlocks()) {
 				if (block.canStart(content, 0)) {
 					nestedBlock = block.clone();
 					nestedBlock.setParser(getParser());

@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.eclipse.mylyn.internal.wikitext.confluence.core.block;
 
-import java.util.ArrayList;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,29 +33,42 @@ public class ListBlock extends Block {
 	private int blockLineCount = 0;
 
 	protected int builderLevel = -1;
+	
+	protected boolean nesting = false;
 
 	private Matcher matcher;
 
 	private Stack<ListState> listState;
-
-    private boolean nesting = false;
 
 	public ListBlock() {
 	}
 
 	@Override
 	public int processLineContent(String line, int offset) {
+	    nesting = false;
+	    cancelWantControlFlag();
+	    
 		if (line.matches("\\s*")) {
 			// A blank line terminates the list.
 			setClosed(true);
 			return 0;
 		}
-        if (!startPattern.matcher(line).matches()) {
-            nesting = true;
-            return 0;
-        }
-        nesting = false;
+		
+		boolean isListInsideTable = checkIsListInsideTable();
 
+        Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
+        contCellMatcher.find();
+        int tableCellOffset = contCellMatcher.end(1);
+        boolean foundTableRow = (tableCellOffset < line.length());
+		if (foundTableRow && isListInsideTable) {
+            // Suppress creation of a table inside a list inside a table
+		    if (tableCellOffset == offset) {
+	            // Close list, enabling parent table to take control
+	            setClosed(true);
+	            return offset;
+		    }
+		}
+		
 		if (blockLineCount == 0) {
 			listState = new Stack<ListState>();
 			Attributes attributes = new Attributes();
@@ -82,9 +94,11 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
+			/*
 			if (builder instanceof AbstractXmlDocumentBuilder) {
 				builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
 			}
+			*/
 		} else if ((matcher = startPattern.matcher(line)).matches()) {
 			String listSpec = matcher.group(1);
 			int level = calculateLevel(listSpec);
@@ -100,15 +114,40 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
+			/*
 			if (builder instanceof AbstractXmlDocumentBuilder) {
 				builderLevel = ((AbstractXmlDocumentBuilder) builder).getElementNestLevel();
 			}
+			*/
 		}
+		/*
+		else {
+	        markupLanguage.emitMarkupLine(getParser(), state, line, offset);
+	        return -1;
+		}
+		*/
 		++blockLineCount;
 
-		markupLanguage.emitMarkupLine(getParser(), state, line, offset);
+		if (isNestingEnabled()) {
+	        // Enable nested processing of the line remainder
+	        nesting = true;
+	        return offset;
+		}
+		else {
+            markupLanguage.emitMarkupLine(getParser(), state, line, offset);
+            return -1;
+		}
 
-        return -1;
+		/*
+		if (foundTableRow) {
+		    setClosed(true);
+		    return tableCellOffset;
+		}
+		else {
+		    // The line was completely consumed
+	        return -1;
+		}
+		*/
 	}
 
 	private void adjustLevel(String listSpec, int level, BlockType type) {
@@ -149,21 +188,18 @@ public class ListBlock extends Block {
 		return listSpec.charAt(listSpec.length() - 1) == '#' ? BlockType.NUMERIC_LIST : BlockType.BULLETED_LIST;
 	}
 
-    @Override
-    public Block clone() {
-        return null;
-    }
-
-    @Override
+	@Override
 	public boolean canStart(String line, int lineOffset) {
+		blockLineCount = 0;
+		builderLevel = -1;
+		listState = null;
 		if (lineOffset == 0) {
 			matcher = startPattern.matcher(line);
-			if (matcher.matches()) {
-				setClosed(false);
-				return true;
-			}
+			return matcher.matches();
+		} else {
+			matcher = null;
+			return false;
 		}
-        return false;
 	}
 
 	@Override
@@ -173,8 +209,9 @@ public class ListBlock extends Block {
 				closeOne();
 			}
 			listState = null;
-            blockLineCount = 0;
-            builderLevel = -1;
+			blockLineCount =0;
+			builderLevel = -1;
+			nesting = false;
 		}
 		super.setClosed(closed);
 	}
@@ -189,22 +226,71 @@ public class ListBlock extends Block {
 
 	@Override
 	public boolean beginNesting() {
-		return nesting;
+		return nesting && ((builder instanceof AbstractXmlDocumentBuilder) ? true : false);
 	}
+
+    public boolean isNestingEnabled() {
+        if (getMarkupLanguage().blockWantsControl() != null
+                && !getMarkupLanguage().blockWantsControl().equals("list")) {
+            // Disable nesting, if another block type is trying to regain control
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+    
+    protected boolean checkIsListInsideTable() {
+        Stack<Block> nestedBlocks = getMarkupLanguage().getNestedBlocks();
+        if (nestedBlocks != null && !nestedBlocks.isEmpty()) {
+            if (nestedBlocks.peek() instanceof TableBlock) {
+                // This list is nested inside a table
+                return true;
+            }
+            else if (nestedBlocks.size() >= 2) {
+                // Peek up to a depth of 2
+                // i.e. check whether the current nesting has the form
+                // Table > List > [CurrentBlock]
+                if (nestedBlocks.elementAt(nestedBlocks.size()-2) instanceof TableBlock) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
 	@Override
 	public int findCloseOffset(String line, int lineOffset) {
 		int closeOffset = -1;
-		if (builderLevel != -1) {
-			if ((builderLevel >= ((AbstractXmlDocumentBuilder) builder).getElementNestLevel())) {
-				if (line.matches("\\s*")) {
-					closeOffset = 0;
-				}
-			}
-		}
+        AbstractXmlDocumentBuilder absXmlBuilder = (AbstractXmlDocumentBuilder) builder;
+        if (!getMarkupLanguage().currentBlockHasLiteralLayout()) {
+            if (line.matches("\\s*") || startPattern.matcher(line.substring(lineOffset)).matches()) {
+                closeOffset = lineOffset;
+                // Notify other nested blocks that list wants to
+                // assume control of parsing
+                getMarkupLanguage().setBlockWantsControl("list");
+            }
+            else if (checkIsListInsideTable()){
+                // In order to give an enclosing table a chance at retaking control,
+                // we must also make sure that the list pops off the stack of nested blocks
+                // whenever it sees a table cell coming
+                Matcher contCellMatcher = TableBlock.CONT_CELL_PATTERN.matcher(line);
+                contCellMatcher.find();
+                if (contCellMatcher.end(1) < line.length()) {
+                    closeOffset = lineOffset;
+                }
+            }
+        }
 		return closeOffset;
 	}
 
+    protected void cancelWantControlFlag() {
+        if (getMarkupLanguage().blockWantsControl() != null
+                && getMarkupLanguage().blockWantsControl().equals("list")) {
+            getMarkupLanguage().setBlockWantsControl(null);
+        }
+    }
+	
 	private static class ListState {
 		int level;
 

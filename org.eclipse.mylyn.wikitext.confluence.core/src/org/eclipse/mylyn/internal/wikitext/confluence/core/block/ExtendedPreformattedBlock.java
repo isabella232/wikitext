@@ -29,10 +29,16 @@ public class ExtendedPreformattedBlock extends AbstractConfluenceDelimitedBlock 
 	protected void beginBlock() {
 		Attributes attributes = new Attributes();
 		builder.beginBlock(BlockType.PREFORMATTED, attributes);
+        
+        // Set a flag that signals to nesting-capable blocks (e.g. TableBlock)
+        // that they must not try to parse inside this literal layout block.
+        getMarkupLanguage().setCurrentBlockHasLiteralLayout(true);
 	}
 
 	@Override
 	protected void endBlock() {
+        getMarkupLanguage().setCurrentBlockHasLiteralLayout(false);
+        
 		builder.endBlock(); // pre
 	}
 
