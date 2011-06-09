@@ -1,6 +1,13 @@
 WikiText Library
 ================
 
+[WikiText 1.4](http://wikitext.fusesource.org/maven/1.4/) released 2011-06-09
+----
+
+* fixed tables to allow nested formatting (e.g. lists inside table cells)
+* enabled nesting tables inside list items
+* fixed ant tasks, so that they now build properly
+
 [WikiText 1.3](http://wikitext.fusesource.org/maven/1.3/), released 2011-02-10
 ----
 
