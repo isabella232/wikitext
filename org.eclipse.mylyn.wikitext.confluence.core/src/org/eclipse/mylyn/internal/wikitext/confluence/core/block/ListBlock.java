@@ -94,7 +94,7 @@ public class ListBlock extends Block {
 			}
 			listState.openItem = true;
 			builder.beginBlock(BlockType.LIST_ITEM, new Attributes());
-		} else if ((matcher = startPattern.matcher(line)).matches()) {
+		} else if (offset==0 && (matcher = startPattern.matcher(line)).matches()) {
 			String listSpec = matcher.group(1);
 			int level = calculateLevel(listSpec);
 			BlockType type = calculateType(listSpec);
@@ -237,7 +237,8 @@ public class ListBlock extends Block {
 		int closeOffset = -1;
         AbstractXmlDocumentBuilder absXmlBuilder = (AbstractXmlDocumentBuilder) builder;
         if (!getMarkupLanguage().currentBlockHasLiteralLayout()) {
-            if (line.matches("\\s*") || startPattern.matcher(line.substring(lineOffset)).matches()) {
+            if (line.matches("\\s*") ||
+                    (lineOffset==0 && startPattern.matcher(line).matches()) ) {
                 closeOffset = lineOffset;
                 // Notify other nested blocks that list wants to
                 // assume control of parsing
