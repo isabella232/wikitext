@@ -209,7 +209,8 @@ public class ListBlock extends Block {
             return false;
         }
         else {
-            return true;
+            // Enable nesting, if the current builder object supports it
+            return beginNesting();
         }
     }
     

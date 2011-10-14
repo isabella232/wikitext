@@ -21,8 +21,10 @@ import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder;
  */
 public abstract class Block extends Processor implements Cloneable {
 	private boolean closed;
+	protected boolean outlineParsing;
 
 	public Block() {
+	    outlineParsing = false;
 	}
 
 	/**
@@ -128,4 +130,12 @@ public abstract class Block extends Processor implements Cloneable {
 		return (Block) super.clone();
 	}
 
+    public boolean isOutlineParsing() {
+        return outlineParsing;
+    }
+
+    public void setOutlineParsing(boolean outlineParsing) {
+        this.outlineParsing = outlineParsing;
+    }
+	
 }
