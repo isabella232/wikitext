@@ -17,8 +17,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.mylyn.wikitext.core.parser.Attributes;
-import org.eclipse.mylyn.wikitext.core.parser.XmlTableAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
+import org.eclipse.mylyn.wikitext.core.parser.XmlTableAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.builder.AbstractXmlDocumentBuilder;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 
@@ -203,6 +203,11 @@ public class TableBlock extends Block {
     @Override
     public boolean canStart(String line, int lineOffset) {
         boolean isStart = false;
+        if (this.isOutlineParsing()) {
+            // Do not even start processing the table,
+            // if we are doing an outline parse (i.e. generating a TOC)
+            return false;
+        }
         if ((lineOffset == 0) && (tableState == State.INACTIVE)) {
             matcher = START_PATTERN.matcher(line);
             isStart = matcher.matches();
@@ -226,7 +231,7 @@ public class TableBlock extends Block {
 
     @Override
     public boolean beginNesting() {
-        return nesting;
+        return nesting && ((builder instanceof AbstractXmlDocumentBuilder) ? true : false);
     }
     
     public boolean isNestingEnabled() {
@@ -236,7 +241,8 @@ public class TableBlock extends Block {
             return false;
         }
         else {
-            return true;
+            // Enable nesting, if the current builder object supports it
+            return beginNesting();
         }
     }
 
