@@ -105,7 +105,7 @@ public class TableBlock extends Block {
         }
 
         int cellOffset = offset;
-        int lineOffset = offset + ((cellText != null) ? contCellMatcher.start(1) : 0);
+        int lineOffset = offset + ((cellText != null) ? contCellMatcher.end(1) : 0);
         textileLine = line.substring(lineOffset);
         Matcher nextCellMatcher = NEXT_CELL_PATTERN.matcher(textileLine);
 
@@ -251,9 +251,12 @@ public class TableBlock extends Block {
         int closeOffset = -1;
         AbstractXmlDocumentBuilder absXmlBuilder = (AbstractXmlDocumentBuilder) builder;
         if (!getMarkupLanguage().currentBlockHasLiteralLayout()) {
-            Matcher nextCellMatcher = NEXT_CELL_PATTERN.matcher(line.substring(lineOffset));
+            Matcher contCellMatcher = CONT_CELL_PATTERN.matcher(line.substring(lineOffset));
+            boolean contCellFound = contCellMatcher.find();
+            int nextOffset = lineOffset + (contCellFound ? contCellMatcher.end(1) : 0);
+            Matcher nextCellMatcher = NEXT_CELL_PATTERN.matcher(line.substring(nextOffset));
             if (line.matches("\\s*") || nextCellMatcher.find()) {
-                closeOffset = nextCellMatcher.start() + lineOffset;
+                closeOffset = nextCellMatcher.start() + nextOffset;
                 // Notify other nested blocks that table wants to
                 // assume control of parsing again
                 getMarkupLanguage().setBlockWantsControl("table");
