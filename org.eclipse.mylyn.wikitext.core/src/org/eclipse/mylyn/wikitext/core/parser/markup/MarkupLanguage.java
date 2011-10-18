@@ -258,10 +258,6 @@ public abstract class MarkupLanguage implements Cloneable {
 			return null;
 		}
 		for (Block block : getBlocks()) {
-		    // Give the block a hint that it is being called in the context
-		    // of an outline parse (i.e. for generating a TOC)
-		    block.setOutlineParsing(isFilterGenerativeContents());
-		    
 			if (block.canStart(line, lineOffset)) {
 			    Block clone = block.clone();
 			    if (clone == null) {
