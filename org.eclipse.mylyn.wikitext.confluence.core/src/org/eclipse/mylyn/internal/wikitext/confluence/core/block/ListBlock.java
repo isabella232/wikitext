@@ -209,8 +209,8 @@ public class ListBlock extends Block {
             return false;
         }
         else {
-            // Enable nesting, if the current builder object supports it
-            return beginNesting();
+            // Enable nesting, but not if this is outline parsing (i.e. for {toc})
+            return !getMarkupLanguage().isFilterGenerativeContents();
         }
     }
     
