@@ -31,8 +31,15 @@ public class TableBlock extends Block {
     private final Logger log = Logger.getLogger(TableBlock.class.getName());
 
     static final Pattern START_PATTERN = Pattern.compile("(\\|(.*)?(\\|\\s*$))");
-    static final Pattern CONT_CELL_PATTERN = Pattern.compile("^((?:(?:[^\\|\\[]*)(?:\\[[^\\]]*\\])?)*)");
-    static final Pattern NEXT_CELL_PATTERN = Pattern.compile("\\|(\\|)?" + "((?:(?:[^\\|\\[\\]]*)(?:\\[[^\\]]*\\])?)*)");
+    static final String EAT_CELL_TEXT = 
+        "(?:[^\\|\\[\\]\\\\]*)"        // Match very ordinary text (no | [ ] \ chars)
+        + "(?:(?:\\\\\\\\)*\\\\.)?"    // Optionally match an escaped char (e.g. \| )
+        + "(?:\\[[^\\]]*\\])?";        // Optionally match a Wiki link [Foo|Bar]
+    static final Pattern CONT_CELL_PATTERN = Pattern.compile(
+            "^((?:" + EAT_CELL_TEXT + ")*)"
+            );
+    static final Pattern NEXT_CELL_PATTERN = Pattern.compile(
+            "\\|(\\|)?" + "((?:" + EAT_CELL_TEXT + ")*)");
 
     // + "(\\|\\|?\\s*$)?");
     // static final Pattern END_ROW_PATTERN = Pattern.compile("(\\|\\|?\\s*$)");
