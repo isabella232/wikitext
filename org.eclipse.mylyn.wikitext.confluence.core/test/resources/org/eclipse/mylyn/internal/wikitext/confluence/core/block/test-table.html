@@ -1,0 +1,189 @@
+<?xml version='1.0' encoding='utf-8' ?><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><ol style="list-style: none;"><li><a href="#TestWikitextTableFeatures">Test Wikitext Table Features</a></li>
+</ol>
+<h1 id="TestWikitextTableFeatures">Test Wikitext Table Features</h1><p>And forgetting to leave a blank line before a table:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> First Heading </th>
+<th class="confluenceTh"> Second Heading </th>
+</tr>
+<tr><td class="confluenceTd"> Fooness </td>
+<td class="confluenceTd"> Barness </td>
+</tr>
+</table>
+</div>
+<p>A single column table:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> One Column </th>
+</tr>
+<tr><td class="confluenceTd"><p>A bulleted list:</p>
+<ul><li><p>First item.</p>
+</li>
+<li>Second item. </li>
+</ul>
+</td>
+</tr>
+<tr><td class="confluenceTd"><pre>
+// Java - Some code here
+...
+</pre>
+</td>
+</tr>
+</table>
+</div>
+<p>A bullet list with links:</p>
+<ul><li><p><a href="foo">link title</a></p>
+</li>
+<li><p><a href="bar">link title</a></p>
+</li>
+</ul>
+<p>And let's try a table with some nested code:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> Code </th>
+<th class="confluenceTh"> Description </th>
+</tr>
+<tr><td class="confluenceTd"><p>Here is a code sample:</p>
+<pre>
+// Java
+    @Override
+    public boolean canStart(String line, int lineOffset) {
+        blockLineCount = 0;
+        headerColCount = 0;
+        colCount = 0;
+        rowCount = 0;
+        builderLevel = -1;
+        if (lineOffset == 0) {
+            matcher = startPattern.matcher(line);
+            return matcher.matches();
+        } else {
+            matcher = null;
+            return false;
+        }
+    }
+</pre>
+</td>
+<td class="confluenceTd"> This could be a description of the code. </td>
+</tr>
+<tr><td class="confluenceTd"><p>How about putting the code for a table inside a table:</p>
+<pre>
+|| First Heading || Second Heading ||
+| Fooness | Barness |
+</pre>
+</td>
+<td class="confluenceTd"> And there is some flexibility about where we put the cell division pipe symbols. </td>
+</tr>
+</table>
+</div>
+<p>Here is a simple table:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> First Heading </th>
+<th class="confluenceTh"> Second Heading </th>
+</tr>
+<tr><td class="confluenceTd"> Fooness </td>
+<td class="confluenceTd"> Barness </td>
+</tr>
+</table>
+</div>
+<p>And here is a fancy table that has nested structure inside it:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> Whacky Content </th>
+<th class="confluenceTh"> 'Nother Heading </th>
+</tr>
+<tr><td class="confluenceTd"><p> Here is a nested bulleted list:</p>
+<ul><li><p>First item.</p>
+</li>
+<li><p>Second item. Make this item longer...</p>
+</li>
+<li>Third item.  </li>
+</ul>
+</td>
+<td class="confluenceTd"> 2nd cell </td>
+</tr>
+<tr><td class="confluenceTd"><p> Another bulleted list:</p>
+<ul><li><p>And straight...</p>
+</li>
+<li><p>into the...</p>
+</li>
+<li>bulleted list!  </li>
+</ul>
+</td>
+<td class="confluenceTd"> 2nd cell (again!) </td>
+</tr>
+<tr><td class="confluenceTd"><p> And you can do numbered lists:</p>
+<ol><li><p>First item.</p>
+</li>
+<li><p>And how about nesting again...</p>
+<ul><li><p>with a </p>
+</li>
+<li>bulleted list </li>
+</ul>
+</li>
+</ol>
+</td>
+<td class="confluenceTd"> 2nd cell (encore!) </td>
+</tr>
+</table>
+</div>
+<p>Strictly speaking, you ought to put the line continuation symbol at the end of every nested line inside a table cell, but the table block parser is often able to cope with sloppier wikitext.</p>
+<p>Try a table inside a bulleted list:</p>
+<ul><li><p>First bullet with nested table:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> First Heading </th>
+<th class="confluenceTh"> Second Heading </th>
+</tr>
+<tr><td class="confluenceTd"> Fooness </td>
+<td class="confluenceTd"> Barness </td>
+</tr>
+</table>
+</div>
+</li>
+<li><p>Second bullet with nested code:</p>
+<pre>
+// Java
+    @Override
+    public boolean canStart(String line, int lineOffset) {
+        blockLineCount = 0;
+        headerColCount = 0;
+        colCount = 0;
+        rowCount = 0;
+        builderLevel = -1;
+        if (lineOffset == 0) {
+            matcher = startPattern.matcher(line);
+            return matcher.matches();
+        } else {
+            matcher = null;
+            return false;
+        }
+    }
+</pre>
+</li>
+<li><p>Third bullet, contains a table without headings:</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><td class="confluenceTd"> 1 </td>
+<td class="confluenceTd"> 2 </td>
+<td class="confluenceTd"> 3 </td>
+</tr>
+<tr><td class="confluenceTd"> 2 </td>
+<td class="confluenceTd"> 4 </td>
+<td class="confluenceTd"> 6 </td>
+</tr>
+<tr><td class="confluenceTd"> 3 </td>
+<td class="confluenceTd"> 6 </td>
+<td class="confluenceTd"> 9 </td>
+</tr>
+</table>
+</div>
+</li>
+</ul>
+<pre>
+Test escapes: \[ and \] and \\ and \{ and \}
+Non escapes: [ and ] and \ and { and }
+</pre>
+<p>Test a literal asterisk in a list item:</p>
+<ul><li><p>* The second asterisk in this item should be rendered as a literal asterisk.</p>
+</li>
+</ul>
+<p>Test whether a table can process two links inside a single table cell (this was issue CONFDOC-36).</p>
+<div class="table-wrap"><table class="confluenceTable"><tr><th class="confluenceTh"> A </th>
+<th class="confluenceTh"> B </th>
+</tr>
+<tr><td class="confluenceTd"> <a href="AWS-SQS">AWS-SQS</a> / <a href="aws">camel-aws</a> </td>
+<td class="confluenceTd"> Sample description. </td>
+</tr>
+<tr><td class="confluenceTd"> And let's test using character escapes: </td>
+<td class="confluenceTd"> Escapes|like|this </td>
+</tr>
+</table>
+</div>
+</body></html>
