@@ -27,13 +27,13 @@ import java.util.regex.Pattern;
 
 import org.eclipse.mylyn.wikitext.core.parser.Attributes;
 import org.eclipse.mylyn.wikitext.core.parser.ImageAttributes;
-import org.eclipse.mylyn.wikitext.core.parser.ImageAttributes.Align;
 import org.eclipse.mylyn.wikitext.core.parser.LinkAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.ListAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.QuoteAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.TableAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.TableCellAttributes;
 import org.eclipse.mylyn.wikitext.core.parser.TableRowAttributes;
+import org.eclipse.mylyn.wikitext.core.parser.ImageAttributes.Align;
 import org.eclipse.mylyn.wikitext.core.util.DefaultXmlStreamWriter;
 import org.eclipse.mylyn.wikitext.core.util.FormattingXMLStreamWriter;
 import org.eclipse.mylyn.wikitext.core.util.XmlStreamWriter;
@@ -733,7 +733,6 @@ public class HtmlDocumentBuilder extends AbstractXmlDocumentBuilder {
 	@Override
 	public void endBlock() {
 		writer.writeEndElement();
-		writer.writeLiteral("\n");
 	}
 
 	@Override
